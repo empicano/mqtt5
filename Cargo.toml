@@ -1,0 +1,15 @@
+[package]
+name = "mqtt5"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "mqtt5"
+crate-type = ["cdylib"]
+
+[dependencies]
+num_enum = "0.7.3"
+
+[dependencies.pyo3]
+version = "0.24.0"
+features = ["abi3-py310"]

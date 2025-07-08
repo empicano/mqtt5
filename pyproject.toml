@@ -1,0 +1,34 @@
+[build-system]
+requires = ["maturin>=1.8,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "mqtt5"
+description = "Zero-copy sans-I/O implementation of the MQTTv5 protocol for Python written in Rust"
+requires-python = ">=3.10"
+authors = [{ name = "Felix Böhm", email = "f@bo3hm.com" }]
+classifiers = [
+    "Programming Language :: Rust",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Programming Language :: Python :: Implementation :: PyPy",
+]
+dynamic = ["version"]
+dependencies = []
+
+[tool.maturin]
+profile = "release"
+features = ["pyo3/extension-module"]
+strip = true
+
+[dependency-groups]
+dev = [
+    "matplotlib>=3.10.3",
+    "maturin>=1.8.3",
+    "mqttproto",
+    "pyperf>=2.9.0",
+    "pytest>=8.0.0",
+    "ruff>=0.12.1",
+]
+
+[tool.uv.sources]
+mqttproto = { git = "https://github.com/agronholm/mqttproto.git" }
