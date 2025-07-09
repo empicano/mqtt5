@@ -646,7 +646,7 @@ macro_rules! properties {
         #[pymethods]
         impl $name {
             #[new]
-            #[pyo3(signature = ($($field=None),*))]
+            #[pyo3(signature = (*, $($field=None),*))]
             fn new($($field: Option<$property_type>),*) -> Self {
                 Self {
                     $($field,)*
@@ -900,6 +900,7 @@ impl ConnectPacket {
     #[new]
     #[pyo3(signature = (
         client_id,
+        *,
         username=None,
         password=None,
         clean_start=false,
@@ -928,7 +929,7 @@ impl ConnectPacket {
         })
     }
 
-    #[pyo3(signature = (buffer, index=0))]
+    #[pyo3(signature = (buffer, /, *, index=0))]
     fn write(&self, py: Python, buffer: &Bound<'_, PyByteArray>, index: usize) -> PyResult<usize> {
         let remaining_length = PROTOCOL_NAME.size()
             + PROTOCOL_VERSION.size()
@@ -1076,6 +1077,7 @@ pub struct ConnAckPacket {
 impl ConnAckPacket {
     #[new]
     #[pyo3(signature = (
+        *,
         session_present=false,
         reason_code=ConnAckReasonCode::Success,
         properties=None,
@@ -1093,7 +1095,7 @@ impl ConnAckPacket {
         })
     }
 
-    #[pyo3(signature = (buffer, index=0))]
+    #[pyo3(signature = (buffer, /, *, index=0))]
     pub fn write(
         &self,
         py: Python,
@@ -1174,6 +1176,7 @@ impl PublishPacket {
     #[new]
     #[pyo3(signature = (
         topic,
+        *,
         payload=None,
         qos=QoS::AtMostOnce,
         retain=false,
@@ -1212,7 +1215,7 @@ impl PublishPacket {
         })
     }
 
-    #[pyo3(signature = (buffer, index=0))]
+    #[pyo3(signature = (buffer, /, *, index=0))]
     pub fn write(
         &self,
         py: Python,
@@ -1318,6 +1321,7 @@ impl PubAckPacket {
     #[new]
     #[pyo3(signature = (
         packet_id,
+        *,
         reason_code=PubAckReasonCode::Success,
         properties=None,
     ))]
@@ -1334,7 +1338,7 @@ impl PubAckPacket {
         })
     }
 
-    #[pyo3(signature = (buffer, index=0))]
+    #[pyo3(signature = (buffer, /, *, index=0))]
     pub fn write(
         &self,
         py: Python,
@@ -1413,6 +1417,7 @@ pub struct DisconnectPacket {
 impl DisconnectPacket {
     #[new]
     #[pyo3(signature = (
+        *,
         reason_code=DisconnectReasonCode::NormalDisconnection,
         properties=None,
     ))]
@@ -1427,7 +1432,7 @@ impl DisconnectPacket {
         })
     }
 
-    #[pyo3(signature = (buffer, index=0))]
+    #[pyo3(signature = (buffer, /, *, index=0))]
     pub fn write(
         &self,
         py: Python,
@@ -1483,7 +1488,7 @@ impl PartialEq for DisconnectPacket {
 }
 
 #[pyfunction]
-#[pyo3(signature = (buffer, index=0))]
+#[pyo3(signature = (buffer, /, *, index=0))]
 fn read(py: Python, buffer: &Bound<'_, PyByteArray>, index: usize) -> PyResult<(PyObject, usize)> {
     // Parse the fixed header
     let mut cursor = Cursor::new(buffer, index);
