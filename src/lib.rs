@@ -123,7 +123,7 @@ impl Readable for VariableByteInteger {
     }
 }
 
-// TODO: Remove, we don't deal with this type anymore
+// TODO: Remove, replaced with PyBytes
 impl Readable for Vec<u8> {
     fn read<'a>(cursor: &mut Cursor<'a>) -> PyResult<Self> {
         let length = u16::read(cursor)? as usize;
@@ -136,7 +136,7 @@ impl Readable for Vec<u8> {
     }
 }
 
-// TODO: Remove, we don't deal with this type anymore
+// TODO: Remove, replaced with PyString
 impl Readable for String {
     fn read<'a>(cursor: &mut Cursor<'a>) -> PyResult<Self> {
         let value = Vec::<u8>::read(cursor)?;

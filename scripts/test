@@ -6,4 +6,4 @@ set -o errexit -o pipefail -o nounset
 cd "$(dirname "$0")/.."
 
 # Run the tests
-uv run pytest tests -v ${@}
+uv run pytest tests -v "$@"
