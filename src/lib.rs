@@ -2,7 +2,7 @@ use core::str;
 use num_enum::TryFromPrimitive;
 use pyo3::exceptions::{PyIndexError, PyValueError};
 use pyo3::prelude::*;
-use pyo3::types::{PyByteArray, PyBytes, PyString, PyStringMethods};
+use pyo3::types::{PyByteArray, PyBytes, PyList, PySequence, PyString, PyStringMethods};
 use pyo3::PyResult;
 use std::fmt;
 
@@ -414,6 +414,24 @@ pub enum QoS {
 }
 
 impl QoS {
+    pub fn new(value: u8) -> PyResult<Self> {
+        Self::try_from(value).map_err(|e| PyValueError::new_err(e.to_string()))
+    }
+}
+
+#[pyclass(eq)]
+#[derive(Copy, Clone, PartialEq, Eq, TryFromPrimitive)]
+#[repr(u8)]
+pub enum RetainHandling {
+    #[pyo3(name = "SEND_ALWAYS")]
+    SendAlways = 0,
+    #[pyo3(name = "SEND_IF_SUBSCRIPTION_NOT_EXISTS")]
+    SendIfSubscriptionNotExists = 1,
+    #[pyo3(name = "SEND_NEVER")]
+    SendNever = 2,
+}
+
+impl RetainHandling {
     pub fn new(value: u8) -> PyResult<Self> {
         Self::try_from(value).map_err(|e| PyValueError::new_err(e.to_string()))
     }
@@ -885,6 +903,53 @@ impl PartialEq for Will {
 }
 
 #[pyclass(eq, get_all)]
+pub struct Subscription {
+    pattern: Py<PyString>,
+    maximum_qos: QoS,
+    no_local: bool,
+    retain_as_published: bool,
+    retain_handling: RetainHandling,
+}
+
+#[pymethods]
+impl Subscription {
+    #[new]
+    #[pyo3(signature = (
+        pattern,
+        *,
+        maximum_qos=QoS::ExactlyOnce,
+        no_local=false,
+        retain_as_published=true,
+        retain_handling=RetainHandling::SendAlways,
+    ))]
+    pub fn new(
+        pattern: &Bound<'_, PyString>,
+        maximum_qos: QoS,
+        no_local: bool,
+        retain_as_published: bool,
+        retain_handling: RetainHandling,
+    ) -> Self {
+        Self {
+            pattern: pattern.clone().unbind(),
+            no_local,
+            maximum_qos,
+            retain_as_published,
+            retain_handling,
+        }
+    }
+}
+
+impl PartialEq for Subscription {
+    fn eq(&self, other: &Self) -> bool {
+        self.pattern.equals(&other.pattern)
+            && self.maximum_qos == other.maximum_qos
+            && self.no_local == other.no_local
+            && self.retain_as_published == other.retain_as_published
+            && self.retain_handling == other.retain_handling
+    }
+}
+
+#[pyclass(eq, get_all)]
 pub struct ConnectPacket {
     client_id: Py<PyString>,
     username: Option<Py<PyString>>,
@@ -931,7 +996,7 @@ impl ConnectPacket {
 
     #[pyo3(signature = (buffer, /, *, index=0))]
     fn write(&self, py: Python, buffer: &Bound<'_, PyByteArray>, index: usize) -> PyResult<usize> {
-        let remaining_length = PROTOCOL_NAME.size()
+        let size = PROTOCOL_NAME.size()
             + PROTOCOL_VERSION.size()
             + 0u8.size()
             + self.keep_alive.size()
@@ -944,14 +1009,14 @@ impl ConnectPacket {
             })
             + self.username.size()
             + self.password.size();
-        let var = VariableByteInteger(remaining_length as u32);
+        let remaining_length = VariableByteInteger(size as u32);
         let mut cursor = Cursor::new(buffer, index);
-        cursor.assert(1 + var.size() + remaining_length)?;
+        cursor.assert(1 + remaining_length.size() + size)?;
 
         // [3.1.1] Fixed header
         let first_byte = (PacketType::Connect as u8) << 4;
         first_byte.write(&mut cursor);
-        var.write(&mut cursor);
+        remaining_length.write(&mut cursor);
 
         // [3.1.2] Variable header
         PROTOCOL_NAME.write(&mut cursor);
@@ -1102,15 +1167,15 @@ impl ConnAckPacket {
         buffer: &Bound<'_, PyByteArray>,
         index: usize,
     ) -> PyResult<usize> {
-        let remaining_length = 0u8.size() + self.reason_code.size() + self.properties.size();
-        let var = VariableByteInteger(remaining_length as u32);
+        let size = 0u8.size() + self.reason_code.size() + self.properties.size();
+        let remaining_length = VariableByteInteger(size as u32);
         let mut cursor = Cursor::new(buffer, index);
-        cursor.assert(1 + var.size() + remaining_length)?;
+        cursor.assert(1 + remaining_length.size() + size)?;
 
         // [3.2.1] Fixed header
         let first_byte = (PacketType::ConnAck as u8) << 4;
         first_byte.write(&mut cursor);
-        var.write(&mut cursor);
+        remaining_length.write(&mut cursor);
 
         // [3.2.2] Variable header
         let vh_flags = self.session_present as u8;
@@ -1223,13 +1288,13 @@ impl PublishPacket {
         index: usize,
     ) -> PyResult<usize> {
         let payload = self.payload.as_ref().map(|x| x.bind(py).as_bytes());
-        let remaining_length = self.topic.size()
+        let size = self.topic.size()
             + self.packet_id.size()
             + self.properties.size()
             + payload.map_or(0, |x| x.len());
-        let var = VariableByteInteger(remaining_length as u32);
+        let remaining_length = VariableByteInteger(size as u32);
         let mut cursor = Cursor::new(buffer, index);
-        cursor.assert(1 + var.size() + remaining_length)?;
+        cursor.assert(1 + remaining_length.size() + size)?;
 
         // [3.3.1] Fixed header
         let first_byte = (PacketType::Publish as u8) << 4
@@ -1237,7 +1302,7 @@ impl PublishPacket {
             | (self.qos as u8) << 1
             | self.retain as u8;
         first_byte.write(&mut cursor);
-        var.write(&mut cursor);
+        remaining_length.write(&mut cursor);
 
         // [3.3.2] Variable header
         self.topic.write(&mut cursor);
@@ -1345,16 +1410,15 @@ impl PubAckPacket {
         buffer: &Bound<'_, PyByteArray>,
         index: usize,
     ) -> PyResult<usize> {
-        let remaining_length =
-            self.packet_id.size() + self.reason_code.size() + self.properties.size();
-        let var = VariableByteInteger(remaining_length as u32);
+        let size = self.packet_id.size() + self.reason_code.size() + self.properties.size();
+        let remaining_length = VariableByteInteger(size as u32);
         let mut cursor = Cursor::new(buffer, index);
-        cursor.assert(1 + var.size() + remaining_length)?;
+        cursor.assert(1 + remaining_length.size() + size)?;
 
         // [3.4.1] Fixed header
         let first_byte = (PacketType::PubAck as u8) << 4;
         first_byte.write(&mut cursor);
-        var.write(&mut cursor);
+        remaining_length.write(&mut cursor);
 
         // [3.4.2] Variable header
         self.packet_id.write(&mut cursor);
@@ -1408,6 +1472,140 @@ impl PartialEq for PubAckPacket {
 }
 
 #[pyclass(eq, get_all)]
+pub struct SubscribePacket {
+    packet_id: u16,
+    subscriptions: Py<PyList>,
+    properties: SubscribeProperties,
+}
+
+#[pymethods]
+impl SubscribePacket {
+    #[new]
+    #[pyo3(signature = (
+        packet_id,
+        subscriptions,
+        *,
+        properties=None,
+    ))]
+    pub fn new(
+        py: Python,
+        packet_id: u16,
+        subscriptions: &Bound<'_, PyList>,
+        properties: Option<SubscribeProperties>,
+    ) -> PyResult<Self> {
+        Ok(Self {
+            packet_id,
+            subscriptions: subscriptions.clone().unbind(),
+            properties: properties.unwrap_or_default(),
+        })
+    }
+
+    #[pyo3(signature = (buffer, /, *, index=0))]
+    pub fn write(
+        &self,
+        py: Python,
+        buffer: &Bound<'_, PyByteArray>,
+        index: usize,
+    ) -> PyResult<usize> {
+        let subscriptions = self.subscriptions.bind(py);
+        let size = self.packet_id.size()
+            + self.properties.size()
+            + subscriptions
+                .try_iter()?
+                .try_fold(0, |acc, item| -> PyResult<usize> {
+                    Ok(acc + item?.extract::<PyRef<Subscription>>()?.pattern.size() + 1)
+                })?;
+        let remaining_length = VariableByteInteger(size as u32);
+        let mut cursor = Cursor::new(buffer, index);
+        cursor.assert(1 + remaining_length.size() + size)?;
+
+        // [3.8.1] Fixed header
+        let first_byte = (PacketType::Subscribe as u8) << 4 | 0x02;
+        first_byte.write(&mut cursor);
+        remaining_length.write(&mut cursor);
+
+        // [3.8.2] Variable header
+        self.packet_id.write(&mut cursor);
+        self.properties.write(&mut cursor);
+
+        // [3.8.3] Payload
+        for item in subscriptions.try_iter()? {
+            let subscription: PyRef<Subscription> = item?.extract()?;
+            subscription.pattern.write(&mut cursor);
+            let options = subscription.maximum_qos as u8
+                | (subscription.no_local as u8) << 2
+                | (subscription.retain_as_published as u8) << 3
+                | (subscription.retain_handling as u8) << 4;
+            options.write(&mut cursor);
+        }
+
+        Ok(cursor.index - index)
+    }
+}
+
+impl SubscribePacket {
+    fn read(
+        py: Python,
+        cursor: &mut Cursor,
+        flags: u8,
+        remaining_length: VariableByteInteger,
+    ) -> PyResult<Py<Self>> {
+        if flags != 0x02 {
+            return Err(PyValueError::new_err("Malformed bytes"));
+        }
+        let i0 = cursor.index;
+
+        // [3.8.2] Variable header
+        let packet_id = u16::read(cursor)?;
+        let properties = SubscribeProperties::read(cursor)?;
+
+        // [3.8.3] Payload
+        let subscriptions = PyList::empty(py);
+        while cursor.index - i0 < remaining_length.get() as usize {
+            let pattern = Py::<PyString>::read(cursor)?;
+            let options = u8::read(cursor)?;
+            let subscription = Subscription {
+                pattern,
+                maximum_qos: QoS::new(options & 0x03)?,
+                no_local: (options >> 2) & 0x01 != 0,
+                retain_as_published: (options >> 3) & 0x01 != 0,
+                retain_handling: RetainHandling::new((options >> 4) & 0x03)?,
+            };
+            subscriptions.append(subscription)?;
+        }
+
+        // Return Python object
+        let packet = Self {
+            packet_id,
+            subscriptions: subscriptions.unbind(),
+            properties,
+        };
+        Py::new(py, packet)
+    }
+}
+
+impl PartialEq for SubscribePacket {
+    fn eq(&self, other: &Self) -> bool {
+        self.packet_id == other.packet_id
+            && self.properties == other.properties
+            && Python::with_gil(|py| -> PyResult<bool> {
+                let seq1 = self.subscriptions.bind(py);
+                let seq2 = other.subscriptions.bind(py);
+                Ok(seq1.len() == seq2.len()
+                    && seq1.try_iter()?.zip(seq2.try_iter()?).try_fold(
+                        true,
+                        |acc, (a, b)| -> PyResult<bool> {
+                            let sub1: PyRef<Subscription> = a?.extract()?;
+                            let sub2: PyRef<Subscription> = b?.extract()?;
+                            Ok(acc && *sub1 == *sub2)
+                        },
+                    )?)
+            })
+            .unwrap_or(false)
+    }
+}
+
+#[pyclass(eq, get_all)]
 pub struct DisconnectPacket {
     reason_code: DisconnectReasonCode,
     properties: DisconnectProperties,
@@ -1439,15 +1637,15 @@ impl DisconnectPacket {
         buffer: &Bound<'_, PyByteArray>,
         index: usize,
     ) -> PyResult<usize> {
-        let remaining_length = self.reason_code.size() + self.properties.size();
-        let var = VariableByteInteger(remaining_length as u32);
+        let size = self.reason_code.size() + self.properties.size();
+        let remaining_length = VariableByteInteger(size as u32);
         let mut cursor = Cursor::new(buffer, index);
-        cursor.assert(1 + var.size() + remaining_length)?;
+        cursor.assert(1 + remaining_length.size() + size)?;
 
         // [3.14.1] Fixed header
         let first_byte = (PacketType::Disconnect as u8) << 4;
         first_byte.write(&mut cursor);
-        var.write(&mut cursor);
+        remaining_length.write(&mut cursor);
 
         // [3.14.2] Variable header
         self.reason_code.write(&mut cursor);
@@ -1516,7 +1714,10 @@ fn read(py: Python, buffer: &Bound<'_, PyByteArray>, index: usize) -> PyResult<(
         PacketType::PubRec => Err(PyValueError::new_err("Not implemented")),
         PacketType::PubRel => Err(PyValueError::new_err("Not implemented")),
         PacketType::PubComp => Err(PyValueError::new_err("Not implemented")),
-        PacketType::Subscribe => Err(PyValueError::new_err("Not implemented")),
+        PacketType::Subscribe => {
+            let packet = SubscribePacket::read(py, &mut cursor, flags, remaining_length)?;
+            Ok((packet.into(), cursor.index))
+        }
         PacketType::SubAck => Err(PyValueError::new_err("Not implemented")),
         PacketType::Unsubscribe => Err(PyValueError::new_err("Not implemented")),
         PacketType::UnsubAck => Err(PyValueError::new_err("Not implemented")),
@@ -1537,6 +1738,7 @@ fn mqtt5(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<ConnAckPacket>()?;
     m.add_class::<PublishPacket>()?;
     m.add_class::<PubAckPacket>()?;
+    m.add_class::<SubscribePacket>()?;
     m.add_class::<DisconnectPacket>()?;
     // Properties
     m.add_class::<ConnectProperties>()?;
@@ -1551,8 +1753,10 @@ fn mqtt5(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<DisconnectReasonCode>()?;
     // Misc
     m.add_class::<QoS>()?;
+    m.add_class::<RetainHandling>()?;
     m.add_class::<WillProperties>()?;
     m.add_class::<Will>()?;
+    m.add_class::<Subscription>()?;
     // Functions
     m.add_function(wrap_pyfunction!(read, m)?)?;
     Ok(())

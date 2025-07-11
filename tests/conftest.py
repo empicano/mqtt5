@@ -73,6 +73,20 @@ def puback_packet_mqttproto():
 
 
 @pytest.fixture(scope="session")
+def subscribe_packet():
+    return mqtt5.SubscribePacket(
+        packet_id=1234, subscriptions=[mqtt5.Subscription(pattern="foo/bar/+")]
+    )
+
+
+@pytest.fixture(scope="session")
+def subscribe_packet_mqttproto():
+    return mqttproto.MQTTSubscribePacket(
+        packet_id=1234, subscriptions=[mqttproto.Subscription(pattern="foo/bar/+")]
+    )
+
+
+@pytest.fixture(scope="session")
 def disconnect_packet():
     return mqtt5.DisconnectPacket()
 
