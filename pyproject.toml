@@ -15,11 +15,6 @@ classifiers = [
 dynamic = ["version"]
 dependencies = []
 
-[tool.maturin]
-profile = "release"
-features = ["pyo3/extension-module"]
-strip = true
-
 [dependency-groups]
 dev = [
     "matplotlib>=3.10.3",
@@ -29,6 +24,15 @@ dev = [
     "pytest>=8.0.0",
     "ruff>=0.12.1",
 ]
+
+[tool.maturin]
+profile = "release"
+features = ["pyo3/extension-module"]
+strip = true
+
+[tool.uv]
+# Rebuild the project when any of these files change
+cache-keys = [{file = "pyproject.toml"}, {file = "rust/Cargo.toml"}, {file = "src/**"}]
 
 [tool.uv.sources]
 mqttproto = { git = "https://github.com/agronholm/mqttproto.git" }
