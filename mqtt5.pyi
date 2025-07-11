@@ -7,6 +7,11 @@ class QoS(enum.IntEnum):
     AT_LEAST_ONCE = 1
     EXACTLY_ONCE = 2
 
+class RetainHandling(enum.IntEnum):
+    SEND_ALWAYS = 0
+    SEND_IF_SUBSCRIPTION_NOT_EXISTS = 1
+    SEND_NEVER = 2
+
 class ConnAckReasonCode(enum.IntEnum):
     SUCCESS = 0
     UNSPECIFIED_ERROR = 128
@@ -171,6 +176,14 @@ class Will:
     retain: bool = False
     properties: WillProperties | None = None
 
+@dataclasses.dataclass
+class Subscription:
+    pattern: str
+    maximum_qos: QoS = QoS.AT_MOST_ONCE
+    no_local: bool = False
+    retain_as_published: bool = True
+    retain_handling: RetainHandling = RetainHandling.SEND_ALWAYS
+
 class Packet(typing.Protocol):
     def write(self, buffer: bytearray, /, *, index: int = 0) -> int:
         """
@@ -263,6 +276,25 @@ class PubAckPacket:
         *,
         reason_code: PubAckReasonCode = PubAckReasonCode.SUCCESS,
         properties: PubAckProperties | None = None,
+    ) -> None: ...
+    def write(self, buffer: bytearray, /, *, index: int = 0) -> int:
+        """
+        Writes the packet to the buffer.
+
+        :return: The number of bytes written
+        """
+
+class SubscribePacket:
+    packet_id: int
+    subscriptions: list[Subscription]
+    properties: SubscribeProperties
+
+    def __init__(
+        self,
+        packet_id: int,
+        subscriptions: list[Subscription],
+        *,
+        properties: SubscribeProperties | None = None,
     ) -> None: ...
     def write(self, buffer: bytearray, /, *, index: int = 0) -> int:
         """
