@@ -38,4 +38,4 @@ strip = true
 cache-keys = [{file = "pyproject.toml"}, {file = "rust/Cargo.toml"}, {file = "src/**"}]
 
 [tool.uv.sources]
-mqttproto = { git = "https://github.com/empicano/mqttproto.git", branch = "fix-req-response" }
+mqttproto = { git = "https://github.com/empicano/mqttproto.git" }

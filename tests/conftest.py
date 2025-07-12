@@ -178,15 +178,30 @@ def connack_packet_full_mqttproto():
         },
     )
 
-
-# TODO: Add test for PublishPacket with empty payload
-def publish_packet():
+def publish_packet_qos0():
     return mqtt5.PublishPacket(topic="foo/bar/+", payload=b"\x12" * 2**8)
 
 
-# TODO: Add test for PublishPacket with empty payload
-def publish_packet_mqttproto():
+def publish_packet_qos0_mqttproto():
     return mqttproto.MQTTPublishPacket(topic="foo/bar/+", payload=b"\x12" * 2**8)
+
+
+def publish_packet_qos1():
+    return mqtt5.PublishPacket(
+        topic="foo/bar/+",
+        payload=b"\x12" * 2**8,
+        qos=mqtt5.QoS.AT_LEAST_ONCE,
+        packet_id=1234,
+    )
+
+
+def publish_packet_qos1_mqttproto():
+    return mqttproto.MQTTPublishPacket(
+        topic="foo/bar/+",
+        payload=b"\x12" * 2**8,
+        qos=mqttproto.QoS.AT_LEAST_ONCE,
+        packet_id=1234,
+    )
 
 
 def puback_packet():
