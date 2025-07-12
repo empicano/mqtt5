@@ -698,8 +698,8 @@ macro_rules! properties {
 
         impl Readable for $name {
             fn read<'a>(cursor: &mut Cursor<'a>) -> PyResult<Self> {
-                let start = cursor.index;
                 let length = VariableByteInteger::read(cursor)?.get() as usize;
+                let start = cursor.index;
                 let mut instance = Self::default();
                 while cursor.index - start < length {
                     let id = VariableByteInteger::read(cursor)?.get();
@@ -1201,7 +1201,7 @@ impl ConnAckPacket {
         // [3.2.2] Variable header
         let packet_flags = u8::read(cursor)?;
         if (packet_flags & 0xfe) != 0 {
-            return Err(PyValueError::new_err("Invalid bytes"));
+            return Err(PyValueError::new_err("Malformed bytes"));
         }
         let session_present = (packet_flags & 0x01) != 0;
         let reason_code = ConnAckReasonCode::read(cursor)?;
