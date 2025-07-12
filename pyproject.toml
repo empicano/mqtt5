@@ -8,9 +8,12 @@ description = "The MQTTv5 protocol for Python written in Rust"
 requires-python = ">=3.10"
 authors = [{ name = "Felix Böhm", email = "f@bo3hm.com" }]
 classifiers = [
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
     "Programming Language :: Rust",
-    "Programming Language :: Python :: Implementation :: CPython",
-    "Programming Language :: Python :: Implementation :: PyPy",
+    "Typing :: Typed",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
 ]
 dynamic = ["version"]
 dependencies = []
