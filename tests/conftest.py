@@ -51,6 +51,74 @@ def connect_packet_will_mqttproto():
     )
 
 
+def connect_packet_full():
+    return mqtt5.ConnectPacket(
+        client_id="Bulbasaur",
+        username="ProfOak",
+        password="RazorLeaf?456",
+        clean_start=True,
+        will=mqtt5.Will(
+            topic="foo/bar/+",
+            payload=b"\x12" * 2**8,
+            qos=mqtt5.QoS.EXACTLY_ONCE,
+            retain=True,
+            properties=mqtt5.WillProperties(
+                payload_format_indicator=1,
+                message_expiry_interval=2**24,
+                content_type="text/html",
+                response_topic="HELLO/4444/#",
+                correlation_data=b"\x12" * 2**8,
+                will_delay_interval=12,
+            ),
+        ),
+        keep_alive=6789,
+        properties=mqtt5.ConnectProperties(
+            session_expiry_interval=9999,
+            authentication_method="GS2-KRB5",
+            authentication_data=b"\x12" * 2**8,
+            request_problem_information=0,
+            request_response_information=1,
+            receive_maximum=55555,
+            topic_alias_maximum=3,
+            maximum_packet_size=5000,
+        ),
+    )
+
+
+def connect_packet_full_mqttproto():
+    return mqttproto.MQTTConnectPacket(
+        client_id="Bulbasaur",
+        username="ProfOak",
+        password="RazorLeaf?456",
+        clean_start=True,
+        will=mqttproto.Will(
+            topic="foo/bar/+",
+            payload=b"\x12" * 2**8,
+            qos=mqttproto.QoS.EXACTLY_ONCE,
+            retain=True,
+            properties={
+                mqttproto.PropertyType.PAYLOAD_FORMAT_INDICATOR: 1,
+                mqttproto.PropertyType.MESSAGE_EXPIRY_INTERVAL: 2**24,
+                mqttproto.PropertyType.CONTENT_TYPE: "text/html",
+                mqttproto.PropertyType.RESPONSE_TOPIC: "HELLO/4444/#",
+                mqttproto.PropertyType.CORRELATION_DATA: b"\x12" * 2**8,
+                mqttproto.PropertyType.WILL_DELAY_INTERVAL: 12,
+            },
+        ),
+        keep_alive=6789,
+        properties={
+            mqttproto.PropertyType.SESSION_EXPIRY_INTERVAL: 9999,
+            mqttproto.PropertyType.AUTHENTICATION_METHOD: "GS2-KRB5",
+            mqttproto.PropertyType.AUTHENTICATION_DATA: b"\x12" * 2**8,
+            mqttproto.PropertyType.REQUEST_PROBLEM_INFORMATION: 0,
+            mqttproto.PropertyType.REQUEST_RESPONSE_INFORMATION: 1,
+            mqttproto.PropertyType.RECEIVE_MAXIMUM: 55555,
+            mqttproto.PropertyType.TOPIC_ALIAS_MAXIMUM: 3,
+            mqttproto.PropertyType.MAXIMUM_PACKET_SIZE: 5000,
+        },
+    )
+
+
 def connack_packet():
     return mqtt5.ConnAckPacket()
 
@@ -68,7 +136,7 @@ def connack_packet_full():
         properties=mqtt5.ConnAckProperties(
             session_expiry_interval=9999,
             assigned_client_id="Bulbasaur",
-            server_keep_alive=2**12,
+            server_keep_alive=6789,
             authentication_method="GS2-KRB5",
             authentication_data=b"\x12" * 2**8,
             response_information="response/information",
@@ -93,7 +161,7 @@ def connack_packet_full_mqttproto():
         properties={
             mqttproto.PropertyType.SESSION_EXPIRY_INTERVAL: 9999,
             mqttproto.PropertyType.ASSIGNED_CLIENT_IDENTIFIER: "Bulbasaur",
-            mqttproto.PropertyType.SERVER_KEEP_ALIVE: 2**12,
+            mqttproto.PropertyType.SERVER_KEEP_ALIVE: 6789,
             mqttproto.PropertyType.AUTHENTICATION_METHOD: "GS2-KRB5",
             mqttproto.PropertyType.AUTHENTICATION_DATA: b"\x12" * 2**8,
             mqttproto.PropertyType.RESPONSE_INFORMATION: "response/information",
@@ -203,9 +271,9 @@ for key, value in dict(locals()).items():
         if tags[-1] == "mqttproto":
             PACKET_INITS_MQTTPROTO.append(value)
             continue
-        name = type(value()).__name__
-        for t in tags[2:]:
-            name += f",{t}"
+        name = type(value()).__name__[:-6]
+        if len(tags) > 2:
+            name += f"({'_'.join(tags[2:])})"
         PACKET_NAMES.append(name)
         PACKET_INITS.append(value)
 
