@@ -1328,10 +1328,9 @@ impl PublishPacket {
         remaining_length: VariableByteInteger,
     ) -> PyResult<Py<Self>> {
         let i0 = cursor.index;
-
-        let retain = (flags & 0x01) == 1;
-        let qos = QoS::new(flags & 0x06)?;
-        let duplicate = (flags & 0x08) == 1;
+        let retain = (flags & 0x01) != 0;
+        let qos = QoS::new((flags >> 1) & 0x03)?;
+        let duplicate = (flags & 0x08) != 0;
 
         // [3.3.2] Variable header
         let topic = Py::<PyString>::read(cursor)?;

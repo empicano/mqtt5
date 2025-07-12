@@ -364,7 +364,7 @@ dev = [
 dev = [
     { name = "matplotlib", specifier = ">=3.10.3" },
     { name = "maturin", specifier = ">=1.8.3" },
-    { name = "mqttproto", git = "https://github.com/empicano/mqttproto.git?branch=fix-req-response" },
+    { name = "mqttproto", git = "https://github.com/empicano/mqttproto.git" },
     { name = "pyperf", specifier = ">=2.9.0" },
     { name = "pytest", specifier = ">=8.0.0" },
     { name = "ruff", specifier = ">=0.12.1" },
@@ -373,7 +373,7 @@ dev = [
 [[package]]
 name = "mqttproto"
 version = "0.0.post33"
-source = { git = "https://github.com/empicano/mqttproto.git?branch=fix-req-response#353a9ffbaff0765ee26bc62c06c22b6f6b8587bc" }
+source = { git = "https://github.com/empicano/mqttproto.git#2c416ad1d17b4e0aa0e945fb147e57aa63acdfb9" }
 dependencies = [
     { name = "anyio" },
     { name = "attrs" },
