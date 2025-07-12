@@ -2,7 +2,7 @@ use core::str;
 use num_enum::TryFromPrimitive;
 use pyo3::exceptions::{PyIndexError, PyValueError};
 use pyo3::prelude::*;
-use pyo3::types::{PyByteArray, PyBytes, PyList, PySequence, PyString, PyStringMethods};
+use pyo3::types::{PyByteArray, PyBytes, PyList, PyString, PyStringMethods};
 use pyo3::PyResult;
 use std::fmt;
 
@@ -1021,19 +1021,19 @@ impl ConnectPacket {
         // [3.1.2] Variable header
         PROTOCOL_NAME.write(&mut cursor);
         PROTOCOL_VERSION.write(&mut cursor);
-        let mut flags = (self.clean_start as u8) << 1;
+        let mut packet_flags = (self.clean_start as u8) << 1;
         if let Some(ref will) = self.will {
-            flags |= 0x04;
-            flags |= (will.qos as u8) << 3;
-            flags |= (will.retain as u8) << 5;
+            packet_flags |= 0x04;
+            packet_flags |= (will.qos as u8) << 3;
+            packet_flags |= (will.retain as u8) << 5;
         }
         if self.password.is_some() {
-            flags |= 0x40;
+            packet_flags |= 0x40;
         }
         if self.username.is_some() {
-            flags |= 0x80;
+            packet_flags |= 0x80;
         }
-        flags.write(&mut cursor);
+        packet_flags.write(&mut cursor);
         self.keep_alive.write(&mut cursor);
         self.properties.write(&mut cursor);
 
@@ -1073,33 +1073,33 @@ impl ConnectPacket {
         if u8::read(cursor)? != PROTOCOL_VERSION {
             return Err(PyValueError::new_err("Malformed bytes"));
         }
-        let vh_flags = u8::read(cursor)?;
-        let clean_start = (vh_flags & 0x02) == 1;
+        let packet_flags = u8::read(cursor)?;
+        let clean_start = (packet_flags & 0x02) == 1;
         let keep_alive = u16::read(cursor)?;
         let properties = ConnectProperties::read(cursor)?;
 
         // [3.1.3] Payload
         let client_id = Py::<PyString>::read(cursor)?;
-        let will = if (vh_flags & 0x04) == 1 {
+        let will = if (packet_flags & 0x04) == 1 {
             let properties = WillProperties::read(cursor)?;
             let topic = Py::<PyString>::read(cursor)?;
             let payload = Py::<PyBytes>::read(cursor)?;
             Some(Will {
                 topic,
                 payload: Some(payload),
-                qos: QoS::new(vh_flags & 0x18)?,
-                retain: (vh_flags & 0x20) == 1,
+                qos: QoS::new(packet_flags & 0x18)?,
+                retain: (packet_flags & 0x20) == 1,
                 properties,
             })
         } else {
             None
         };
-        let username = if (vh_flags & 0x80) == 1 {
+        let username = if (packet_flags & 0x80) == 1 {
             Some(Py::<PyString>::read(cursor)?)
         } else {
             None
         };
-        let password = if (vh_flags & 0x40) == 1 {
+        let password = if (packet_flags & 0x40) == 1 {
             Some(Py::<PyString>::read(cursor)?)
         } else {
             None
@@ -1178,8 +1178,8 @@ impl ConnAckPacket {
         remaining_length.write(&mut cursor);
 
         // [3.2.2] Variable header
-        let vh_flags = self.session_present as u8;
-        vh_flags.write(&mut cursor);
+        let packet_flags = self.session_present as u8;
+        packet_flags.write(&mut cursor);
         self.reason_code.write(&mut cursor);
         self.properties.write(&mut cursor);
 
@@ -1199,11 +1199,11 @@ impl ConnAckPacket {
         }
 
         // [3.2.2] Variable header
-        let vh_flags = u8::read(cursor)?;
-        if (vh_flags & 0xfe) != 0 {
+        let packet_flags = u8::read(cursor)?;
+        if (packet_flags & 0xfe) != 0 {
             return Err(PyValueError::new_err("Invalid bytes"));
         }
-        let session_present = (vh_flags & 0x01) != 0;
+        let session_present = (packet_flags & 0x01) != 0;
         let reason_code = ConnAckReasonCode::read(cursor)?;
         let properties = ConnAckProperties::read(cursor)?;
 
