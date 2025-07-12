@@ -1074,32 +1074,32 @@ impl ConnectPacket {
             return Err(PyValueError::new_err("Malformed bytes"));
         }
         let packet_flags = u8::read(cursor)?;
-        let clean_start = (packet_flags & 0x02) == 1;
+        let clean_start = (packet_flags & 0x02) != 0;
         let keep_alive = u16::read(cursor)?;
         let properties = ConnectProperties::read(cursor)?;
 
         // [3.1.3] Payload
         let client_id = Py::<PyString>::read(cursor)?;
-        let will = if (packet_flags & 0x04) == 1 {
+        let will = if (packet_flags & 0x04) != 0 {
             let properties = WillProperties::read(cursor)?;
             let topic = Py::<PyString>::read(cursor)?;
             let payload = Py::<PyBytes>::read(cursor)?;
             Some(Will {
                 topic,
                 payload: Some(payload),
-                qos: QoS::new(packet_flags & 0x18)?,
-                retain: (packet_flags & 0x20) == 1,
+                qos: QoS::new((packet_flags >> 3) & 0x03)?,
+                retain: (packet_flags & 0x20) != 0,
                 properties,
             })
         } else {
             None
         };
-        let username = if (packet_flags & 0x80) == 1 {
+        let username = if (packet_flags & 0x80) != 0 {
             Some(Py::<PyString>::read(cursor)?)
         } else {
             None
         };
-        let password = if (packet_flags & 0x40) == 1 {
+        let password = if (packet_flags & 0x40) != 0 {
             Some(Py::<PyString>::read(cursor)?)
         } else {
             None
