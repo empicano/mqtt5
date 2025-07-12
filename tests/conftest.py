@@ -1,7 +1,6 @@
 import pytest
 import mqtt5
 import mqttproto
-import inspect
 
 
 def connect_packet():
@@ -22,13 +21,63 @@ def connack_packet_mqttproto():
     )
 
 
+def connack_packet_full():
+    return mqtt5.ConnAckPacket(
+        session_present=True,
+        reason_code=mqtt5.ConnAckReasonCode.UNSPECIFIED_ERROR,
+        properties=mqtt5.ConnAckProperties(
+            session_expiry_interval=2**8,
+            assigned_client_id="Bulbasaur",
+            server_keep_alive=2**12,
+            authentication_method="GS2-KRB5",
+            authentication_data=b"\x12" * 2**8,
+            response_information="response/information",
+            server_reference="example.com:1883",
+            reason_string="The reason string is a human readable string designed for diagnostics",
+            receive_maximum=2**10,
+            topic_alias_maximum=2**8,
+            maximum_qos=0,
+            retain_available=1,
+            maximum_packet_size=2**12,
+            wildcard_subscription_available=0,
+            subscription_id_available=1,
+            shared_subscription_available=0,
+        ),
+    )
+
+
+def connack_packet_full_mqttproto():
+    return mqttproto.MQTTConnAckPacket(
+        session_present=True,
+        reason_code=mqttproto.ReasonCode.UNSPECIFIED_ERROR,
+        properties={
+            mqttproto.PropertyType.SESSION_EXPIRY_INTERVAL: 2**8,
+            mqttproto.PropertyType.ASSIGNED_CLIENT_IDENTIFIER: "Bulbasaur",
+            mqttproto.PropertyType.SERVER_KEEP_ALIVE: 2**12,
+            mqttproto.PropertyType.AUTHENTICATION_METHOD: "GS2-KRB5",
+            mqttproto.PropertyType.AUTHENTICATION_DATA: b"\x12" * 2**8,
+            mqttproto.PropertyType.RESPONSE_INFORMATION: "response/information",
+            mqttproto.PropertyType.SERVER_REFERENCE: "example.com:1883",
+            mqttproto.PropertyType.REASON_STRING: "The reason string is a human readable string designed for diagnostics",
+            mqttproto.PropertyType.RECEIVE_MAXIMUM: 2**10,
+            mqttproto.PropertyType.TOPIC_ALIAS_MAXIMUM: 2**8,
+            mqttproto.PropertyType.MAXIMUM_QOS: 0,
+            mqttproto.PropertyType.RETAIN_AVAILABLE: 1,
+            mqttproto.PropertyType.MAXIMUM_PACKET_SIZE: 2**12,
+            mqttproto.PropertyType.WILDCARD_SUBSCRIPTION_AVAILABLE: 0,
+            mqttproto.PropertyType.SUBSCRIPTION_IDENTIFIER_AVAILABLE: 1,
+            mqttproto.PropertyType.SHARED_SUBSCRIPTION_AVAILABLE: 0,
+        },
+    )
+
+
+# TODO: Make payload empty
 def publish_packet():
-    # TODO: Make payload empty
     return mqtt5.PublishPacket(topic="foo/bar/+", payload=b"\x12" * 2**8)
 
 
+# TODO: Make payload empty
 def publish_packet_mqttproto():
-    # TODO: Make payload empty
     return mqttproto.MQTTPublishPacket(topic="foo/bar/+", payload=b"\x12" * 2**8)
 
 
@@ -64,15 +113,25 @@ def disconnect_packet_mqttproto():
     )
 
 
-PACKET_NAMES = [
-    name
-    for name, _ in inspect.getmembers(mqtt5, inspect.isclass)
-    if name.endswith("Packet")
-]
-PACKETS, PACKETS_MQTTPROTO = [], []
-for name in PACKET_NAMES:
-    PACKETS.append(locals()[name.lower()[:-6] + "_packet"]())
-    PACKETS_MQTTPROTO.append(locals()[name.lower()[:-6] + "_packet_mqttproto"]())
+PACKET_NAMES, PACKET_INITS, PACKET_INITS_MQTTPROTO = [], [], []
+
+for key, value in dict(locals()).items():
+    tags = key.split("_")
+    if len(tags) > 1 and tags[1] == "packet":
+        if tags[-1] == "mqttproto":
+            PACKET_INITS_MQTTPROTO.append(value)
+            continue
+        name = type(value()).__name__
+        for t in tags[2:]:
+            name += f",{t}"
+        PACKET_NAMES.append(name)
+        PACKET_INITS.append(value)
+
+# Validate that we have both mqtt5 and mqttproto implementations for all test packets
+assert len(PACKET_INITS) == len(PACKET_INITS_MQTTPROTO)
+# Collect the initialized packets
+PACKETS = [f() for f in PACKET_INITS]
+PACKETS_MQTTPROTO = [f() for f in PACKET_INITS_MQTTPROTO]
 
 
 @pytest.fixture(scope="session")
