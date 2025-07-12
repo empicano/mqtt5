@@ -11,6 +11,46 @@ def connect_packet_mqttproto():
     return mqttproto.MQTTConnectPacket(client_id="Bulbasaur")
 
 
+def connect_packet_will():
+    return mqtt5.ConnectPacket(
+        client_id="Bulbasaur",
+        will=mqtt5.Will(
+            topic="foo/bar/+",
+            payload=b"\x12" * 2**8,
+            qos=mqtt5.QoS.EXACTLY_ONCE,
+            retain=True,
+            properties=mqtt5.WillProperties(
+                payload_format_indicator=1,
+                message_expiry_interval=2**24,
+                content_type="text/html",
+                response_topic="HELLO/4444/#",
+                correlation_data=b"\x12" * 2**8,
+                will_delay_interval=12,
+            ),
+        ),
+    )
+
+
+def connect_packet_will_mqttproto():
+    return mqttproto.MQTTConnectPacket(
+        client_id="Bulbasaur",
+        will=mqttproto.Will(
+            topic="foo/bar/+",
+            payload=b"\x12" * 2**8,
+            qos=mqttproto.QoS.EXACTLY_ONCE,
+            retain=True,
+            properties={
+                mqttproto.PropertyType.PAYLOAD_FORMAT_INDICATOR: 1,
+                mqttproto.PropertyType.MESSAGE_EXPIRY_INTERVAL: 2**24,
+                mqttproto.PropertyType.CONTENT_TYPE: "text/html",
+                mqttproto.PropertyType.RESPONSE_TOPIC: "HELLO/4444/#",
+                mqttproto.PropertyType.CORRELATION_DATA: b"\x12" * 2**8,
+                mqttproto.PropertyType.WILL_DELAY_INTERVAL: 12,
+            },
+        ),
+    )
+
+
 def connack_packet():
     return mqtt5.ConnAckPacket()
 
@@ -26,14 +66,14 @@ def connack_packet_full():
         session_present=True,
         reason_code=mqtt5.ConnAckReasonCode.UNSPECIFIED_ERROR,
         properties=mqtt5.ConnAckProperties(
-            session_expiry_interval=2**8,
+            session_expiry_interval=9999,
             assigned_client_id="Bulbasaur",
             server_keep_alive=2**12,
             authentication_method="GS2-KRB5",
             authentication_data=b"\x12" * 2**8,
             response_information="response/information",
             server_reference="example.com:1883",
-            reason_string="The reason string is a human readable string designed for diagnostics",
+            reason_string="The reason string is a human readable string designed for diagnostics.",
             receive_maximum=2**10,
             topic_alias_maximum=2**8,
             maximum_qos=0,
@@ -51,14 +91,14 @@ def connack_packet_full_mqttproto():
         session_present=True,
         reason_code=mqttproto.ReasonCode.UNSPECIFIED_ERROR,
         properties={
-            mqttproto.PropertyType.SESSION_EXPIRY_INTERVAL: 2**8,
+            mqttproto.PropertyType.SESSION_EXPIRY_INTERVAL: 9999,
             mqttproto.PropertyType.ASSIGNED_CLIENT_IDENTIFIER: "Bulbasaur",
             mqttproto.PropertyType.SERVER_KEEP_ALIVE: 2**12,
             mqttproto.PropertyType.AUTHENTICATION_METHOD: "GS2-KRB5",
             mqttproto.PropertyType.AUTHENTICATION_DATA: b"\x12" * 2**8,
             mqttproto.PropertyType.RESPONSE_INFORMATION: "response/information",
             mqttproto.PropertyType.SERVER_REFERENCE: "example.com:1883",
-            mqttproto.PropertyType.REASON_STRING: "The reason string is a human readable string designed for diagnostics",
+            mqttproto.PropertyType.REASON_STRING: "The reason string is a human readable string designed for diagnostics.",
             mqttproto.PropertyType.RECEIVE_MAXIMUM: 2**10,
             mqttproto.PropertyType.TOPIC_ALIAS_MAXIMUM: 2**8,
             mqttproto.PropertyType.MAXIMUM_QOS: 0,
@@ -71,12 +111,12 @@ def connack_packet_full_mqttproto():
     )
 
 
-# TODO: Make payload empty
+# TODO: Add test for PublishPacket with empty payload
 def publish_packet():
     return mqtt5.PublishPacket(topic="foo/bar/+", payload=b"\x12" * 2**8)
 
 
-# TODO: Make payload empty
+# TODO: Add test for PublishPacket with empty payload
 def publish_packet_mqttproto():
     return mqttproto.MQTTPublishPacket(topic="foo/bar/+", payload=b"\x12" * 2**8)
 
@@ -88,6 +128,26 @@ def puback_packet():
 def puback_packet_mqttproto():
     return mqttproto.MQTTPublishAckPacket(
         packet_id=1234, reason_code=mqttproto.ReasonCode.SUCCESS
+    )
+
+
+def puback_packet_full():
+    return mqtt5.PubAckPacket(
+        packet_id=1234,
+        reason_code=mqtt5.PubAckReasonCode.NO_MATCHING_SUBSCRIBERS,
+        properties=mqtt5.PubAckProperties(
+            reason_string="The reason string is a human readable string designed for diagnostics.",
+        ),
+    )
+
+
+def puback_packet_full_mqttproto():
+    return mqttproto.MQTTPublishAckPacket(
+        packet_id=1234,
+        reason_code=mqttproto.ReasonCode.NO_MATCHING_SUBSCRIBERS,
+        properties={
+            mqttproto.PropertyType.REASON_STRING: "The reason string is a human readable string designed for diagnostics.",
+        },
     )
 
 
@@ -110,6 +170,28 @@ def disconnect_packet():
 def disconnect_packet_mqttproto():
     return mqttproto.MQTTDisconnectPacket(
         reason_code=mqttproto.ReasonCode.NORMAL_DISCONNECTION
+    )
+
+
+def disconnect_packet_full():
+    return mqtt5.DisconnectPacket(
+        reason_code=mqtt5.DisconnectReasonCode.SERVER_SHUTTING_DOWN,
+        properties=mqtt5.DisconnectProperties(
+            session_expiry_interval=9999,
+            server_reference="example.com:1883",
+            reason_string="The reason string is a human readable string designed for diagnostics.",
+        ),
+    )
+
+
+def disconnect_packet_full_mqttproto():
+    return mqttproto.MQTTDisconnectPacket(
+        reason_code=mqttproto.ReasonCode.SERVER_SHUTTING_DOWN,
+        properties={
+            mqttproto.PropertyType.SESSION_EXPIRY_INTERVAL: 9999,
+            mqttproto.PropertyType.SERVER_REFERENCE: "example.com:1883",
+            mqttproto.PropertyType.REASON_STRING: "The reason string is a human readable string designed for diagnostics.",
+        },
     )
 
 
