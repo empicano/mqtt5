@@ -246,6 +246,18 @@ def subscribe_packet_mqttproto():
     )
 
 
+def suback_packet():
+    return mqtt5.SubAckPacket(
+        packet_id=1234, reason_codes=[mqtt5.SubAckReasonCode.TOPIC_FILTER_INVALID]
+    )
+
+
+def suback_packet_mqttproto():
+    return mqttproto.MQTTSubscribeAckPacket(
+        packet_id=1234, reason_codes=[mqttproto.ReasonCode.TOPIC_FILTER_INVALID]
+    )
+
+
 def disconnect_packet():
     return mqtt5.DisconnectPacket()
 

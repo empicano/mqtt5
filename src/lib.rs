@@ -1605,6 +1605,128 @@ impl PartialEq for SubscribePacket {
 }
 
 #[pyclass(eq, get_all)]
+pub struct SubAckPacket {
+    packet_id: u16,
+    reason_codes: Py<PyList>,
+    properties: SubAckProperties,
+}
+
+#[pymethods]
+impl SubAckPacket {
+    #[new]
+    #[pyo3(signature = (
+        packet_id,
+        reason_codes,
+        *,
+        properties=None,
+    ))]
+    pub fn new(
+        py: Python,
+        packet_id: u16,
+        reason_codes: &Bound<'_, PyList>,
+        properties: Option<SubAckProperties>,
+    ) -> PyResult<Self> {
+        Ok(Self {
+            packet_id,
+            reason_codes: reason_codes.clone().unbind(),
+            properties: properties.unwrap_or_default(),
+        })
+    }
+
+    #[pyo3(signature = (buffer, /, *, index=0))]
+    pub fn write(
+        &self,
+        py: Python,
+        buffer: &Bound<'_, PyByteArray>,
+        index: usize,
+    ) -> PyResult<usize> {
+        let reason_codes = self.reason_codes.bind(py);
+        let size = self.packet_id.size()
+            + self.properties.size()
+            + reason_codes
+                .try_iter()?
+                .try_fold(0, |acc, item| -> PyResult<usize> {
+                    Ok(acc + item?.extract::<PyRef<SubAckReasonCode>>()?.size())
+                })?;
+
+        let remaining_length = VariableByteInteger(size as u32);
+        let mut cursor = Cursor::new(buffer, index);
+        cursor.assert(1 + remaining_length.size() + size)?;
+
+        // [3.9.1] Fixed header
+        let first_byte = (PacketType::SubAck as u8) << 4;
+        first_byte.write(&mut cursor);
+        remaining_length.write(&mut cursor);
+
+        // [3.9.2] Variable header
+        self.packet_id.write(&mut cursor);
+        self.properties.write(&mut cursor);
+
+        // [3.9.3] Payload
+        for item in reason_codes.try_iter()? {
+            let reason_code: PyRef<SubAckReasonCode> = item?.extract()?;
+            reason_code.write(&mut cursor);
+        }
+
+        Ok(cursor.index - index)
+    }
+}
+
+impl SubAckPacket {
+    fn read(
+        py: Python,
+        cursor: &mut Cursor,
+        flags: u8,
+        remaining_length: VariableByteInteger,
+    ) -> PyResult<Py<Self>> {
+        if flags != 0x00 {
+            return Err(PyValueError::new_err("Malformed bytes"));
+        }
+        let i0 = cursor.index;
+
+        // [3.9.2] Variable header
+        let packet_id = u16::read(cursor)?;
+        let properties = SubAckProperties::read(cursor)?;
+
+        // [3.9.3] Payload
+        let reason_codes = PyList::empty(py);
+        while cursor.index - i0 < remaining_length.get() as usize {
+            let reason_code = SubAckReasonCode::read(cursor)?;
+            reason_codes.append(reason_code)?;
+        }
+
+        // Return Python object
+        let packet = Self {
+            packet_id,
+            reason_codes: reason_codes.unbind(),
+            properties,
+        };
+        Py::new(py, packet)
+    }
+}
+
+impl PartialEq for SubAckPacket {
+    fn eq(&self, other: &Self) -> bool {
+        self.packet_id == other.packet_id
+            && self.properties == other.properties
+            && Python::with_gil(|py| -> PyResult<bool> {
+                let seq1 = self.reason_codes.bind(py);
+                let seq2 = other.reason_codes.bind(py);
+                Ok(seq1.len() == seq2.len()
+                    && seq1.try_iter()?.zip(seq2.try_iter()?).try_fold(
+                        true,
+                        |acc, (a, b)| -> PyResult<bool> {
+                            let sub1: PyRef<SubAckReasonCode> = a?.extract()?;
+                            let sub2: PyRef<SubAckReasonCode> = b?.extract()?;
+                            Ok(acc && *sub1 == *sub2)
+                        },
+                    )?)
+            })
+            .unwrap_or(false)
+    }
+}
+
+#[pyclass(eq, get_all)]
 pub struct DisconnectPacket {
     reason_code: DisconnectReasonCode,
     properties: DisconnectProperties,
@@ -1717,7 +1839,10 @@ fn read(py: Python, buffer: &Bound<'_, PyByteArray>, index: usize) -> PyResult<(
             let packet = SubscribePacket::read(py, &mut cursor, flags, remaining_length)?;
             Ok((packet.into(), cursor.index))
         }
-        PacketType::SubAck => Err(PyValueError::new_err("Not implemented")),
+        PacketType::SubAck => {
+            let packet = SubAckPacket::read(py, &mut cursor, flags, remaining_length)?;
+            Ok((packet.into(), cursor.index))
+        }
         PacketType::Unsubscribe => Err(PyValueError::new_err("Not implemented")),
         PacketType::UnsubAck => Err(PyValueError::new_err("Not implemented")),
         PacketType::PingReq => Err(PyValueError::new_err("Not implemented")),
@@ -1738,17 +1863,20 @@ fn mqtt5(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PublishPacket>()?;
     m.add_class::<PubAckPacket>()?;
     m.add_class::<SubscribePacket>()?;
+    m.add_class::<SubAckPacket>()?;
     m.add_class::<DisconnectPacket>()?;
     // Properties
     m.add_class::<ConnectProperties>()?;
     m.add_class::<ConnAckProperties>()?;
     m.add_class::<PublishProperties>()?;
     m.add_class::<PubAckProperties>()?;
+    m.add_class::<SubscribeProperties>()?;
+    m.add_class::<SubAckProperties>()?;
     m.add_class::<DisconnectProperties>()?;
     // Reason codes
     m.add_class::<ConnAckReasonCode>()?;
     m.add_class::<PubAckReasonCode>()?;
-    m.add_class::<PubRecReasonCode>()?;
+    m.add_class::<SubAckReasonCode>()?;
     m.add_class::<DisconnectReasonCode>()?;
     // Misc
     m.add_class::<QoS>()?;
