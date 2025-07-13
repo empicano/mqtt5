@@ -1,5 +1,5 @@
 [build-system]
-requires = ["maturin>=1.8,<2.0"]
+requires = ["maturin>=1.9,<2.0"]
 build-backend = "maturin"
 
 [project]
@@ -21,7 +21,7 @@ dependencies = []
 [dependency-groups]
 dev = [
     "matplotlib>=3.10.3",
-    "maturin>=1.8.3",
+    "maturin>=1.9.1",
     "mqttproto",
     "pyperf>=2.9.0",
     "pytest>=8.0.0",
