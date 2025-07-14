@@ -178,6 +178,7 @@ def connack_packet_full_mqttproto():
         },
     )
 
+
 def publish_packet_qos0():
     return mqtt5.PublishPacket(topic="foo/bar/+", payload=b"\x12" * 2**8)
 
