@@ -15,12 +15,17 @@ classifiers = [
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
 ]
+readme = "README.md"
+license = { file = "LICENSE" }
 dynamic = ["version"]
 dependencies = []
 
+[project.urls]
+"Source" = "https://github.com/empicano/mqtt5"
+"Issue tracker" = "https://github.com/empicano/mqtt5/issues"
+
 [dependency-groups]
 dev = [
-    "matplotlib>=3.10.3",
     "maturin>=1.9.1",
     "mqttproto",
     "pyperf>=2.9.0",
@@ -35,7 +40,7 @@ strip = true
 
 [tool.uv]
 # Rebuild the project when any of these files change
-cache-keys = [{file = "pyproject.toml"}, {file = "rust/Cargo.toml"}, {file = "src/**"}]
+cache-keys = [{ file = "pyproject.toml" }, { file = "rust/Cargo.toml" }, { file = "src/**" }]
 
 [tool.uv.sources]
 mqttproto = { git = "https://github.com/empicano/mqttproto.git" }
