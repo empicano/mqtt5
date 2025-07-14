@@ -10,7 +10,7 @@ use pyo3::PyResult;
 const PROTOCOL_NAME: &str = "MQTT";
 const PROTOCOL_VERSION: u8 = 5;
 
-#[pyclass(eq, get_all)]
+#[pyclass(frozen, eq, get_all)]
 pub struct Will {
     pub topic: Py<PyString>,
     pub payload: Option<Py<PyBytes>>,
@@ -68,7 +68,7 @@ impl PartialEq for Will {
     }
 }
 
-#[pyclass(eq, get_all)]
+#[pyclass(frozen, eq, get_all)]
 pub struct Subscription {
     pub pattern: Py<PyString>,
     pub maximum_qos: QoS,
@@ -115,7 +115,7 @@ impl PartialEq for Subscription {
     }
 }
 
-#[pyclass(eq, get_all)]
+#[pyclass(frozen, eq, get_all)]
 pub struct ConnectPacket {
     pub client_id: Py<PyString>,
     pub username: Option<Py<PyString>>,
@@ -391,7 +391,7 @@ impl PartialEq for ConnAckPacket {
     }
 }
 
-#[pyclass(eq, get_all)]
+#[pyclass(frozen, eq, get_all)]
 pub struct PublishPacket {
     pub topic: Py<PyString>,
     pub payload: Option<Py<PyBytes>>,
@@ -539,7 +539,7 @@ impl PartialEq for PublishPacket {
     }
 }
 
-#[pyclass(eq, get_all)]
+#[pyclass(frozen, eq, get_all)]
 pub struct PubAckPacket {
     pub packet_id: u16,
     pub reason_code: PubAckReasonCode,
@@ -636,7 +636,7 @@ impl PartialEq for PubAckPacket {
     }
 }
 
-#[pyclass(eq, get_all)]
+#[pyclass(frozen, eq, get_all)]
 pub struct SubscribePacket {
     pub packet_id: u16,
     pub subscriptions: Py<PyList>,
@@ -770,7 +770,7 @@ impl PartialEq for SubscribePacket {
     }
 }
 
-#[pyclass(eq, get_all)]
+#[pyclass(frozen, eq, get_all)]
 pub struct SubAckPacket {
     pub packet_id: u16,
     pub reason_codes: Py<PyList>,
@@ -892,7 +892,7 @@ impl PartialEq for SubAckPacket {
     }
 }
 
-#[pyclass(eq, get_all)]
+#[pyclass(frozen, eq, get_all)]
 pub struct DisconnectPacket {
     pub reason_code: DisconnectReasonCode,
     pub properties: DisconnectProperties,

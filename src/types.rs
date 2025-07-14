@@ -29,7 +29,7 @@ impl PacketType {
     }
 }
 
-#[pyclass(eq)]
+#[pyclass(frozen, eq)]
 #[derive(Copy, Clone, PartialEq, Eq, TryFromPrimitive)]
 #[repr(u8)]
 pub enum QoS {
@@ -47,7 +47,7 @@ impl QoS {
     }
 }
 
-#[pyclass(eq)]
+#[pyclass(frozen, eq)]
 #[derive(Copy, Clone, PartialEq, Eq, TryFromPrimitive)]
 #[repr(u8)]
 pub enum RetainHandling {

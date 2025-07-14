@@ -119,7 +119,7 @@ macro_rules! properties {
             $($field:ident: $property_type:ty = $property_id:expr),* $(,)?
         }
     ) => {
-        #[pyclass(eq, get_all)]
+        #[pyclass(frozen, eq, get_all)]
         pub struct $name {
             $(pub $field: Option<$property_type>,)*
         }

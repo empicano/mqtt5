@@ -6,7 +6,7 @@ use pyo3::PyResult;
 
 macro_rules! reason_code {
     ( $name:ident { $($field:ident / $py:literal = $value:expr),* $(,)? } ) => {
-        #[pyclass(eq)]
+        #[pyclass(frozen, eq)]
         #[derive(Copy, Clone, PartialEq, Eq, TryFromPrimitive)]
         #[repr(u8)]
         pub enum $name {
