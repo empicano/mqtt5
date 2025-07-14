@@ -29,15 +29,12 @@ impl PacketType {
     }
 }
 
-#[pyclass(frozen, eq)]
+#[pyclass(frozen, eq, rename_all = "SCREAMING_SNAKE_CASE")]
 #[derive(Copy, Clone, PartialEq, Eq, TryFromPrimitive)]
 #[repr(u8)]
 pub enum QoS {
-    #[pyo3(name = "AT_MOST_ONCE")]
     AtMostOnce = 0,
-    #[pyo3(name = "AT_LEAST_ONCE")]
     AtLeastOnce = 1,
-    #[pyo3(name = "EXACTLY_ONCE")]
     ExactlyOnce = 2,
 }
 
@@ -47,15 +44,12 @@ impl QoS {
     }
 }
 
-#[pyclass(frozen, eq)]
+#[pyclass(frozen, eq, rename_all = "SCREAMING_SNAKE_CASE")]
 #[derive(Copy, Clone, PartialEq, Eq, TryFromPrimitive)]
 #[repr(u8)]
 pub enum RetainHandling {
-    #[pyo3(name = "SEND_ALWAYS")]
     SendAlways = 0,
-    #[pyo3(name = "SEND_IF_SUBSCRIPTION_NOT_EXISTS")]
     SendIfSubscriptionNotExists = 1,
-    #[pyo3(name = "SEND_NEVER")]
     SendNever = 2,
 }
 

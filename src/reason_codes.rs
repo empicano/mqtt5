@@ -5,12 +5,12 @@ use pyo3::prelude::*;
 use pyo3::PyResult;
 
 macro_rules! reason_code {
-    ( $name:ident { $($field:ident / $py:literal = $value:expr),* $(,)? } ) => {
-        #[pyclass(frozen, eq)]
+    ( $name:ident { $($field:ident = $value:expr),* $(,)? } ) => {
+        #[pyclass(frozen, eq, rename_all = "SCREAMING_SNAKE_CASE")]
         #[derive(Copy, Clone, PartialEq, Eq, TryFromPrimitive)]
         #[repr(u8)]
         pub enum $name {
-            $(#[pyo3(name = $py)] $field = $value,)*
+            $($field = $value,)*
         }
 
         #[pymethods]
@@ -47,113 +47,113 @@ macro_rules! reason_code {
 
 reason_code! {
     ConnAckReasonCode {
-        Success / "SUCCESS" = 0,
-        UnspecifiedError / "UNSPECIFIED_ERROR" = 128,
-        MalformedPacket / "MALFORMED_PACKET" = 129,
-        ProtocolError / "PROTOCOL_ERROR" = 130,
-        ImplementationSpecificError / "IMPLEMENTATION_SPECIFIC_ERROR" = 131,
-        UnsupportedProtocolVersion / "UNSUPPORTED_PROTOCOL_VERSION" = 132,
-        ClientIdNotValid / "CLIENT_ID_NOT_VALID" = 133,
-        BadUserNameOrPassword / "BAD_USER_NAME_OR_PASSWORD" = 134,
-        NotAuthorized / "NOT_AUTHORIZED" = 135,
-        ServerUnavailable / "SERVER_UNAVAILABLE" = 136,
-        ServerBusy / "SERVER_BUSY" = 137,
-        Banned / "BANNED" = 138,
-        BadAuthenticationMethod / "BAD_AUTHENTICATION_METHOD" = 140,
-        TopicNameInvalid / "TOPIC_NAME_INVALID" = 144,
-        PacketTooLarge / "PACKET_TOO_LARGE" = 149,
-        QuotaExceeded / "QUOTA_EXCEEDED" = 151,
-        PayloadFormatInvalid / "PAYLOAD_FORMAT_INVALID" = 153,
-        RetainNotSupported / "RETAIN_NOT_SUPPORTED" = 154,
-        QualityNotSupported / "QUALITY_NOT_SUPPORTED" = 155,
-        UseAnotherServer / "USE_ANOTHER_SERVER" = 156,
-        ServerMoved / "SERVER_MOVED" = 157,
-        ConnectionRateExceeded / "CONNECTION_RATE_EXCEEDED" = 159,
+        Success = 0,
+        UnspecifiedError = 128,
+        MalformedPacket = 129,
+        ProtocolError = 130,
+        ImplementationSpecificError = 131,
+        UnsupportedProtocolVersion = 132,
+        ClientIdNotValid = 133,
+        BadUserNameOrPassword = 134,
+        NotAuthorized = 135,
+        ServerUnavailable = 136,
+        ServerBusy = 137,
+        Banned = 138,
+        BadAuthenticationMethod = 140,
+        TopicNameInvalid = 144,
+        PacketTooLarge = 149,
+        QuotaExceeded = 151,
+        PayloadFormatInvalid = 153,
+        RetainNotSupported = 154,
+        QualityNotSupported = 155,
+        UseAnotherServer = 156,
+        ServerMoved = 157,
+        ConnectionRateExceeded = 159,
     }
 }
 
 reason_code! {
     PubAckReasonCode {
-        Success / "SUCCESS" = 0,
-        NoMatchingSubscribers/"NO_MATCHING_SUBSCRIBERS" = 16,
-        UnspecifiedError / "UNSPECIFIED_ERROR" = 128,
-        ImplementationSpecificError / "IMPLEMENTATION_SPECIFIC_ERROR" = 131,
-        NotAuthorized / "NOT_AUTHORIZED" = 135,
-        TopicNameInvalid / "TOPIC_NAME_INVALID" = 144,
-        PacketIdInUse / "PACKET_ID_IN_USE" = 145,
-        QuotaExceeded / "QUOTA_EXCEEDED" = 151,
-        PayloadFormatInvalid / "PAYLOAD_FORMAT_INVALID" = 153,
+        Success = 0,
+        NoMatchingSubscribers = 16,
+        UnspecifiedError = 128,
+        ImplementationSpecificError = 131,
+        NotAuthorized = 135,
+        TopicNameInvalid = 144,
+        PacketIdInUse = 145,
+        QuotaExceeded = 151,
+        PayloadFormatInvalid = 153,
     }
 }
 
 reason_code! {
     PubRecReasonCode {
-        Success / "SUCCESS" = 0,
-        NoMatchingSubscribers/ "NO_MATCHING_SUBSCRIBERS" = 16,
-        UnspecifiedError / "UNSPECIFIED_ERROR"= 128,
-        ImplementationSpecificError / "IMPLEMENTATION_SPECIFIC_ERROR" = 131,
-        NotAuthorized / "NOT_AUTHORIZED" = 135,
-        TopicNameInvalid / "TOPIC_NAME_INVALID" = 144,
-        PacketIdInUse / "PACKET_ID_IN_USE" = 145,
-        QuotaExceeded / "QUOTA_EXCEEDED" = 151,
-        PayloadFormatInvalid / "PAYLOAD_FORMAT_INVALID" = 153,
+        Success = 0,
+        NoMatchingSubscribers = 16,
+        UnspecifiedError = 128,
+        ImplementationSpecificError = 131,
+        NotAuthorized = 135,
+        TopicNameInvalid = 144,
+        PacketIdInUse = 145,
+        QuotaExceeded = 151,
+        PayloadFormatInvalid = 153,
     }
 }
 
 reason_code! {
     PubCompReasonCode {
-        Success / "SUCCESS" = 0,
-        PacketIdNotFound / "PACKET_ID_NOT_FOUND" = 146,
+        Success = 0,
+        PacketIdNotFound = 146,
     }
 }
 
 reason_code! {
     SubAckReasonCode {
-        GrantedQoSAtMostOnce / "GRANTED_QOS_AT_MOST_ONCE" = 0,
-        GrantedQoSAtLeastOnce / "GRANTED_QOS_AT_LEAST_ONCE" = 1,
-        GrantedQoSExactlyOnce / "GRANTED_QOS_EXACTLY_ONCE" = 2,
-        UnspecifiedError / "UNSPECIFIED_ERROR" = 128,
-        ImplementationSpecificError / "IMPLEMENTATION_SPECIFIC_ERROR" = 131,
-        NotAuthorized / "NOT_AUTHORIZED" = 135,
-        TopicFilterInvalid / "TOPIC_FILTER_INVALID" = 143,
-        PacketIdInUse / "PACKET_ID_IN_USE" = 145,
-        QuotaExceeded / "QUOTA_EXCEEDED" = 151,
-        SharedSubscriptionsNotSupported / "SHARED_SUBSCRIPTIONS_NOT_SUPPORTED" = 158,
-        SubscriptionIdsNotSupported / "SUBSCRIPTION_IDS_NOT_SUPPORTED" = 161,
-        WildcardSubscriptionsNotSupported / "WILDCARD_SUBSCRIPTIONS_NOT_SUPPORTED" = 162,
+        GrantedQosAtMostOnce = 0,
+        GrantedQosAtLeastOnce = 1,
+        GrantedQosExactlyOnce = 2,
+        UnspecifiedError = 128,
+        ImplementationSpecificError = 131,
+        NotAuthorized = 135,
+        TopicFilterInvalid = 143,
+        PacketIdInUse = 145,
+        QuotaExceeded = 151,
+        SharedSubscriptionsNotSupported = 158,
+        SubscriptionIdsNotSupported = 161,
+        WildcardSubscriptionsNotSupported = 162,
     }
 }
 
 reason_code! {
     DisconnectReasonCode {
-        NormalDisconnection / "NORMAL_DISCONNECTION" = 0,
-        DisconnectWithWillMessage / "DISCONNECT_WITH_WILL_MESSAGE" = 4,
-        UnspecifiedError / "UNSPECIFIED_ERROR" = 128,
-        MalformedPacket / "MALFORMED_PACKET" = 129,
-        ProtocolError / "PROTOCOL_ERROR" = 130,
-        ImplementationSpecificError / "IMPLEMENTATION_SPECIFIC_ERROR" = 131,
-        NotAuthorized / "NOT_AUTHORIZED" = 135,
-        ServerBusy / "SERVER_BUSY" = 137,
-        ServerShuttingDown / "SERVER_SHUTTING_DOWN" = 139,
-        KeepAliveTimeout / "KEEP_ALIVE_TIMEOUT" = 141,
-        SessionTakenOver / "SESSION_TAKEN_OVER" = 142,
-        TopicFilterInvalid / "TOPIC_FILTER_INVALID" = 143,
-        TopicNameInvalid / "TOPIC_NAME_INVALID" = 144,
-        ReceiveMaximumExceeded / "RECEIVE_MAXIMUM_EXCEEDED" = 147,
-        TopicAliasInvalid / "TOPIC_ALIAS_INVALID" = 148,
-        PacketTooLarge / "PACKET_TOO_LARGE" = 149,
-        MessageRateTooHigh / "MESSAGE_RATE_TOO_HIGH" = 150,
-        QuotaExceeded / "QUOTA_EXCEEDED" = 151,
-        AdministrativeAction / "ADMINISTRATIVE_ACTION" = 152,
-        PayloadFormatInvalid / "PAYLOAD_FORMAT_INVALID" = 153,
-        RetainNotSupported / "RETAIN_NOT_SUPPORTED" = 154,
-        QoSNotSupported / "QOS_NOT_SUPPORTED" = 155,
-        UseAnotherServer / "USE_ANOTHER_SERVER" = 156,
-        ServerMoved / "SERVER_MOVED" = 157,
-        SharedSubscriptionsNotSupported / "SHARED_SUBSCRIPTIONS_NOT_SUPPORTED" = 158,
-        ConnectionRateExceeded / "CONNECTION_RATE_EXCEEDED" = 159,
-        MaximumConnectTime / "MAXIMUM_CONNECT_TIME" = 160,
-        SubscriptionIdsNotSupported / "SUBSCRIPTION_IDS_NOT_SUPPORTED" = 161,
-        WildcardSubscriptionsNotSupported / "WILDCARD_SUBSCRIPTIONS_NOT_SUPPORTED" = 162,
+        NormalDisconnection = 0,
+        DisconnectWithWillMessage = 4,
+        UnspecifiedError = 128,
+        MalformedPacket = 129,
+        ProtocolError = 130,
+        ImplementationSpecificError = 131,
+        NotAuthorized = 135,
+        ServerBusy = 137,
+        ServerShuttingDown = 139,
+        KeepAliveTimeout = 141,
+        SessionTakenOver = 142,
+        TopicFilterInvalid = 143,
+        TopicNameInvalid = 144,
+        ReceiveMaximumExceeded = 147,
+        TopicAliasInvalid = 148,
+        PacketTooLarge = 149,
+        MessageRateTooHigh = 150,
+        QuotaExceeded = 151,
+        AdministrativeAction = 152,
+        PayloadFormatInvalid = 153,
+        RetainNotSupported = 154,
+        QosNotSupported = 155,
+        UseAnotherServer = 156,
+        ServerMoved = 157,
+        SharedSubscriptionsNotSupported = 158,
+        ConnectionRateExceeded = 159,
+        MaximumConnectTime = 160,
+        SubscriptionIdsNotSupported = 161,
+        WildcardSubscriptionsNotSupported = 162,
     }
 }
