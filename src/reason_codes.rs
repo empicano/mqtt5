@@ -7,7 +7,7 @@ use std::fmt;
 
 macro_rules! reason_code {
     ( $name:ident { $($field:ident = $value:expr),* $(,)? } ) => {
-        #[pyclass(frozen, eq, str, rename_all = "SCREAMING_SNAKE_CASE")]
+        #[pyclass(eq, str, rename_all = "SCREAMING_SNAKE_CASE", module = "mqtt5")]
         #[derive(Copy, Clone, PartialEq, Eq, TryFromPrimitive)]
         #[repr(u8)]
         pub enum $name {

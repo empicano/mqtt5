@@ -10,7 +10,7 @@ use pyo3::PyResult;
 const PROTOCOL_NAME: &str = "MQTT";
 const PROTOCOL_VERSION: u8 = 5;
 
-#[pyclass(frozen, eq, get_all)]
+#[pyclass(frozen, eq, get_all, module = "mqtt5")]
 pub struct Will {
     pub topic: Py<PyString>,
     pub payload: Option<Py<PyBytes>>,
@@ -24,6 +24,7 @@ impl Will {
     #[new]
     #[pyo3(signature = (
         topic,
+        *,
         payload=None,
         qos=QoS::AtMostOnce,
         retain=false,
@@ -68,7 +69,7 @@ impl PartialEq for Will {
     }
 }
 
-#[pyclass(frozen, eq, get_all)]
+#[pyclass(frozen, eq, get_all, module = "mqtt5")]
 pub struct Subscription {
     pub pattern: Py<PyString>,
     pub maximum_qos: QoS,
@@ -115,7 +116,7 @@ impl PartialEq for Subscription {
     }
 }
 
-#[pyclass(frozen, eq, get_all)]
+#[pyclass(frozen, eq, get_all, module = "mqtt5")]
 pub struct ConnectPacket {
     pub client_id: Py<PyString>,
     pub username: Option<Py<PyString>>,
@@ -297,7 +298,7 @@ impl PartialEq for ConnectPacket {
     }
 }
 
-#[pyclass(eq, get_all)]
+#[pyclass(eq, get_all, module = "mqtt5")]
 pub struct ConnAckPacket {
     pub session_present: bool,
     pub reason_code: ConnAckReasonCode,
@@ -391,7 +392,7 @@ impl PartialEq for ConnAckPacket {
     }
 }
 
-#[pyclass(frozen, eq, get_all)]
+#[pyclass(frozen, eq, get_all, module = "mqtt5")]
 pub struct PublishPacket {
     pub topic: Py<PyString>,
     pub payload: Option<Py<PyBytes>>,
@@ -539,7 +540,7 @@ impl PartialEq for PublishPacket {
     }
 }
 
-#[pyclass(frozen, eq, get_all)]
+#[pyclass(frozen, eq, get_all, module = "mqtt5")]
 pub struct PubAckPacket {
     pub packet_id: u16,
     pub reason_code: PubAckReasonCode,
@@ -636,7 +637,7 @@ impl PartialEq for PubAckPacket {
     }
 }
 
-#[pyclass(frozen, eq, get_all)]
+#[pyclass(frozen, eq, get_all, module = "mqtt5")]
 pub struct SubscribePacket {
     pub packet_id: u16,
     pub subscriptions: Py<PyList>,
@@ -770,7 +771,7 @@ impl PartialEq for SubscribePacket {
     }
 }
 
-#[pyclass(frozen, eq, get_all)]
+#[pyclass(frozen, eq, get_all, module = "mqtt5")]
 pub struct SubAckPacket {
     pub packet_id: u16,
     pub reason_codes: Py<PyList>,
@@ -892,7 +893,7 @@ impl PartialEq for SubAckPacket {
     }
 }
 
-#[pyclass(frozen, eq, get_all)]
+#[pyclass(frozen, eq, get_all, module = "mqtt5")]
 pub struct DisconnectPacket {
     pub reason_code: DisconnectReasonCode,
     pub properties: DisconnectProperties,
