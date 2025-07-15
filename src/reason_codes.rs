@@ -3,10 +3,11 @@ use num_enum::TryFromPrimitive;
 use pyo3::exceptions::{PyIndexError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::PyResult;
+use std::fmt;
 
 macro_rules! reason_code {
     ( $name:ident { $($field:ident = $value:expr),* $(,)? } ) => {
-        #[pyclass(frozen, eq, rename_all = "SCREAMING_SNAKE_CASE")]
+        #[pyclass(frozen, eq, str, rename_all = "SCREAMING_SNAKE_CASE")]
         #[derive(Copy, Clone, PartialEq, Eq, TryFromPrimitive)]
         #[repr(u8)]
         pub enum $name {
@@ -18,6 +19,23 @@ macro_rules! reason_code {
             #[new]
             pub fn new(value: u8) -> PyResult<Self> {
                 Self::try_from(value).map_err(|e| PyValueError::new_err(e.to_string()))
+            }
+
+            pub fn __repr__(&self) -> String {
+                let member_name = match self {
+                    $(Self::$field => stringify!($field).to_string(),)*
+                }
+                .chars()
+                .enumerate()
+                .flat_map(|(i, c)| {
+                    if i > 0 && c.is_uppercase() {
+                        vec!['_', c]
+                    } else {
+                        vec![c.to_ascii_uppercase()]
+                    }
+                })
+                .collect::<String>();
+                format!("<{}.{}: {}>", stringify!($name), member_name, *self as u8)
             }
         }
 
@@ -40,6 +58,12 @@ macro_rules! reason_code {
 
             fn size(&self) -> usize {
                 1
+            }
+        }
+
+        impl fmt::Display for $name {
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                write!(f, "{}", *self as u8)
             }
         }
     };
