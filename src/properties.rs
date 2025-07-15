@@ -128,6 +128,7 @@ macro_rules! properties {
         impl $name {
             #[new]
             #[pyo3(signature = (*, $($field=None),*))]
+            #[allow(clippy::too_many_arguments)]
             fn new($($field: Option<$property_type>),*) -> Self {
                 Self {
                     $($field,)*
@@ -160,7 +161,7 @@ macro_rules! properties {
         }
 
         impl Readable for $name {
-            fn read<'a>(cursor: &mut Cursor<'a>) -> PyResult<Self> {
+            fn read(cursor: &mut Cursor<'_>) -> PyResult<Self> {
                 let length = VariableByteInteger::read(cursor)?.get() as usize;
                 let start = cursor.index;
                 let mut instance = Self::default();
@@ -183,7 +184,7 @@ macro_rules! properties {
         }
 
         impl Writable for $name {
-            fn write<'a>(&self, cursor: &mut Cursor<'a>) {
+            fn write(&self, cursor: &mut Cursor<'_>) {
                 let mut size = 0;
                 $(
                     if let Some(ref value) = self.$field {

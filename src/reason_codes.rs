@@ -40,7 +40,7 @@ macro_rules! reason_code {
         }
 
         impl Readable for $name {
-            fn read<'a>(cursor: &mut Cursor<'a>) -> PyResult<Self> {
+            fn read(cursor: &mut Cursor<'_>) -> PyResult<Self> {
                 if cursor.len() < 1 {
                     return Err(PyIndexError::new_err("Insufficient bytes"));
                 }
@@ -51,7 +51,7 @@ macro_rules! reason_code {
         }
 
         impl Writable for $name {
-            fn write<'a>(&self, cursor: &mut Cursor<'a>) {
+            fn write(&self, cursor: &mut Cursor<'_>) {
                 cursor.buffer[cursor.index] = *self as u8;
                 cursor.index += 1;
             }

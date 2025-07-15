@@ -140,8 +140,8 @@ impl ConnectPacket {
         keep_alive=0,
         properties=None,
     ))]
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
-        py: Python,
         client_id: &Bound<'_, PyString>,
         username: Option<&Bound<'_, PyString>>,
         password: Option<&Bound<'_, PyString>>,
@@ -162,7 +162,7 @@ impl ConnectPacket {
     }
 
     #[pyo3(signature = (buffer, /, *, index=0))]
-    fn write(&self, py: Python, buffer: &Bound<'_, PyByteArray>, index: usize) -> PyResult<usize> {
+    fn write(&self, buffer: &Bound<'_, PyByteArray>, index: usize) -> PyResult<usize> {
         let size = PROTOCOL_NAME.size()
             + PROTOCOL_VERSION.size()
             + 0u8.size()
@@ -227,7 +227,7 @@ impl ConnectPacket {
         py: Python,
         cursor: &mut Cursor,
         flags: u8,
-        remaining_length: VariableByteInteger,
+        _remaining_length: VariableByteInteger,
     ) -> PyResult<Py<Self>> {
         if flags != 0x00 {
             return Err(PyValueError::new_err("Malformed bytes"));
@@ -315,7 +315,6 @@ impl ConnAckPacket {
         properties=None,
     ))]
     pub fn new(
-        py: Python,
         session_present: bool,
         reason_code: ConnAckReasonCode,
         properties: Option<ConnAckProperties>,
@@ -328,12 +327,7 @@ impl ConnAckPacket {
     }
 
     #[pyo3(signature = (buffer, /, *, index=0))]
-    pub fn write(
-        &self,
-        py: Python,
-        buffer: &Bound<'_, PyByteArray>,
-        index: usize,
-    ) -> PyResult<usize> {
+    pub fn write(&self, buffer: &Bound<'_, PyByteArray>, index: usize) -> PyResult<usize> {
         let size = 0u8.size() + self.reason_code.size() + self.properties.size();
         let remaining_length = VariableByteInteger(size as u32);
         let mut cursor = Cursor::new(buffer, index);
@@ -359,7 +353,7 @@ impl ConnAckPacket {
         py: Python,
         cursor: &mut Cursor,
         flags: u8,
-        remaining_length: VariableByteInteger,
+        _remaining_length: VariableByteInteger,
     ) -> PyResult<Py<Self>> {
         if flags != 0x00 {
             return Err(PyValueError::new_err("Malformed bytes"));
@@ -416,8 +410,8 @@ impl PublishPacket {
         duplicate=false,
         properties=None,
     ))]
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
-        py: Python,
         topic: &Bound<'_, PyString>,
         payload: Option<&Bound<'_, PyBytes>>,
         qos: QoS,
@@ -477,7 +471,7 @@ impl PublishPacket {
         self.properties.write(&mut cursor);
 
         // [3.3.3] Payload
-        if let Some(ref payload) = payload {
+        if let Some(payload) = payload {
             let length = payload.len();
             cursor.buffer[cursor.index..cursor.index + length].copy_from_slice(payload);
             cursor.index += length;
@@ -557,7 +551,6 @@ impl PubAckPacket {
         properties=None,
     ))]
     pub fn new(
-        py: Python,
         packet_id: u16,
         reason_code: PubAckReasonCode,
         properties: Option<PubAckProperties>,
@@ -570,12 +563,7 @@ impl PubAckPacket {
     }
 
     #[pyo3(signature = (buffer, /, *, index=0))]
-    pub fn write(
-        &self,
-        py: Python,
-        buffer: &Bound<'_, PyByteArray>,
-        index: usize,
-    ) -> PyResult<usize> {
+    pub fn write(&self, buffer: &Bound<'_, PyByteArray>, index: usize) -> PyResult<usize> {
         let size = self.packet_id.size() + self.reason_code.size() + self.properties.size();
         let remaining_length = VariableByteInteger(size as u32);
         let mut cursor = Cursor::new(buffer, index);
@@ -654,7 +642,6 @@ impl SubscribePacket {
         properties=None,
     ))]
     pub fn new(
-        py: Python,
         packet_id: u16,
         subscriptions: &Bound<'_, PyList>,
         properties: Option<SubscribeProperties>,
@@ -788,7 +775,6 @@ impl SubAckPacket {
         properties=None,
     ))]
     pub fn new(
-        py: Python,
         packet_id: u16,
         reason_codes: &Bound<'_, PyList>,
         properties: Option<SubAckProperties>,
@@ -908,7 +894,6 @@ impl DisconnectPacket {
         properties=None,
     ))]
     pub fn new(
-        py: Python,
         reason_code: DisconnectReasonCode,
         properties: Option<DisconnectProperties>,
     ) -> PyResult<Self> {
@@ -919,12 +904,7 @@ impl DisconnectPacket {
     }
 
     #[pyo3(signature = (buffer, /, *, index=0))]
-    pub fn write(
-        &self,
-        py: Python,
-        buffer: &Bound<'_, PyByteArray>,
-        index: usize,
-    ) -> PyResult<usize> {
+    pub fn write(&self, buffer: &Bound<'_, PyByteArray>, index: usize) -> PyResult<usize> {
         let size = self.reason_code.size() + self.properties.size();
         let remaining_length = VariableByteInteger(size as u32);
         let mut cursor = Cursor::new(buffer, index);
@@ -948,7 +928,7 @@ impl DisconnectPacket {
         py: Python,
         cursor: &mut Cursor,
         flags: u8,
-        remaining_length: VariableByteInteger,
+        _remaining_length: VariableByteInteger,
     ) -> PyResult<Py<Self>> {
         if flags != 0x00 {
             return Err(PyValueError::new_err("Malformed bytes"));

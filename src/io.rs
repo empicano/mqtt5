@@ -57,13 +57,13 @@ impl fmt::Display for VariableByteInteger {
 }
 
 pub trait Readable {
-    fn read<'a>(cursor: &mut Cursor<'a>) -> PyResult<Self>
+    fn read(cursor: &mut Cursor<'_>) -> PyResult<Self>
     where
         Self: Sized;
 }
 
 impl Readable for u8 {
-    fn read<'a>(cursor: &mut Cursor<'a>) -> PyResult<Self> {
+    fn read(cursor: &mut Cursor<'_>) -> PyResult<Self> {
         if cursor.len() < 1 {
             return Err(PyIndexError::new_err("Insufficient bytes"));
         }
@@ -74,7 +74,7 @@ impl Readable for u8 {
 }
 
 impl Readable for u16 {
-    fn read<'a>(cursor: &mut Cursor<'a>) -> PyResult<Self> {
+    fn read(cursor: &mut Cursor<'_>) -> PyResult<Self> {
         if cursor.len() < 2 {
             return Err(PyIndexError::new_err("Insufficient bytes"));
         }
@@ -89,7 +89,7 @@ impl Readable for u16 {
 }
 
 impl Readable for u32 {
-    fn read<'a>(cursor: &mut Cursor<'a>) -> PyResult<Self> {
+    fn read(cursor: &mut Cursor<'_>) -> PyResult<Self> {
         if cursor.len() < 4 {
             return Err(PyIndexError::new_err("Insufficient bytes"));
         }
@@ -104,7 +104,7 @@ impl Readable for u32 {
 }
 
 impl Readable for VariableByteInteger {
-    fn read<'a>(cursor: &mut Cursor<'a>) -> PyResult<Self> {
+    fn read(cursor: &mut Cursor<'_>) -> PyResult<Self> {
         let mut multiplier = 1;
         let mut result = 0;
         for _ in 0..4 {
@@ -124,7 +124,7 @@ impl Readable for VariableByteInteger {
 
 // TODO: Remove, replaced with PyBytes
 impl Readable for Vec<u8> {
-    fn read<'a>(cursor: &mut Cursor<'a>) -> PyResult<Self> {
+    fn read(cursor: &mut Cursor<'_>) -> PyResult<Self> {
         let length = u16::read(cursor)? as usize;
         if cursor.len() < length {
             return Err(PyIndexError::new_err("Insufficient bytes"));
@@ -137,14 +137,14 @@ impl Readable for Vec<u8> {
 
 // TODO: Remove, replaced with PyString
 impl Readable for String {
-    fn read<'a>(cursor: &mut Cursor<'a>) -> PyResult<Self> {
+    fn read(cursor: &mut Cursor<'_>) -> PyResult<Self> {
         let value = Vec::<u8>::read(cursor)?;
         String::from_utf8(value).map_err(|_| PyValueError::new_err("Malformed bytes"))
     }
 }
 
 impl Readable for Py<PyBytes> {
-    fn read<'a>(cursor: &mut Cursor<'a>) -> PyResult<Self> {
+    fn read(cursor: &mut Cursor<'_>) -> PyResult<Self> {
         let length = u16::read(cursor)? as usize;
         if cursor.len() < length {
             return Err(PyIndexError::new_err("Insufficient bytes"));
@@ -158,7 +158,7 @@ impl Readable for Py<PyBytes> {
 }
 
 impl Readable for Py<PyString> {
-    fn read<'a>(cursor: &mut Cursor<'a>) -> PyResult<Self> {
+    fn read(cursor: &mut Cursor<'_>) -> PyResult<Self> {
         let length = u16::read(cursor)? as usize;
         if cursor.len() < length {
             return Err(PyIndexError::new_err("Insufficient bytes"));
@@ -175,12 +175,12 @@ impl Readable for Py<PyString> {
 }
 
 pub trait Writable {
-    fn write<'a>(&self, cursor: &mut Cursor<'a>);
+    fn write(&self, cursor: &mut Cursor<'_>);
     fn size(&self) -> usize;
 }
 
 impl Writable for u8 {
-    fn write<'a>(&self, cursor: &mut Cursor<'a>) {
+    fn write(&self, cursor: &mut Cursor<'_>) {
         cursor.buffer[cursor.index] = *self;
         cursor.index += 1;
     }
@@ -191,7 +191,7 @@ impl Writable for u8 {
 }
 
 impl Writable for u16 {
-    fn write<'a>(&self, cursor: &mut Cursor<'a>) {
+    fn write(&self, cursor: &mut Cursor<'_>) {
         let bytes = self.to_be_bytes();
         cursor.buffer[cursor.index..cursor.index + 2].copy_from_slice(&bytes);
         cursor.index += 2;
@@ -203,7 +203,7 @@ impl Writable for u16 {
 }
 
 impl Writable for u32 {
-    fn write<'a>(&self, cursor: &mut Cursor<'a>) {
+    fn write(&self, cursor: &mut Cursor<'_>) {
         let bytes = self.to_be_bytes();
         cursor.buffer[cursor.index..cursor.index + 4].copy_from_slice(&bytes);
         cursor.index += 4;
@@ -215,7 +215,7 @@ impl Writable for u32 {
 }
 
 impl Writable for VariableByteInteger {
-    fn write<'a>(&self, cursor: &mut Cursor<'a>) {
+    fn write(&self, cursor: &mut Cursor<'_>) {
         let mut remainder = self.0;
         for _ in 0..self.size() {
             let mut byte = (remainder & 0x7F) as u8;
@@ -240,7 +240,7 @@ impl Writable for VariableByteInteger {
 }
 
 impl Writable for &[u8] {
-    fn write<'a>(&self, cursor: &mut Cursor<'a>) {
+    fn write(&self, cursor: &mut Cursor<'_>) {
         let length = self.len();
         (length as u16).write(cursor);
         cursor.buffer[cursor.index..cursor.index + length].copy_from_slice(self);
@@ -253,7 +253,7 @@ impl Writable for &[u8] {
 }
 
 impl Writable for &str {
-    fn write<'a>(&self, cursor: &mut Cursor<'a>) {
+    fn write(&self, cursor: &mut Cursor<'_>) {
         self.as_bytes().write(cursor);
     }
 
@@ -263,7 +263,7 @@ impl Writable for &str {
 }
 
 impl Writable for Py<PyBytes> {
-    fn write<'a>(&self, cursor: &mut Cursor<'a>) {
+    fn write(&self, cursor: &mut Cursor<'_>) {
         Python::with_gil(|py| {
             self.bind(py).as_bytes().write(cursor);
         })
@@ -275,7 +275,7 @@ impl Writable for Py<PyBytes> {
 }
 
 impl Writable for &Bound<'_, PyBytes> {
-    fn write<'a>(&self, cursor: &mut Cursor<'a>) {
+    fn write(&self, cursor: &mut Cursor<'_>) {
         self.as_bytes().write(cursor);
     }
 
@@ -285,7 +285,7 @@ impl Writable for &Bound<'_, PyBytes> {
 }
 
 impl Writable for Py<PyString> {
-    fn write<'a>(&self, cursor: &mut Cursor<'a>) {
+    fn write(&self, cursor: &mut Cursor<'_>) {
         Python::with_gil(|py| {
             self.bind(py).to_str().unwrap().write(cursor);
         })
@@ -297,7 +297,7 @@ impl Writable for Py<PyString> {
 }
 
 impl Writable for &Bound<'_, PyString> {
-    fn write<'a>(&self, cursor: &mut Cursor<'a>) {
+    fn write(&self, cursor: &mut Cursor<'_>) {
         self.to_str().unwrap().write(cursor);
     }
     fn size(&self) -> usize {
@@ -306,7 +306,7 @@ impl Writable for &Bound<'_, PyString> {
 }
 
 impl<T: Writable> Writable for Option<T> {
-    fn write<'a>(&self, cursor: &mut Cursor<'a>) {
+    fn write(&self, cursor: &mut Cursor<'_>) {
         if let Some(ref value) = self {
             value.write(cursor);
         }
