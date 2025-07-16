@@ -259,6 +259,22 @@ def suback_packet_mqttproto():
     )
 
 
+def pingreq_packet():
+    return mqtt5.PingReqPacket()
+
+
+def pingreq_packet_mqttproto():
+    return mqttproto.MQTTPingRequestPacket()
+
+
+def pingresp_packet():
+    return mqtt5.PingRespPacket()
+
+
+def pingresp_packet_mqttproto():
+    return mqttproto.MQTTPingResponsePacket()
+
+
 def disconnect_packet():
     return mqtt5.DisconnectPacket()
 

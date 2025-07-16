@@ -53,8 +53,14 @@ fn read(py: Python, buffer: &Bound<'_, PyByteArray>, index: usize) -> PyResult<(
         }
         PacketType::Unsubscribe => Err(PyValueError::new_err("Not implemented")),
         PacketType::UnsubAck => Err(PyValueError::new_err("Not implemented")),
-        PacketType::PingReq => Err(PyValueError::new_err("Not implemented")),
-        PacketType::PingResp => Err(PyValueError::new_err("Not implemented")),
+        PacketType::PingReq => {
+            let packet = PingReqPacket::read(py, &mut cursor, flags, remaining_length)?;
+            Ok((packet.into(), cursor.index))
+        }
+        PacketType::PingResp => {
+            let packet = PingRespPacket::read(py, &mut cursor, flags, remaining_length)?;
+            Ok((packet.into(), cursor.index))
+        }
         PacketType::Disconnect => {
             let packet = DisconnectPacket::read(py, &mut cursor, flags, remaining_length)?;
             Ok((packet.into(), cursor.index))
@@ -72,6 +78,8 @@ fn mqtt5(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PubAckPacket>()?;
     m.add_class::<SubscribePacket>()?;
     m.add_class::<SubAckPacket>()?;
+    m.add_class::<PingReqPacket>()?;
+    m.add_class::<PingRespPacket>()?;
     m.add_class::<DisconnectPacket>()?;
     // Properties
     m.add_class::<ConnectProperties>()?;

@@ -880,6 +880,106 @@ impl PartialEq for SubAckPacket {
 }
 
 #[pyclass(frozen, eq, get_all, module = "mqtt5")]
+pub struct PingReqPacket {}
+
+#[pymethods]
+impl PingReqPacket {
+    #[new]
+    #[pyo3(signature = ())]
+    pub fn new() -> PyResult<Self> {
+        Ok(Self {})
+    }
+
+    #[pyo3(signature = (buffer, /, *, index=0))]
+    pub fn write(&self, buffer: &Bound<'_, PyByteArray>, index: usize) -> PyResult<usize> {
+        let size = 0;
+        let remaining_length = VariableByteInteger(size as u32);
+        let mut cursor = Cursor::new(buffer, index);
+        cursor.assert(1 + remaining_length.size() + size)?;
+
+        // [3.12.1] Fixed header
+        let first_byte = (PacketType::PingReq as u8) << 4;
+        first_byte.write(&mut cursor);
+        remaining_length.write(&mut cursor);
+
+        Ok(cursor.index - index)
+    }
+}
+
+impl PingReqPacket {
+    pub fn read(
+        py: Python,
+        _cursor: &mut Cursor,
+        flags: u8,
+        _remaining_length: VariableByteInteger,
+    ) -> PyResult<Py<Self>> {
+        if flags != 0x00 {
+            return Err(PyValueError::new_err("Malformed bytes"));
+        }
+
+        // Return Python object
+        let packet = Self {};
+        Py::new(py, packet)
+    }
+}
+
+impl PartialEq for PingReqPacket {
+    fn eq(&self, _other: &Self) -> bool {
+        true
+    }
+}
+
+#[pyclass(frozen, eq, get_all, module = "mqtt5")]
+pub struct PingRespPacket {}
+
+#[pymethods]
+impl PingRespPacket {
+    #[new]
+    #[pyo3(signature = ())]
+    pub fn new() -> PyResult<Self> {
+        Ok(Self {})
+    }
+
+    #[pyo3(signature = (buffer, /, *, index=0))]
+    pub fn write(&self, buffer: &Bound<'_, PyByteArray>, index: usize) -> PyResult<usize> {
+        let size = 0;
+        let remaining_length = VariableByteInteger(size as u32);
+        let mut cursor = Cursor::new(buffer, index);
+        cursor.assert(1 + remaining_length.size() + size)?;
+
+        // [3.13.1] Fixed header
+        let first_byte = (PacketType::PingResp as u8) << 4;
+        first_byte.write(&mut cursor);
+        remaining_length.write(&mut cursor);
+
+        Ok(cursor.index - index)
+    }
+}
+
+impl PingRespPacket {
+    pub fn read(
+        py: Python,
+        _cursor: &mut Cursor,
+        flags: u8,
+        _remaining_length: VariableByteInteger,
+    ) -> PyResult<Py<Self>> {
+        if flags != 0x00 {
+            return Err(PyValueError::new_err("Malformed bytes"));
+        }
+
+        // Return Python object
+        let packet = Self {};
+        Py::new(py, packet)
+    }
+}
+
+impl PartialEq for PingRespPacket {
+    fn eq(&self, _other: &Self) -> bool {
+        true
+    }
+}
+
+#[pyclass(frozen, eq, get_all, module = "mqtt5")]
 pub struct DisconnectPacket {
     pub reason_code: DisconnectReasonCode,
     pub properties: DisconnectProperties,

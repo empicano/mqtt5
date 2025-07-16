@@ -336,6 +336,24 @@ class SubAckPacket:
         :return: The number of bytes written
         """
 
+class PingReqPacket:
+    def __init__(self) -> None: ...
+    def write(self, buffer: bytearray, /, *, index: int = 0) -> int:
+        """
+        Writes the packet to the buffer.
+
+        :return: The number of bytes written
+        """
+
+class PingRespPacket:
+    def __init__(self) -> None: ...
+    def write(self, buffer: bytearray, /, *, index: int = 0) -> int:
+        """
+        Writes the packet to the buffer.
+
+        :return: The number of bytes written
+        """
+
 class DisconnectPacket:
     reason_code: DisconnectReasonCode
     properties: DisconnectProperties
