@@ -13,5 +13,9 @@ num_enum = "0.7.3"
 version = "0.24.0"
 features = ["abi3-py310"]
 
+[profile.release]
+codegen-units = 1
+lto = "fat"
+
 [lints.clippy]
 enum_variant_names = "allow"

@@ -40,7 +40,7 @@ strip = true
 
 [tool.uv]
 # Rebuild the project when any of these files change
-cache-keys = [{ file = "pyproject.toml" }, { file = "rust/Cargo.toml" }, { file = "src/**" }]
+cache-keys = [{ file = "pyproject.toml" }, { file = "Cargo.toml" }, { file = "src/**" }]
 
 [tool.uv.sources]
 mqttproto = { git = "https://github.com/empicano/mqttproto.git" }
