@@ -103,6 +103,21 @@ impl Readable for u32 {
     }
 }
 
+impl Readable for bool {
+    fn read(cursor: &mut Cursor<'_>) -> PyResult<Self> {
+        if cursor.len() < 1 {
+            return Err(PyIndexError::new_err("Insufficient bytes"));
+        }
+        let byte = cursor.buffer[cursor.index];
+        cursor.index += 1;
+        match byte {
+            0 => Ok(false),
+            1 => Ok(true),
+            _ => Err(PyValueError::new_err("Malformed bytes")),
+        }
+    }
+}
+
 impl Readable for VariableByteInteger {
     fn read(cursor: &mut Cursor<'_>) -> PyResult<Self> {
         let mut multiplier = 1;
@@ -211,6 +226,17 @@ impl Writable for u32 {
 
     fn size(&self) -> usize {
         4
+    }
+}
+
+impl Writable for bool {
+    fn write(&self, cursor: &mut Cursor<'_>) {
+        cursor.buffer[cursor.index] = if *self { 1 } else { 0 };
+        cursor.index += 1;
+    }
+
+    fn size(&self) -> usize {
+        1
     }
 }
 
