@@ -446,8 +446,11 @@ impl ConnectPacket {
                 PropertyType::MaximumPacketSize => {
                     maximum_packet_size = Some(u32::read(cursor)?);
                 }
-                _ => {
-                    return Err(PyValueError::new_err("Invalid property type"));
+                other => {
+                    return Err(PyValueError::new_err(format!(
+                        "Invalid property type for ConnectPacket: {:?}",
+                        other
+                    )));
                 }
             }
         }
@@ -484,8 +487,11 @@ impl ConnectPacket {
                     PropertyType::WillDelayInterval => {
                         will_delay_interval = u32::read(cursor)?;
                     }
-                    _ => {
-                        return Err(PyValueError::new_err("Invalid property type"));
+                    other => {
+                        return Err(PyValueError::new_err(format!(
+                            "Invalid property type for Will: {:?}",
+                            other
+                        )));
                     }
                 }
             }
@@ -877,8 +883,11 @@ impl ConnAckPacket {
                 PropertyType::SharedSubscriptionAvailable => {
                     shared_subscription_available = bool::read(cursor)?;
                 }
-                _ => {
-                    return Err(PyValueError::new_err("Invalid property type"));
+                other => {
+                    return Err(PyValueError::new_err(format!(
+                        "Invalid property type for ConnAckPacket: {:?}",
+                        other
+                    )));
                 }
             }
         }
@@ -1229,8 +1238,11 @@ impl PublishPacket {
                 crate::types::PropertyType::TopicAlias => {
                     topic_alias = Some(u16::read(cursor)?);
                 }
-                _ => {
-                    return Err(PyValueError::new_err("Invalid property type"));
+                other => {
+                    return Err(PyValueError::new_err(format!(
+                        "Invalid property type for PublishPacket: {:?}",
+                        other
+                    )));
                 }
             }
         }
@@ -1387,8 +1399,11 @@ impl PubAckPacket {
                     crate::types::PropertyType::ReasonString => {
                         reason_string = Some(Py::<PyString>::read(cursor)?);
                     }
-                    _ => {
-                        return Err(PyValueError::new_err("Invalid property type"));
+                    other => {
+                        return Err(PyValueError::new_err(format!(
+                            "Invalid property type for PubAckPacket: {:?}",
+                            other
+                        )));
                     }
                 }
             }
@@ -1519,8 +1534,11 @@ impl SubscribePacket {
                 crate::types::PropertyType::SubscriptionId => {
                     subscription_id = Some(VariableByteInteger::read(cursor)?);
                 }
-                _ => {
-                    return Err(PyValueError::new_err("Invalid property type"));
+                other => {
+                    return Err(PyValueError::new_err(format!(
+                        "Invalid property type for SubscribePacket: {:?}",
+                        other
+                    )));
                 }
             }
         }
@@ -1673,8 +1691,11 @@ impl SubAckPacket {
                 crate::types::PropertyType::ReasonString => {
                     reason_string = Some(Py::<PyString>::read(cursor)?);
                 }
-                _ => {
-                    return Err(PyValueError::new_err("Invalid property type"));
+                other => {
+                    return Err(PyValueError::new_err(format!(
+                        "Invalid property type for SubAckPacket: {:?}",
+                        other
+                    )));
                 }
             }
         }
@@ -1929,8 +1950,11 @@ impl DisconnectPacket {
                     crate::types::PropertyType::ReasonString => {
                         reason_string = Some(Py::<PyString>::read(cursor)?);
                     }
-                    _ => {
-                        return Err(PyValueError::new_err("Invalid property type"));
+                    other => {
+                        return Err(PyValueError::new_err(format!(
+                            "Invalid property type for DisconnectPacket: {:?}",
+                            other
+                        )));
                     }
                 }
             }
