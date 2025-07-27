@@ -19,14 +19,12 @@ def connect_packet_will():
             payload=b"\x12" * 2**8,
             qos=mqtt5.QoS.EXACTLY_ONCE,
             retain=True,
-            properties=mqtt5.WillProperties(
-                payload_format_indicator=1,
-                message_expiry_interval=2**24,
-                content_type="text/html",
-                response_topic="HELLO/4444/#",
-                correlation_data=b"\x12" * 2**8,
-                will_delay_interval=12,
-            ),
+            payload_format_indicator=1,
+            message_expiry_interval=2**24,
+            content_type="text/html",
+            response_topic="HELLO/4444/#",
+            correlation_data=b"\x12" * 2**8,
+            will_delay_interval=12,
         ),
     )
 
@@ -62,26 +60,22 @@ def connect_packet_full():
             payload=b"\x12" * 2**8,
             qos=mqtt5.QoS.EXACTLY_ONCE,
             retain=True,
-            properties=mqtt5.WillProperties(
-                payload_format_indicator=1,
-                message_expiry_interval=2**24,
-                content_type="text/html",
-                response_topic="HELLO/4444/#",
-                correlation_data=b"\x12" * 2**8,
-                will_delay_interval=12,
-            ),
+            payload_format_indicator=1,
+            message_expiry_interval=2**24,
+            content_type="text/html",
+            response_topic="HELLO/4444/#",
+            correlation_data=b"\x12" * 2**8,
+            will_delay_interval=12,
         ),
         keep_alive=6789,
-        properties=mqtt5.ConnectProperties(
-            session_expiry_interval=9999,
-            authentication_method="GS2-KRB5",
-            authentication_data=b"\x12" * 2**8,
-            request_problem_information=0,
-            request_response_information=1,
-            receive_maximum=55555,
-            topic_alias_maximum=3,
-            maximum_packet_size=5000,
-        ),
+        session_expiry_interval=9999,
+        authentication_method="GS2-KRB5",
+        authentication_data=b"\x12" * 2**8,
+        request_problem_information=False,
+        request_response_information=True,
+        receive_maximum=55555,
+        topic_alias_maximum=3,
+        maximum_packet_size=5000,
     )
 
 
@@ -133,24 +127,22 @@ def connack_packet_full():
     return mqtt5.ConnAckPacket(
         session_present=True,
         reason_code=mqtt5.ConnAckReasonCode.UNSPECIFIED_ERROR,
-        properties=mqtt5.ConnAckProperties(
-            session_expiry_interval=9999,
-            assigned_client_id="Bulbasaur",
-            server_keep_alive=6789,
-            authentication_method="GS2-KRB5",
-            authentication_data=b"\x12" * 2**8,
-            response_information="response/information",
-            server_reference="example.com:1883",
-            reason_string="The reason string is a human readable string designed for diagnostics.",
-            receive_maximum=2**10,
-            topic_alias_maximum=2**8,
-            maximum_qos=0,
-            retain_available=1,
-            maximum_packet_size=2**12,
-            wildcard_subscription_available=0,
-            subscription_id_available=1,
-            shared_subscription_available=0,
-        ),
+        session_expiry_interval=9999,
+        assigned_client_id="Bulbasaur",
+        server_keep_alive=6789,
+        authentication_method="GS2-KRB5",
+        authentication_data=b"\x12" * 2**8,
+        response_information="response/information",
+        server_reference="example.com:1883",
+        reason_string="The reason string is a human readable string designed for diagnostics.",
+        receive_maximum=2**10,
+        topic_alias_maximum=2**8,
+        maximum_qos=mqtt5.QoS.AT_MOST_ONCE,
+        retain_available=False,
+        maximum_packet_size=2**12,
+        wildcard_subscription_available=False,
+        subscription_id_available=False,
+        shared_subscription_available=False,
     )
 
 
@@ -170,10 +162,10 @@ def connack_packet_full_mqttproto():
             mqttproto.PropertyType.RECEIVE_MAXIMUM: 2**10,
             mqttproto.PropertyType.TOPIC_ALIAS_MAXIMUM: 2**8,
             mqttproto.PropertyType.MAXIMUM_QOS: 0,
-            mqttproto.PropertyType.RETAIN_AVAILABLE: 1,
+            mqttproto.PropertyType.RETAIN_AVAILABLE: 0,
             mqttproto.PropertyType.MAXIMUM_PACKET_SIZE: 2**12,
             mqttproto.PropertyType.WILDCARD_SUBSCRIPTION_AVAILABLE: 0,
-            mqttproto.PropertyType.SUBSCRIPTION_IDENTIFIER_AVAILABLE: 1,
+            mqttproto.PropertyType.SUBSCRIPTION_IDENTIFIER_AVAILABLE: 0,
             mqttproto.PropertyType.SHARED_SUBSCRIPTION_AVAILABLE: 0,
         },
     )
@@ -219,9 +211,7 @@ def puback_packet_full():
     return mqtt5.PubAckPacket(
         packet_id=1234,
         reason_code=mqtt5.PubAckReasonCode.NO_MATCHING_SUBSCRIBERS,
-        properties=mqtt5.PubAckProperties(
-            reason_string="The reason string is a human readable string designed for diagnostics.",
-        ),
+        reason_string="The reason string is a human readable string designed for diagnostics.",
     )
 
 
@@ -288,11 +278,9 @@ def disconnect_packet_mqttproto():
 def disconnect_packet_full():
     return mqtt5.DisconnectPacket(
         reason_code=mqtt5.DisconnectReasonCode.SERVER_SHUTTING_DOWN,
-        properties=mqtt5.DisconnectProperties(
-            session_expiry_interval=9999,
-            server_reference="example.com:1883",
-            reason_string="The reason string is a human readable string designed for diagnostics.",
-        ),
+        session_expiry_interval=9999,
+        server_reference="example.com:1883",
+        reason_string="The reason string is a human readable string designed for diagnostics.",
     )
 
 

@@ -19,3 +19,4 @@ lto = "fat"
 
 [lints.clippy]
 enum_variant_names = "allow"
+too_many_arguments = "allow"

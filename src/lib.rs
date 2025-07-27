@@ -81,14 +81,6 @@ fn mqtt5(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PingReqPacket>()?;
     m.add_class::<PingRespPacket>()?;
     m.add_class::<DisconnectPacket>()?;
-    // Properties
-    m.add_class::<ConnectProperties>()?;
-    m.add_class::<ConnAckProperties>()?;
-    m.add_class::<PublishProperties>()?;
-    m.add_class::<PubAckProperties>()?;
-    m.add_class::<SubscribeProperties>()?;
-    m.add_class::<SubAckProperties>()?;
-    m.add_class::<DisconnectProperties>()?;
     // Reason codes
     m.add_class::<ConnAckReasonCode>()?;
     m.add_class::<PubAckReasonCode>()?;
@@ -97,7 +89,6 @@ fn mqtt5(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // Misc
     m.add_class::<QoS>()?;
     m.add_class::<RetainHandling>()?;
-    m.add_class::<WillProperties>()?;
     m.add_class::<Will>()?;
     m.add_class::<Subscription>()?;
     // Functions

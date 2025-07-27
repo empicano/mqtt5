@@ -1,6 +1,6 @@
 use crate::io::{Cursor, Readable, Writable};
 use num_enum::TryFromPrimitive;
-use pyo3::exceptions::{PyIndexError, PyValueError};
+use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::PyResult;
 use std::fmt;
@@ -8,7 +8,7 @@ use std::fmt;
 macro_rules! reason_code {
     ( $name:ident { $($field:ident = $value:expr),* $(,)? } ) => {
         #[pyclass(eq, str, rename_all = "SCREAMING_SNAKE_CASE", module = "mqtt5")]
-        #[derive(Copy, Clone, PartialEq, Eq, TryFromPrimitive)]
+        #[derive(Clone, Copy, PartialEq, Eq, TryFromPrimitive)]
         #[repr(u8)]
         pub enum $name {
             $($field = $value,)*
@@ -41,9 +41,7 @@ macro_rules! reason_code {
 
         impl Readable for $name {
             fn read(cursor: &mut Cursor<'_>) -> PyResult<Self> {
-                if cursor.len() < 1 {
-                    return Err(PyIndexError::new_err("Insufficient bytes"));
-                }
+                cursor.require(1)?;
                 let result = cursor.buffer[cursor.index];
                 cursor.index += 1;
                 Self::new(result)
@@ -56,7 +54,7 @@ macro_rules! reason_code {
                 cursor.index += 1;
             }
 
-            fn size(&self) -> usize {
+            fn nbytes(&self) -> usize {
                 1
             }
         }

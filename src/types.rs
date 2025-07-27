@@ -30,10 +30,48 @@ impl PacketType {
     }
 }
 
-macro_rules! int_enum {
+#[derive(PartialEq, Eq, TryFromPrimitive)]
+#[repr(u8)]
+pub enum PropertyType {
+    PayloadFormatIndicator = 1,
+    MessageExpiryInterval = 2,
+    ContentType = 3,
+    ResponseTopic = 8,
+    CorrelationData = 9,
+    SubscriptionId = 11,
+    SessionExpiryInterval = 17,
+    AssignedClientId = 18,
+    ServerKeepAlive = 19,
+    AuthenticationMethod = 21,
+    AuthenticationData = 22,
+    RequestProblemInformation = 23,
+    WillDelayInterval = 24,
+    RequestResponseInformation = 25,
+    ResponseInformation = 26,
+    ServerReference = 28,
+    ReasonString = 31,
+    ReceiveMaximum = 33,
+    TopicAliasMaximum = 34,
+    TopicAlias = 35,
+    MaximumQoS = 36,
+    RetainAvailable = 37,
+    UserProperty = 38,
+    MaximumPacketSize = 39,
+    WildcardSubscriptionAvailable = 40,
+    SubscriptionIdAvailable = 41,
+    SharedSubscriptionAvailable = 42,
+}
+
+impl PropertyType {
+    pub fn new(value: u8) -> PyResult<Self> {
+        Self::try_from(value).map_err(|e| PyValueError::new_err(e.to_string()))
+    }
+}
+
+macro_rules! py_int_enum {
     ( $name:ident { $($field:ident = $value:expr),* $(,)? } ) => {
         #[pyclass(eq, str, rename_all = "SCREAMING_SNAKE_CASE", module = "mqtt5")]
-        #[derive(Copy, Clone, PartialEq, Eq, TryFromPrimitive)]
+        #[derive(Clone, Copy, PartialEq, Eq, TryFromPrimitive)]
         #[repr(u8)]
         pub enum $name {
             $($field = $value,)*
@@ -72,7 +110,7 @@ macro_rules! int_enum {
     };
 }
 
-int_enum! {
+py_int_enum! {
     QoS {
         AtMostOnce = 0,
         AtLeastOnce = 1,
@@ -80,7 +118,7 @@ int_enum! {
     }
 }
 
-int_enum! {
+py_int_enum! {
     RetainHandling {
         SendAlways = 0,
         SendIfSubscriptionNotExists = 1,

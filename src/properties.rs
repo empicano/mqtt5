@@ -162,11 +162,11 @@ macro_rules! properties {
 
         impl Readable for $name {
             fn read(cursor: &mut Cursor<'_>) -> PyResult<Self> {
-                let length = VariableByteInteger::read(cursor)?.get() as usize;
+                let length = VariableByteInteger::read(cursor)?.value() as usize;
                 let start = cursor.index;
                 let mut instance = Self::default();
                 while cursor.index - start < length {
-                    let id = VariableByteInteger::read(cursor)?.get();
+                    let id = VariableByteInteger::read(cursor)?.value();
                     match id {
                         $(
                             $property_id => {
@@ -185,34 +185,35 @@ macro_rules! properties {
 
         impl Writable for $name {
             fn write(&self, cursor: &mut Cursor<'_>) {
-                let mut size = 0;
+                let mut nbytes = 0;
                 $(
                     if let Some(ref value) = self.$field {
-                        size += VariableByteInteger($property_id).size() + value.size();
+                        nbytes += VariableByteInteger::new($property_id).nbytes() + value.nbytes();
                     }
                 )*
-                VariableByteInteger(size as u32).write(cursor);
+                VariableByteInteger::new(nbytes as u32).write(cursor);
                 $(
                     if let Some(ref value) = self.$field {
-                        VariableByteInteger($property_id).write(cursor);
+                        VariableByteInteger::new($property_id).write(cursor);
                         value.write(cursor);
                     }
                 )*
             }
 
-            fn size(&self) -> usize {
-                let mut size = 0;
+            fn nbytes(&self) -> usize {
+                let mut nbytes = 0;
                 $(
                     if let Some(ref value) = self.$field {
-                        size += VariableByteInteger($property_id).size() + value.size();
+                        nbytes += VariableByteInteger::new($property_id).nbytes() + value.nbytes();
                     }
                 )*
-                size + VariableByteInteger(size as u32).size()
+                nbytes + VariableByteInteger::new(nbytes as u32).nbytes()
             }
         }
     };
 }
 
+/*
 properties! {
     WillProperties {
         payload_format_indicator: u8 = 0x01,
@@ -307,3 +308,4 @@ properties! {
         reason_string: Py<PyString> = 0x1F,
     }
 }
+*/

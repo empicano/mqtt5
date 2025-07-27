@@ -1,5 +1,4 @@
 import typing
-import dataclasses
 import enum
 
 class QoS(enum.IntEnum):
@@ -107,96 +106,49 @@ class DisconnectReasonCode(enum.IntEnum):
     SUBSCRIPTION_IDS_NOT_SUPPORTED = 161
     WILDCARD_SUBSCRIPTIONS_NOT_SUPPORTED = 162
 
-@dataclasses.dataclass
-class WillProperties:
-    payload_format_indicator: int | None = None
-    message_expiry_interval: int | None = None
-    content_type: str | None = None
-    response_topic: str | None = None
-    correlation_data: bytes | None = None
-    will_delay_interval: int | None = None
-
-@dataclasses.dataclass
-class ConnectProperties:
-    session_expiry_interval: int | None = None
-    authentication_method: str | None = None
-    authentication_data: bytes | None = None
-    request_problem_information: int | None = None
-    request_response_information: int | None = None
-    receive_maximum: int | None = None
-    topic_alias_maximum: int | None = None
-    maximum_packet_size: int | None = None
-
-@dataclasses.dataclass
-class ConnAckProperties:
-    session_expiry_interval: int | None = None
-    assigned_client_id: str | None = None
-    server_keep_alive: int | None = None
-    authentication_method: str | None = None
-    authentication_data: bytes | None = None
-    response_information: str | None = None
-    server_reference: str | None = None
-    reason_string: str | None = None
-    receive_maximum: int | None = None
-    topic_alias_maximum: int | None = None
-    maximum_qos: int | None = None
-    retain_available: int | None = None
-    maximum_packet_size: int | None = None
-    wildcard_subscription_available: int | None = None
-    subscription_id_available: int | None = None
-    shared_subscription_available: int | None = None
-
-@dataclasses.dataclass
-class PublishProperties:
-    payload_format_indicator: int | None = None
-    message_expiry_interval: int | None = None
-    content_type: str | None = None
-    response_topic: str | None = None
-    correlation_data: bytes | None = None
-    subscription_id: int | None = None
-    topic_alias: int | None = None
-
-@dataclasses.dataclass
-class PubAckProperties:
-    reason_string: str | None = None
-
-@dataclasses.dataclass
-class PubRecProperties:
-    reason_string: str | None = None
-
-@dataclasses.dataclass
-class PubCompProperties:
-    reason_string: str | None = None
-
-@dataclasses.dataclass
-class SubscribeProperties:
-    subscription_id: int | None = None
-
-@dataclasses.dataclass
-class SubAckProperties:
-    reason_string: str | None = None
-
-@dataclasses.dataclass
-class DisconnectProperties:
-    session_expiry_interval: int | None = None
-    server_reference: str | None = None
-    reason_string: str | None = None
-
-@dataclasses.dataclass
 class Will:
     topic: str
-    payload: bytes | None = None
-    qos: QoS = QoS.AT_MOST_ONCE
-    retain: bool = False
-    properties: WillProperties | None = None
+    payload: bytes | None
+    qos: QoS
+    retain: bool
+    payload_format_indicator: int
+    message_expiry_interval: int | None
+    content_type: str | None
+    response_topic: str | None
+    correlation_data: bytes | None
+    will_delay_interval: int
 
-@dataclasses.dataclass
+    def __init__(
+        self,
+        topic: str,
+        *,
+        payload: bytes | None = None,
+        qos: QoS = QoS.AT_MOST_ONCE,
+        retain: bool = False,
+        payload_format_indicator: int = 0,
+        message_expiry_interval: int | None = None,
+        content_type: str | None = None,
+        response_topic: str | None = None,
+        correlation_data: bytes | None = None,
+        will_delay_interval: int = 0,
+    ) -> None: ...
+
 class Subscription:
     pattern: str
-    maximum_qos: QoS = QoS.AT_MOST_ONCE
-    no_local: bool = False
-    retain_as_published: bool = True
-    retain_handling: RetainHandling = RetainHandling.SEND_ALWAYS
+    maximum_qos: QoS
+    no_local: bool
+    retain_as_published: bool
+    retain_handling: RetainHandling
+
+    def __init__(
+        self,
+        pattern: str,
+        *,
+        maximum_qos: QoS = QoS.AT_MOST_ONCE,
+        no_local: bool = False,
+        retain_as_published: bool = True,
+        retain_handling: RetainHandling = RetainHandling.SEND_ALWAYS,
+    ) -> None: ...
 
 class Packet(typing.Protocol):
     def write(self, buffer: bytearray, /, *, index: int = 0) -> int:
@@ -213,7 +165,14 @@ class ConnectPacket:
     clean_start: bool
     will: Will
     keep_alive: int
-    properties: ConnectProperties
+    session_expiry_interval: int
+    authentication_method: str | None
+    authentication_data: bytes | None
+    request_problem_information: bool
+    request_response_information: bool
+    receive_maximum: int
+    topic_alias_maximum: int
+    maximum_packet_size: int | None
 
     def __init__(
         self,
@@ -224,7 +183,14 @@ class ConnectPacket:
         clean_start: bool = False,
         will: Will | None = None,
         keep_alive: int = 0,
-        properties: ConnectProperties | None = None,
+        session_expiry_interval: int = 0,
+        authentication_method: str | None = None,
+        authentication_data: bytes | None = None,
+        request_problem_information: bool = True,
+        request_response_information: bool = False,
+        receive_maximum: int = 65535,
+        topic_alias_maximum: int = 0,
+        maximum_packet_size: int | None = None,
     ) -> None: ...
     def write(self, buffer: bytearray, /, *, index: int = 0) -> int:
         """
@@ -236,14 +202,44 @@ class ConnectPacket:
 class ConnAckPacket:
     session_present: bool
     reason_code: ConnAckReasonCode
-    properties: ConnAckProperties
+    session_expiry_interval: int | None
+    assigned_client_id: str | None
+    server_keep_alive: int | None
+    authentication_method: str | None
+    authentication_data: bytes | None
+    response_information: str | None
+    server_reference: str | None
+    reason_string: str | None
+    receive_maximum: int
+    topic_alias_maximum: int
+    maximum_qos: QoS
+    retain_available: bool
+    maximum_packet_size: int | None
+    wildcard_subscription_available: bool
+    subscription_id_available: bool
+    shared_subscription_available: bool
 
     def __init__(
         self,
         *,
         session_present: bool = False,
         reason_code: ConnAckReasonCode = ConnAckReasonCode.SUCCESS,
-        properties: ConnAckProperties | None = None,
+        session_expiry_interval: int | None = None,
+        assigned_client_id: str | None = None,
+        server_keep_alive: int | None = None,
+        authentication_method: str | None = None,
+        authentication_data: bytes | None = None,
+        response_information: str | None = None,
+        server_reference: str | None = None,
+        reason_string: str | None = None,
+        receive_maximum: int = 65535,
+        topic_alias_maximum: int = 0,
+        maximum_qos: QoS = QoS.EXACTLY_ONCE,
+        retain_available: bool = True,
+        maximum_packet_size: int | None = None,
+        wildcard_subscription_available: bool = True,
+        subscription_id_available: bool = True,
+        shared_subscription_available: bool = True,
     ): ...
     def write(self, buffer: bytearray, /, *, index: int = 0) -> int:
         """
@@ -259,7 +255,13 @@ class PublishPacket:
     retain: bool
     packet_id: int | None
     duplicate: bool
-    properties: PublishProperties
+    payload_format_indicator: int
+    message_expiry_interval: int | None
+    content_type: str | None
+    response_topic: str | None
+    correlation_data: bytes | None
+    subscription_ids: list[int]
+    topic_alias: int | None
 
     def __init__(
         self,
@@ -270,7 +272,13 @@ class PublishPacket:
         retain: bool = False,
         packet_id: int | None = None,
         duplicate: bool = False,
-        properties: PublishProperties | None = None,
+        payload_format_indicator: int = 0,
+        message_expiry_interval: int | None = None,
+        content_type: str | None = None,
+        response_topic: str | None = None,
+        correlation_data: bytes | None = None,
+        subscription_ids: list[int] | None = None,
+        topic_alias: int | None = None,
     ) -> None: ...
     def write(self, buffer: bytearray, /, *, index: int = 0) -> int:
         """
@@ -282,14 +290,14 @@ class PublishPacket:
 class PubAckPacket:
     packet_id: int
     reason_code: PubAckReasonCode
-    properties: PubAckProperties
+    reason_string: str | None
 
     def __init__(
         self,
         packet_id: int,
         *,
         reason_code: PubAckReasonCode = PubAckReasonCode.SUCCESS,
-        properties: PubAckProperties | None = None,
+        reason_string: str | None = None,
     ) -> None: ...
     def write(self, buffer: bytearray, /, *, index: int = 0) -> int:
         """
@@ -301,14 +309,14 @@ class PubAckPacket:
 class SubscribePacket:
     packet_id: int
     subscriptions: list[Subscription]
-    properties: SubscribeProperties
+    subscription_id: int | None
 
     def __init__(
         self,
         packet_id: int,
         subscriptions: list[Subscription],
         *,
-        properties: SubscribeProperties | None = None,
+        subscription_id: int | None = None,
     ) -> None: ...
     def write(self, buffer: bytearray, /, *, index: int = 0) -> int:
         """
@@ -320,14 +328,14 @@ class SubscribePacket:
 class SubAckPacket:
     packet_id: int
     reason_codes: list[SubAckReasonCode]
-    properties: SubAckProperties
+    reason_string: str | None
 
     def __init__(
         self,
         packet_id: int,
         reason_codes: list[SubAckReasonCode],
         *,
-        properties: SubAckProperties | None = None,
+        reason_string: str | None = None,
     ) -> None: ...
     def write(self, buffer: bytearray, /, *, index: int = 0) -> int:
         """
@@ -356,13 +364,17 @@ class PingRespPacket:
 
 class DisconnectPacket:
     reason_code: DisconnectReasonCode
-    properties: DisconnectProperties
+    session_expiry_interval: int | None
+    server_reference: str | None
+    reason_string: str | None
 
     def __init__(
         self,
         *,
         reason_code: DisconnectReasonCode = DisconnectReasonCode.NORMAL_DISCONNECTION,
-        properties: DisconnectProperties | None = None,
+        session_expiry_interval: int | None = None,
+        server_reference: str | None = None,
+        reason_string: str | None = None,
     ) -> None: ...
     def write(self, buffer: bytearray, /, *, index: int = 0) -> int:
         """

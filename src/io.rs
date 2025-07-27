@@ -18,18 +18,12 @@ impl<'a> Cursor<'a> {
         }
     }
 
-    /// Returns the number of bytes left to read/write.
-    pub fn len(&self) -> usize {
-        self.buffer.len() - self.index
-    }
-
-    /// Asserts that the buffer has at least the given number of bytes available.
-    pub fn assert(&self, length: usize) -> PyResult<()> {
-        if self.len() < length {
+    /// Ensures that the buffer has at least the given number of bytes available.
+    pub fn require(&self, length: usize) -> PyResult<()> {
+        let available = self.buffer.len() - self.index;
+        if available < length {
             return Err(PyIndexError::new_err(format!(
-                "Insufficient bytes: {} < {}",
-                self.len(),
-                length
+                "Insufficient bytes: {available} < {length}"
             )));
         }
         Ok(())
@@ -37,7 +31,7 @@ impl<'a> Cursor<'a> {
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, FromPyObject, IntoPyObject)]
-pub struct VariableByteInteger(pub u32);
+pub struct VariableByteInteger(u32);
 
 impl VariableByteInteger {
     pub fn new(value: u32) -> Self {
@@ -45,7 +39,7 @@ impl VariableByteInteger {
         Self(value)
     }
 
-    pub fn get(self) -> u32 {
+    pub fn value(self) -> u32 {
         self.0
     }
 }
@@ -64,9 +58,7 @@ pub trait Readable {
 
 impl Readable for u8 {
     fn read(cursor: &mut Cursor<'_>) -> PyResult<Self> {
-        if cursor.len() < 1 {
-            return Err(PyIndexError::new_err("Insufficient bytes"));
-        }
+        cursor.require(1)?;
         let result = cursor.buffer[cursor.index];
         cursor.index += 1;
         Ok(result)
@@ -75,9 +67,7 @@ impl Readable for u8 {
 
 impl Readable for u16 {
     fn read(cursor: &mut Cursor<'_>) -> PyResult<Self> {
-        if cursor.len() < 2 {
-            return Err(PyIndexError::new_err("Insufficient bytes"));
-        }
+        cursor.require(2)?;
         let result = u16::from_be_bytes(
             cursor.buffer[cursor.index..cursor.index + 2]
                 .try_into()
@@ -90,9 +80,7 @@ impl Readable for u16 {
 
 impl Readable for u32 {
     fn read(cursor: &mut Cursor<'_>) -> PyResult<Self> {
-        if cursor.len() < 4 {
-            return Err(PyIndexError::new_err("Insufficient bytes"));
-        }
+        cursor.require(4)?;
         let result = u32::from_be_bytes(
             cursor.buffer[cursor.index..cursor.index + 4]
                 .try_into()
@@ -105,9 +93,7 @@ impl Readable for u32 {
 
 impl Readable for bool {
     fn read(cursor: &mut Cursor<'_>) -> PyResult<Self> {
-        if cursor.len() < 1 {
-            return Err(PyIndexError::new_err("Insufficient bytes"));
-        }
+        cursor.require(1)?;
         let byte = cursor.buffer[cursor.index];
         cursor.index += 1;
         match byte {
@@ -123,9 +109,7 @@ impl Readable for VariableByteInteger {
         let mut multiplier = 1;
         let mut result = 0;
         for _ in 0..4 {
-            if cursor.len() < 1 {
-                return Err(PyIndexError::new_err("Insufficient bytes"));
-            }
+            cursor.require(1)?;
             result += (cursor.buffer[cursor.index] & 0x7f) as u32 * multiplier;
             multiplier *= 128;
             cursor.index += 1;
@@ -141,9 +125,7 @@ impl Readable for VariableByteInteger {
 impl Readable for Vec<u8> {
     fn read(cursor: &mut Cursor<'_>) -> PyResult<Self> {
         let length = u16::read(cursor)? as usize;
-        if cursor.len() < length {
-            return Err(PyIndexError::new_err("Insufficient bytes"));
-        }
+        cursor.require(length)?;
         let result = cursor.buffer[cursor.index..cursor.index + length].to_vec();
         cursor.index += length;
         Ok(result)
@@ -161,9 +143,7 @@ impl Readable for String {
 impl Readable for Py<PyBytes> {
     fn read(cursor: &mut Cursor<'_>) -> PyResult<Self> {
         let length = u16::read(cursor)? as usize;
-        if cursor.len() < length {
-            return Err(PyIndexError::new_err("Insufficient bytes"));
-        }
+        cursor.require(length)?;
         let result = Python::with_gil(|py| {
             PyBytes::new(py, &cursor.buffer[cursor.index..cursor.index + length]).unbind()
         });
@@ -175,9 +155,7 @@ impl Readable for Py<PyBytes> {
 impl Readable for Py<PyString> {
     fn read(cursor: &mut Cursor<'_>) -> PyResult<Self> {
         let length = u16::read(cursor)? as usize;
-        if cursor.len() < length {
-            return Err(PyIndexError::new_err("Insufficient bytes"));
-        }
+        cursor.require(length)?;
         let result = Python::with_gil(|py| {
             PyString::new(py, unsafe {
                 str::from_utf8_unchecked(&cursor.buffer[cursor.index..cursor.index + length])
@@ -191,7 +169,7 @@ impl Readable for Py<PyString> {
 
 pub trait Writable {
     fn write(&self, cursor: &mut Cursor<'_>);
-    fn size(&self) -> usize;
+    fn nbytes(&self) -> usize;
 }
 
 impl Writable for u8 {
@@ -200,7 +178,7 @@ impl Writable for u8 {
         cursor.index += 1;
     }
 
-    fn size(&self) -> usize {
+    fn nbytes(&self) -> usize {
         1
     }
 }
@@ -212,7 +190,7 @@ impl Writable for u16 {
         cursor.index += 2;
     }
 
-    fn size(&self) -> usize {
+    fn nbytes(&self) -> usize {
         2
     }
 }
@@ -224,7 +202,7 @@ impl Writable for u32 {
         cursor.index += 4;
     }
 
-    fn size(&self) -> usize {
+    fn nbytes(&self) -> usize {
         4
     }
 }
@@ -235,7 +213,7 @@ impl Writable for bool {
         cursor.index += 1;
     }
 
-    fn size(&self) -> usize {
+    fn nbytes(&self) -> usize {
         1
     }
 }
@@ -243,7 +221,7 @@ impl Writable for bool {
 impl Writable for VariableByteInteger {
     fn write(&self, cursor: &mut Cursor<'_>) {
         let mut remainder = self.0;
-        for _ in 0..self.size() {
+        for _ in 0..self.nbytes() {
             let mut byte = (remainder & 0x7F) as u8;
             remainder >>= 7;
             if remainder > 0 {
@@ -254,7 +232,7 @@ impl Writable for VariableByteInteger {
         }
     }
 
-    fn size(&self) -> usize {
+    fn nbytes(&self) -> usize {
         match self.0 {
             0..=127 => 1,
             128..=16383 => 2,
@@ -273,7 +251,7 @@ impl Writable for &[u8] {
         cursor.index += length;
     }
 
-    fn size(&self) -> usize {
+    fn nbytes(&self) -> usize {
         self.len() + 2
     }
 }
@@ -283,7 +261,7 @@ impl Writable for &str {
         self.as_bytes().write(cursor);
     }
 
-    fn size(&self) -> usize {
+    fn nbytes(&self) -> usize {
         self.len() + 2
     }
 }
@@ -295,8 +273,8 @@ impl Writable for Py<PyBytes> {
         })
     }
 
-    fn size(&self) -> usize {
-        Python::with_gil(|py| self.bind(py).as_bytes().size())
+    fn nbytes(&self) -> usize {
+        Python::with_gil(|py| self.bind(py).as_bytes().nbytes())
     }
 }
 
@@ -305,8 +283,8 @@ impl Writable for &Bound<'_, PyBytes> {
         self.as_bytes().write(cursor);
     }
 
-    fn size(&self) -> usize {
-        self.as_bytes().size()
+    fn nbytes(&self) -> usize {
+        self.as_bytes().nbytes()
     }
 }
 
@@ -317,8 +295,8 @@ impl Writable for Py<PyString> {
         })
     }
 
-    fn size(&self) -> usize {
-        Python::with_gil(|py| self.bind(py).to_str().unwrap().size())
+    fn nbytes(&self) -> usize {
+        Python::with_gil(|py| self.bind(py).to_str().unwrap().nbytes())
     }
 }
 
@@ -326,8 +304,8 @@ impl Writable for &Bound<'_, PyString> {
     fn write(&self, cursor: &mut Cursor<'_>) {
         self.to_str().unwrap().write(cursor);
     }
-    fn size(&self) -> usize {
-        self.to_str().unwrap().size()
+    fn nbytes(&self) -> usize {
+        self.to_str().unwrap().nbytes()
     }
 }
 
@@ -338,9 +316,9 @@ impl<T: Writable> Writable for Option<T> {
         }
     }
 
-    fn size(&self) -> usize {
+    fn nbytes(&self) -> usize {
         match self {
-            Some(value) => value.size(),
+            Some(value) => value.nbytes(),
             None => 0,
         }
     }
