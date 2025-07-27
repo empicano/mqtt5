@@ -57,7 +57,7 @@ impl PacketType {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, TryFromPrimitive)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, TryFromPrimitive)]
 #[repr(u8)]
 pub enum PropertyType {
     PayloadFormatIndicator = 1,

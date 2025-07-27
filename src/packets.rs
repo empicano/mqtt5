@@ -9,6 +9,38 @@ use pyo3::PyResult;
 const PROTOCOL_NAME: &str = "MQTT";
 const PROTOCOL_VERSION: u8 = 5;
 
+macro_rules! read_properties {
+    ($packet_name:literal, $cursor:expr, { $($pattern:tt)* }) => {
+        let properties_remaining_length = VariableByteInteger::read($cursor)?.value() as usize;
+        let properties_start_index = $cursor.index;
+        let mut seen = 0u64;
+        while $cursor.index - properties_start_index < properties_remaining_length {
+            let property_type = PropertyType::new(u8::read($cursor)?)?;
+            // Check for duplicates
+            if !matches!(
+                property_type,
+                PropertyType::UserProperty | PropertyType::SubscriptionId
+            ) {
+                let bit = 1u64 << (property_type as u8);
+                if seen & bit != 0 {
+                    return Err(PyValueError::new_err(format!(
+                        "Duplicate property type: {:?}", property_type
+                    )));
+                }
+                seen |= bit;
+            }
+            match property_type {
+                $($pattern)*
+                _ => {
+                    return Err(PyValueError::new_err(format!(
+                        "Invalid property type for {}: {:?}", $packet_name, property_type
+                    )));
+                }
+            }
+        }
+    };
+}
+
 #[pyclass(frozen, eq, get_all, module = "mqtt5")]
 pub struct Will {
     pub topic: Py<PyString>,
@@ -418,42 +450,32 @@ impl ConnectPacket {
         let mut receive_maximum = 65535;
         let mut topic_alias_maximum = 0;
         let mut maximum_packet_size = None;
-        let properties_remaining_length = VariableByteInteger::read(cursor)?.value() as usize;
-        let properties_start_index = cursor.index;
-        while cursor.index - properties_start_index < properties_remaining_length {
-            match PropertyType::new(u8::read(cursor)?)? {
-                PropertyType::SessionExpiryInterval => {
-                    session_expiry_interval = u32::read(cursor)?;
-                }
-                PropertyType::AuthenticationMethod => {
-                    authentication_method = Some(Py::<PyString>::read(cursor)?);
-                }
-                PropertyType::AuthenticationData => {
-                    authentication_data = Some(Py::<PyBytes>::read(cursor)?);
-                }
-                PropertyType::RequestProblemInformation => {
-                    request_problem_information = bool::read(cursor)?;
-                }
-                PropertyType::RequestResponseInformation => {
-                    request_response_information = bool::read(cursor)?;
-                }
-                PropertyType::ReceiveMaximum => {
-                    receive_maximum = u16::read(cursor)?;
-                }
-                PropertyType::TopicAliasMaximum => {
-                    topic_alias_maximum = u16::read(cursor)?;
-                }
-                PropertyType::MaximumPacketSize => {
-                    maximum_packet_size = Some(u32::read(cursor)?);
-                }
-                other => {
-                    return Err(PyValueError::new_err(format!(
-                        "Invalid property type for ConnectPacket: {:?}",
-                        other
-                    )));
-                }
+        read_properties!("ConnectPacket", cursor, {
+            PropertyType::SessionExpiryInterval => {
+                session_expiry_interval = u32::read(cursor)?;
             }
-        }
+            PropertyType::AuthenticationMethod => {
+                authentication_method = Some(Py::<PyString>::read(cursor)?);
+            }
+            PropertyType::AuthenticationData => {
+                authentication_data = Some(Py::<PyBytes>::read(cursor)?);
+            }
+            PropertyType::RequestProblemInformation => {
+                request_problem_information = bool::read(cursor)?;
+            }
+            PropertyType::RequestResponseInformation => {
+                request_response_information = bool::read(cursor)?;
+            }
+            PropertyType::ReceiveMaximum => {
+                receive_maximum = u16::read(cursor)?;
+            }
+            PropertyType::TopicAliasMaximum => {
+                topic_alias_maximum = u16::read(cursor)?;
+            }
+            PropertyType::MaximumPacketSize => {
+                maximum_packet_size = Some(u32::read(cursor)?);
+            }
+        });
 
         // [3.1.3] Payload
         let client_id = Py::<PyString>::read(cursor)?;
@@ -831,66 +853,56 @@ impl ConnAckPacket {
         let mut wildcard_subscription_available = true;
         let mut subscription_id_available = true;
         let mut shared_subscription_available = true;
-        let properties_remaining_length = VariableByteInteger::read(cursor)?.value() as usize;
-        let properties_start_index = cursor.index;
-        while cursor.index - properties_start_index < properties_remaining_length {
-            match PropertyType::new(u8::read(cursor)?)? {
-                PropertyType::SessionExpiryInterval => {
-                    session_expiry_interval = Some(u32::read(cursor)?);
-                }
-                PropertyType::AssignedClientId => {
-                    assigned_client_id = Some(Py::<PyString>::read(cursor)?);
-                }
-                PropertyType::ServerKeepAlive => {
-                    server_keep_alive = Some(u16::read(cursor)?);
-                }
-                PropertyType::AuthenticationMethod => {
-                    authentication_method = Some(Py::<PyString>::read(cursor)?);
-                }
-                PropertyType::AuthenticationData => {
-                    authentication_data = Some(Py::<PyBytes>::read(cursor)?);
-                }
-                PropertyType::ResponseInformation => {
-                    response_information = Some(Py::<PyString>::read(cursor)?);
-                }
-                PropertyType::ServerReference => {
-                    server_reference = Some(Py::<PyString>::read(cursor)?);
-                }
-                PropertyType::ReasonString => {
-                    reason_string = Some(Py::<PyString>::read(cursor)?);
-                }
-                PropertyType::ReceiveMaximum => {
-                    receive_maximum = u16::read(cursor)?;
-                }
-                PropertyType::TopicAliasMaximum => {
-                    topic_alias_maximum = u16::read(cursor)?;
-                }
-                PropertyType::MaximumQoS => {
-                    maximum_qos = QoS::new(u8::read(cursor)?)?;
-                }
-                PropertyType::RetainAvailable => {
-                    retain_available = bool::read(cursor)?;
-                }
-                PropertyType::MaximumPacketSize => {
-                    maximum_packet_size = Some(u32::read(cursor)?);
-                }
-                PropertyType::WildcardSubscriptionAvailable => {
-                    wildcard_subscription_available = bool::read(cursor)?;
-                }
-                PropertyType::SubscriptionIdAvailable => {
-                    subscription_id_available = bool::read(cursor)?;
-                }
-                PropertyType::SharedSubscriptionAvailable => {
-                    shared_subscription_available = bool::read(cursor)?;
-                }
-                other => {
-                    return Err(PyValueError::new_err(format!(
-                        "Invalid property type for ConnAckPacket: {:?}",
-                        other
-                    )));
-                }
+        read_properties!("ConnAckPacket", cursor, {
+            PropertyType::SessionExpiryInterval => {
+                session_expiry_interval = Some(u32::read(cursor)?);
             }
-        }
+            PropertyType::AssignedClientId => {
+                assigned_client_id = Some(Py::<PyString>::read(cursor)?);
+            }
+            PropertyType::ServerKeepAlive => {
+                server_keep_alive = Some(u16::read(cursor)?);
+            }
+            PropertyType::AuthenticationMethod => {
+                authentication_method = Some(Py::<PyString>::read(cursor)?);
+            }
+            PropertyType::AuthenticationData => {
+                authentication_data = Some(Py::<PyBytes>::read(cursor)?);
+            }
+            PropertyType::ResponseInformation => {
+                response_information = Some(Py::<PyString>::read(cursor)?);
+            }
+            PropertyType::ServerReference => {
+                server_reference = Some(Py::<PyString>::read(cursor)?);
+            }
+            PropertyType::ReasonString => {
+                reason_string = Some(Py::<PyString>::read(cursor)?);
+            }
+            PropertyType::ReceiveMaximum => {
+                receive_maximum = u16::read(cursor)?;
+            }
+            PropertyType::TopicAliasMaximum => {
+                topic_alias_maximum = u16::read(cursor)?;
+            }
+            PropertyType::MaximumQoS => {
+                maximum_qos = QoS::new(u8::read(cursor)?)?;
+            }
+            PropertyType::RetainAvailable => {
+                retain_available = bool::read(cursor)?;
+            }
+            PropertyType::MaximumPacketSize => {
+                maximum_packet_size = Some(u32::read(cursor)?);
+            }
+            PropertyType::WildcardSubscriptionAvailable => {
+                wildcard_subscription_available = bool::read(cursor)?;
+            }
+            PropertyType::SubscriptionIdAvailable => {
+                subscription_id_available = bool::read(cursor)?;
+            }
+            PropertyType::SharedSubscriptionAvailable => {
+                shared_subscription_available = bool::read(cursor)?;
+            }
+        });
 
         // Return the Python object
         let packet = Self {
@@ -939,72 +951,6 @@ impl PartialEq for ConnAckPacket {
             && self.shared_subscription_available == other.shared_subscription_available
     }
 }
-
-/*
-# Commit: d0966a5
-mqtt5: Read Connect: Mean +- std dev: 101 ns +- 2 ns
-mqtt5: Write Connect: Mean +- std dev: 126 ns +- 1 ns
-mqtt5: Read Connect(will): Mean +- std dev: 217 ns +- 13 ns
-mqtt5: Write Connect(will): Mean +- std dev: 639 ns +- 6 ns
-mqtt5: Read Connect(full): Mean +- std dev: 312 ns +- 17 ns
-mqtt5: Write Connect(full): Mean +- std dev: 1.07 us +- 0.01 us
-mqtt5: Read ConnAck: Mean +- std dev: 65.8 ns +- 3.5 ns
-mqtt5: Write ConnAck: Mean +- std dev: 75.4 ns +- 1.3 ns
-mqtt5: Read ConnAck(full): Mean +- std dev: 233 ns +- 14 ns
-mqtt5: Write ConnAck(full): Mean +- std dev: 726 ns +- 7 ns
-mqtt5: Read Publish(qos0): Mean +- std dev: 101 ns +- 6 ns
-mqtt5: Write Publish(qos0): Mean +- std dev: 155 ns +- 1 ns
-mqtt5: Read Publish(qos1): Mean +- std dev: 101 ns +- 2 ns
-mqtt5: Write Publish(qos1): Mean +- std dev: 203 ns +- 2 ns
-mqtt5: Read PubAck: Mean +- std dev: 57.5 ns +- 0.4 ns
-mqtt5: Write PubAck: Mean +- std dev: 97.7 ns +- 0.7 ns
-mqtt5: Read PubAck(full): Mean +- std dev: 81.1 ns +- 0.8 ns
-mqtt5: Write PubAck(full): Mean +- std dev: 250 ns +- 14 ns
-mqtt5: Read Subscribe: Mean +- std dev: 115 ns +- 2 ns
-mqtt5: Write Subscribe: Mean +- std dev: 288 ns +- 18 ns
-mqtt5: Read SubAck: Mean +- std dev: 99.8 ns +- 2.8 ns
-mqtt5: Write SubAck: Mean +- std dev: 226 ns +- 93 ns
-mqtt5: Read PingReq: Mean +- std dev: 54.1 ns +- 1.1 ns
-mqtt5: Write PingReq: Mean +- std dev: 59.9 ns +- 2.9 ns
-mqtt5: Read PingResp: Mean +- std dev: 54.5 ns +- 1.3 ns
-mqtt5: Write PingResp: Mean +- std dev: 58.9 ns +- 1.0 ns
-mqtt5: Read Disconnect: Mean +- std dev: 59.8 ns +- 0.9 ns
-mqtt5: Write Disconnect: Mean +- std dev: 66.4 ns +- 0.5 ns
-mqtt5: Read Disconnect(full): Mean +- std dev: 106 ns +- 6 ns
-mqtt5: Write Disconnect(full): Mean +- std dev: 289 ns +- 3 ns
-
-# Commit: e43085b
-mqtt5: Read Connect: Mean +- std dev: 111 ns +- 3 ns
-mqtt5: Write Connect: Mean +- std dev: 135 ns +- 2 ns
-mqtt5: Read Connect(will): Mean +- std dev: 242 ns +- 3 ns
-mqtt5: Write Connect(will): Mean +- std dev: 538 ns +- 6 ns
-mqtt5: Read Connect(full): Mean +- std dev: 362 ns +- 6 ns
-mqtt5: Write Connect(full): Mean +- std dev: 873 ns +- 10 ns
-mqtt5: Read ConnAck: Mean +- std dev: 66.5 ns +- 1.6 ns
-mqtt5: Write ConnAck: Mean +- std dev: 81.9 ns +- 0.3 ns
-mqtt5: Read ConnAck(full): Mean +- std dev: 269 ns +- 4 ns
-mqtt5: Write ConnAck(full): Mean +- std dev: 606 ns +- 8 ns
-mqtt5: Read Publish(qos0): Mean +- std dev: 112 ns +- 3 ns
-mqtt5: Write Publish(qos0): Mean +- std dev: 209 ns +- 4 ns
-mqtt5: Read Publish(qos1): Mean +- std dev: 116 ns +- 7 ns
-mqtt5: Write Publish(qos1): Mean +- std dev: 258 ns +- 4 ns
-mqtt5: Read PubAck: Mean +- std dev: 63.0 ns +- 3.4 ns
-mqtt5: Write PubAck: Mean +- std dev: 97.9 ns +- 1.6 ns
-mqtt5: Read PubAck(full): Mean +- std dev: 88.7 ns +- 2.5 ns
-mqtt5: Write PubAck(full): Mean +- std dev: 159 ns +- 2 ns
-mqtt5: Read Subscribe: Mean +- std dev: 118 ns +- 2 ns
-mqtt5: Write Subscribe: Mean +- std dev: 282 ns +- 4 ns
-mqtt5: Read SubAck: Mean +- std dev: 100 ns +- 1 ns
-mqtt5: Write SubAck: Mean +- std dev: 197 ns +- 2 ns
-mqtt5: Read PingReq: Mean +- std dev: 55.9 ns +- 1.3 ns
-mqtt5: Write PingReq: Mean +- std dev: 60.0 ns +- 3.6 ns
-mqtt5: Read PingResp: Mean +- std dev: 55.7 ns +- 0.4 ns
-mqtt5: Write PingResp: Mean +- std dev: 60.5 ns +- 3.6 ns
-mqtt5: Read Disconnect: Mean +- std dev: 63.9 ns +- 2.8 ns
-mqtt5: Write Disconnect: Mean +- std dev: 67.7 ns +- 0.6 ns
-mqtt5: Read Disconnect(full): Mean +- std dev: 117 ns +- 2 ns
-mqtt5: Write Disconnect(full): Mean +- std dev: 196 ns +- 3 ns
-*/
 
 #[pyclass(frozen, eq, get_all, module = "mqtt5")]
 pub struct PublishPacket {
@@ -1212,40 +1158,29 @@ impl PublishPacket {
         let mut correlation_data = None;
         let subscription_ids = pyo3::types::PyList::empty(py);
         let mut topic_alias = None;
-        let properties_remaining_length = VariableByteInteger::read(cursor)?.value() as usize;
-        let properties_start_index = cursor.index;
-        while cursor.index - properties_start_index < properties_remaining_length {
-            match crate::types::PropertyType::new(u8::read(cursor)?)? {
-                crate::types::PropertyType::PayloadFormatIndicator => {
-                    payload_format_indicator = u8::read(cursor)?;
-                }
-                crate::types::PropertyType::MessageExpiryInterval => {
-                    message_expiry_interval = Some(u32::read(cursor)?);
-                }
-                crate::types::PropertyType::ContentType => {
-                    content_type = Some(Py::<PyString>::read(cursor)?);
-                }
-                crate::types::PropertyType::ResponseTopic => {
-                    response_topic = Some(Py::<PyString>::read(cursor)?);
-                }
-                crate::types::PropertyType::CorrelationData => {
-                    correlation_data = Some(Py::<PyBytes>::read(cursor)?);
-                }
-                crate::types::PropertyType::SubscriptionId => {
-                    let sub_id = VariableByteInteger::read(cursor)?.value();
-                    subscription_ids.append(sub_id)?;
-                }
-                crate::types::PropertyType::TopicAlias => {
-                    topic_alias = Some(u16::read(cursor)?);
-                }
-                other => {
-                    return Err(PyValueError::new_err(format!(
-                        "Invalid property type for PublishPacket: {:?}",
-                        other
-                    )));
-                }
+        read_properties!("PublishPacket", cursor, {
+            PropertyType::PayloadFormatIndicator => {
+                payload_format_indicator = u8::read(cursor)?;
             }
-        }
+            PropertyType::MessageExpiryInterval => {
+                message_expiry_interval = Some(u32::read(cursor)?);
+            }
+            PropertyType::ContentType => {
+                content_type = Some(Py::<PyString>::read(cursor)?);
+            }
+            PropertyType::ResponseTopic => {
+                response_topic = Some(Py::<PyString>::read(cursor)?);
+            }
+            PropertyType::CorrelationData => {
+                correlation_data = Some(Py::<PyBytes>::read(cursor)?);
+            }
+            PropertyType::SubscriptionId => {
+                subscription_ids.append(VariableByteInteger::read(cursor)?.value())?;
+            }
+            PropertyType::TopicAlias => {
+                topic_alias = Some(u16::read(cursor)?);
+            }
+        });
 
         // [3.3.3] Payload
         let payload_remaining_length =
@@ -1392,21 +1327,11 @@ impl PubAckPacket {
         // [3.4.2.2] Properties
         let mut reason_string = None;
         if remaining_length.value() > 3 {
-            let properties_remaining_length = VariableByteInteger::read(cursor)?.value() as usize;
-            let properties_start_index = cursor.index;
-            while cursor.index - properties_start_index < properties_remaining_length {
-                match crate::types::PropertyType::new(u8::read(cursor)?)? {
-                    crate::types::PropertyType::ReasonString => {
-                        reason_string = Some(Py::<PyString>::read(cursor)?);
-                    }
-                    other => {
-                        return Err(PyValueError::new_err(format!(
-                            "Invalid property type for PubAckPacket: {:?}",
-                            other
-                        )));
-                    }
+            read_properties!("PubAckPacket", cursor, {
+                PropertyType::ReasonString => {
+                    reason_string = Some(Py::<PyString>::read(cursor)?);
                 }
-            }
+            });
         }
 
         // Return the Python object
@@ -1527,21 +1452,11 @@ impl SubscribePacket {
 
         // [3.8.2.1] Properties
         let mut subscription_id = None;
-        let properties_remaining_length = VariableByteInteger::read(cursor)?.value() as usize;
-        let properties_start_index = cursor.index;
-        while cursor.index - properties_start_index < properties_remaining_length {
-            match crate::types::PropertyType::new(u8::read(cursor)?)? {
-                crate::types::PropertyType::SubscriptionId => {
-                    subscription_id = Some(VariableByteInteger::read(cursor)?);
-                }
-                other => {
-                    return Err(PyValueError::new_err(format!(
-                        "Invalid property type for SubscribePacket: {:?}",
-                        other
-                    )));
-                }
+        read_properties!("SubscribePacket", cursor, {
+            PropertyType::SubscriptionId => {
+                subscription_id = Some(VariableByteInteger::read(cursor)?);
             }
-        }
+        });
 
         // [3.8.3] Payload
         let subscriptions = PyList::empty(py);
@@ -1684,21 +1599,11 @@ impl SubAckPacket {
 
         // [3.9.2.1] Properties
         let mut reason_string = None;
-        let properties_remaining_length = VariableByteInteger::read(cursor)?.value() as usize;
-        let properties_start_index = cursor.index;
-        while cursor.index - properties_start_index < properties_remaining_length {
-            match crate::types::PropertyType::new(u8::read(cursor)?)? {
-                crate::types::PropertyType::ReasonString => {
-                    reason_string = Some(Py::<PyString>::read(cursor)?);
-                }
-                other => {
-                    return Err(PyValueError::new_err(format!(
-                        "Invalid property type for SubAckPacket: {:?}",
-                        other
-                    )));
-                }
+        read_properties!("SubAckPacket", cursor, {
+            PropertyType::ReasonString => {
+                reason_string = Some(Py::<PyString>::read(cursor)?);
             }
-        }
+        });
 
         // [3.9.3] Payload
         let reason_codes = PyList::empty(py);
@@ -1937,27 +1842,17 @@ impl DisconnectPacket {
         let mut server_reference = None;
         let mut reason_string = None;
         if remaining_length.value() > 1 {
-            let properties_remaining_length = VariableByteInteger::read(cursor)?.value() as usize;
-            let properties_start_index = cursor.index;
-            while cursor.index - properties_start_index < properties_remaining_length {
-                match crate::types::PropertyType::new(u8::read(cursor)?)? {
-                    crate::types::PropertyType::SessionExpiryInterval => {
-                        session_expiry_interval = Some(u32::read(cursor)?);
-                    }
-                    crate::types::PropertyType::ServerReference => {
-                        server_reference = Some(Py::<PyString>::read(cursor)?);
-                    }
-                    crate::types::PropertyType::ReasonString => {
-                        reason_string = Some(Py::<PyString>::read(cursor)?);
-                    }
-                    other => {
-                        return Err(PyValueError::new_err(format!(
-                            "Invalid property type for DisconnectPacket: {:?}",
-                            other
-                        )));
-                    }
+            read_properties!("DisconnectPacket", cursor, {
+                PropertyType::SessionExpiryInterval => {
+                    session_expiry_interval = Some(u32::read(cursor)?);
                 }
-            }
+                PropertyType::ServerReference => {
+                    server_reference = Some(Py::<PyString>::read(cursor)?);
+                }
+                PropertyType::ReasonString => {
+                    reason_string = Some(Py::<PyString>::read(cursor)?);
+                }
+            });
         }
 
         // Return the Python object

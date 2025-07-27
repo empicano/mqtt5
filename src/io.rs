@@ -30,7 +30,7 @@ impl<'a> Cursor<'a> {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, FromPyObject, IntoPyObject)]
+#[derive(Copy, Clone, PartialEq, Eq, FromPyObject, IntoPyObject)]
 pub struct VariableByteInteger(u32);
 
 impl VariableByteInteger {
