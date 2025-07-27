@@ -1,12 +1,10 @@
 mod io;
 mod packets;
-mod properties;
 mod reason_codes;
 mod types;
 
 use io::{Cursor, Readable, VariableByteInteger};
 use packets::*;
-use properties::*;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::types::PyByteArray;

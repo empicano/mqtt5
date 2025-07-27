@@ -14,10 +14,14 @@ You can run the tests with:
 
 ## Benchmarks
 
-The benchmarks use `pyperf.timeit` to avoid introducing too much overhead (e.g. Python function calls).
+The benchmarks use `pyperf.timeit` to avoid introducing unnecessary overhead (e.g. additional Python function calls).
 
 You can run the benchmarks with:
 
 ```bash
 uv run bench.py --fast --quiet
 ```
+
+## Release
+
+Adjust the package's version in `Cargo.toml`, then create a new release on GitHub.

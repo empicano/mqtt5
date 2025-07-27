@@ -1,7 +1,6 @@
 use crate::io::{Cursor, Readable, VariableByteInteger, Writable};
-use crate::properties::PyEq;
 use crate::reason_codes::*;
-use crate::types::{PacketType, PropertyType, QoS, RetainHandling};
+use crate::types::{PacketType, PropertyType, PyEq, QoS, RetainHandling};
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::types::{PyByteArray, PyBytes, PyList, PyString};
@@ -86,15 +85,15 @@ impl Clone for Will {
 
 impl PartialEq for Will {
     fn eq(&self, other: &Self) -> bool {
-        self.topic.equals(&other.topic)
-            && self.payload.equals(&other.payload)
+        self.topic.py_eq(&other.topic)
+            && self.payload.py_eq(&other.payload)
             && self.qos == other.qos
             && self.retain == other.retain
             && self.payload_format_indicator == other.payload_format_indicator
             && self.message_expiry_interval == other.message_expiry_interval
-            && self.content_type.equals(&other.content_type)
-            && self.response_topic.equals(&other.response_topic)
-            && self.correlation_data.equals(&other.correlation_data)
+            && self.content_type.py_eq(&other.content_type)
+            && self.response_topic.py_eq(&other.response_topic)
+            && self.correlation_data.py_eq(&other.correlation_data)
             && self.will_delay_interval == other.will_delay_interval
     }
 }
@@ -138,7 +137,7 @@ impl Subscription {
 
 impl PartialEq for Subscription {
     fn eq(&self, other: &Self) -> bool {
-        self.pattern.equals(&other.pattern)
+        self.pattern.py_eq(&other.pattern)
             && self.maximum_qos == other.maximum_qos
             && self.no_local == other.no_local
             && self.retain_as_published == other.retain_as_published
@@ -541,17 +540,17 @@ impl ConnectPacket {
 
 impl PartialEq for ConnectPacket {
     fn eq(&self, other: &Self) -> bool {
-        self.client_id.equals(&other.client_id)
-            && self.username.equals(&other.username)
-            && self.password.equals(&other.password)
+        self.client_id.py_eq(&other.client_id)
+            && self.username.py_eq(&other.username)
+            && self.password.py_eq(&other.password)
             && self.clean_start == other.clean_start
             && self.will == other.will
             && self.keep_alive == other.keep_alive
             && self.session_expiry_interval == other.session_expiry_interval
             && self
                 .authentication_method
-                .equals(&other.authentication_method)
-            && self.authentication_data.equals(&other.authentication_data)
+                .py_eq(&other.authentication_method)
+            && self.authentication_data.py_eq(&other.authentication_data)
             && self.request_problem_information == other.request_problem_information
             && self.request_response_information == other.request_response_information
             && self.receive_maximum == other.receive_maximum
@@ -914,16 +913,14 @@ impl PartialEq for ConnAckPacket {
         self.session_present == other.session_present
             && self.reason_code == other.reason_code
             && self.session_expiry_interval == other.session_expiry_interval
-            && self.assigned_client_id.equals(&other.assigned_client_id)
+            && self.assigned_client_id.py_eq(&other.assigned_client_id)
             && self.server_keep_alive == other.server_keep_alive
             && self
                 .authentication_method
-                .equals(&other.authentication_method)
-            && self
-                .response_information
-                .equals(&other.response_information)
-            && self.server_reference.equals(&other.server_reference)
-            && self.reason_string.equals(&other.reason_string)
+                .py_eq(&other.authentication_method)
+            && self.response_information.py_eq(&other.response_information)
+            && self.server_reference.py_eq(&other.server_reference)
+            && self.reason_string.py_eq(&other.reason_string)
             && self.topic_alias_maximum == other.topic_alias_maximum
             && self.maximum_qos == other.maximum_qos
             && self.retain_available == other.retain_available
@@ -933,6 +930,72 @@ impl PartialEq for ConnAckPacket {
             && self.shared_subscription_available == other.shared_subscription_available
     }
 }
+
+/*
+# Commit: d0966a5
+mqtt5: Read Connect: Mean +- std dev: 101 ns +- 2 ns
+mqtt5: Write Connect: Mean +- std dev: 126 ns +- 1 ns
+mqtt5: Read Connect(will): Mean +- std dev: 217 ns +- 13 ns
+mqtt5: Write Connect(will): Mean +- std dev: 639 ns +- 6 ns
+mqtt5: Read Connect(full): Mean +- std dev: 312 ns +- 17 ns
+mqtt5: Write Connect(full): Mean +- std dev: 1.07 us +- 0.01 us
+mqtt5: Read ConnAck: Mean +- std dev: 65.8 ns +- 3.5 ns
+mqtt5: Write ConnAck: Mean +- std dev: 75.4 ns +- 1.3 ns
+mqtt5: Read ConnAck(full): Mean +- std dev: 233 ns +- 14 ns
+mqtt5: Write ConnAck(full): Mean +- std dev: 726 ns +- 7 ns
+mqtt5: Read Publish(qos0): Mean +- std dev: 101 ns +- 6 ns
+mqtt5: Write Publish(qos0): Mean +- std dev: 155 ns +- 1 ns
+mqtt5: Read Publish(qos1): Mean +- std dev: 101 ns +- 2 ns
+mqtt5: Write Publish(qos1): Mean +- std dev: 203 ns +- 2 ns
+mqtt5: Read PubAck: Mean +- std dev: 57.5 ns +- 0.4 ns
+mqtt5: Write PubAck: Mean +- std dev: 97.7 ns +- 0.7 ns
+mqtt5: Read PubAck(full): Mean +- std dev: 81.1 ns +- 0.8 ns
+mqtt5: Write PubAck(full): Mean +- std dev: 250 ns +- 14 ns
+mqtt5: Read Subscribe: Mean +- std dev: 115 ns +- 2 ns
+mqtt5: Write Subscribe: Mean +- std dev: 288 ns +- 18 ns
+mqtt5: Read SubAck: Mean +- std dev: 99.8 ns +- 2.8 ns
+mqtt5: Write SubAck: Mean +- std dev: 226 ns +- 93 ns
+mqtt5: Read PingReq: Mean +- std dev: 54.1 ns +- 1.1 ns
+mqtt5: Write PingReq: Mean +- std dev: 59.9 ns +- 2.9 ns
+mqtt5: Read PingResp: Mean +- std dev: 54.5 ns +- 1.3 ns
+mqtt5: Write PingResp: Mean +- std dev: 58.9 ns +- 1.0 ns
+mqtt5: Read Disconnect: Mean +- std dev: 59.8 ns +- 0.9 ns
+mqtt5: Write Disconnect: Mean +- std dev: 66.4 ns +- 0.5 ns
+mqtt5: Read Disconnect(full): Mean +- std dev: 106 ns +- 6 ns
+mqtt5: Write Disconnect(full): Mean +- std dev: 289 ns +- 3 ns
+
+# Commit: e43085b
+mqtt5: Read Connect: Mean +- std dev: 111 ns +- 3 ns
+mqtt5: Write Connect: Mean +- std dev: 135 ns +- 2 ns
+mqtt5: Read Connect(will): Mean +- std dev: 242 ns +- 3 ns
+mqtt5: Write Connect(will): Mean +- std dev: 538 ns +- 6 ns
+mqtt5: Read Connect(full): Mean +- std dev: 362 ns +- 6 ns
+mqtt5: Write Connect(full): Mean +- std dev: 873 ns +- 10 ns
+mqtt5: Read ConnAck: Mean +- std dev: 66.5 ns +- 1.6 ns
+mqtt5: Write ConnAck: Mean +- std dev: 81.9 ns +- 0.3 ns
+mqtt5: Read ConnAck(full): Mean +- std dev: 269 ns +- 4 ns
+mqtt5: Write ConnAck(full): Mean +- std dev: 606 ns +- 8 ns
+mqtt5: Read Publish(qos0): Mean +- std dev: 112 ns +- 3 ns
+mqtt5: Write Publish(qos0): Mean +- std dev: 209 ns +- 4 ns
+mqtt5: Read Publish(qos1): Mean +- std dev: 116 ns +- 7 ns
+mqtt5: Write Publish(qos1): Mean +- std dev: 258 ns +- 4 ns
+mqtt5: Read PubAck: Mean +- std dev: 63.0 ns +- 3.4 ns
+mqtt5: Write PubAck: Mean +- std dev: 97.9 ns +- 1.6 ns
+mqtt5: Read PubAck(full): Mean +- std dev: 88.7 ns +- 2.5 ns
+mqtt5: Write PubAck(full): Mean +- std dev: 159 ns +- 2 ns
+mqtt5: Read Subscribe: Mean +- std dev: 118 ns +- 2 ns
+mqtt5: Write Subscribe: Mean +- std dev: 282 ns +- 4 ns
+mqtt5: Read SubAck: Mean +- std dev: 100 ns +- 1 ns
+mqtt5: Write SubAck: Mean +- std dev: 197 ns +- 2 ns
+mqtt5: Read PingReq: Mean +- std dev: 55.9 ns +- 1.3 ns
+mqtt5: Write PingReq: Mean +- std dev: 60.0 ns +- 3.6 ns
+mqtt5: Read PingResp: Mean +- std dev: 55.7 ns +- 0.4 ns
+mqtt5: Write PingResp: Mean +- std dev: 60.5 ns +- 3.6 ns
+mqtt5: Read Disconnect: Mean +- std dev: 63.9 ns +- 2.8 ns
+mqtt5: Write Disconnect: Mean +- std dev: 67.7 ns +- 0.6 ns
+mqtt5: Read Disconnect(full): Mean +- std dev: 117 ns +- 2 ns
+mqtt5: Write Disconnect(full): Mean +- std dev: 196 ns +- 3 ns
+*/
 
 #[pyclass(frozen, eq, get_all, module = "mqtt5")]
 pub struct PublishPacket {
@@ -1203,17 +1266,17 @@ impl PublishPacket {
 
 impl PartialEq for PublishPacket {
     fn eq(&self, other: &Self) -> bool {
-        self.topic.equals(&other.topic)
-            && self.payload.equals(&other.payload)
+        self.topic.py_eq(&other.topic)
+            && self.payload.py_eq(&other.payload)
             && self.qos == other.qos
             && self.retain == other.retain
             && self.packet_id == other.packet_id
             && self.duplicate == other.duplicate
             && self.payload_format_indicator == other.payload_format_indicator
             && self.message_expiry_interval == other.message_expiry_interval
-            && self.content_type.equals(&other.content_type)
-            && self.response_topic.equals(&other.response_topic)
-            && self.correlation_data.equals(&other.correlation_data)
+            && self.content_type.py_eq(&other.content_type)
+            && self.response_topic.py_eq(&other.response_topic)
+            && self.correlation_data.py_eq(&other.correlation_data)
             && Python::with_gil(|py| -> PyResult<bool> {
                 let list1 = self.subscription_ids.bind(py);
                 let list2 = other.subscription_ids.bind(py);
@@ -1345,7 +1408,7 @@ impl PartialEq for PubAckPacket {
     fn eq(&self, other: &Self) -> bool {
         self.packet_id == other.packet_id
             && self.reason_code == other.reason_code
-            && self.reason_string.equals(&other.reason_string)
+            && self.reason_string.py_eq(&other.reason_string)
     }
 }
 
@@ -1636,7 +1699,7 @@ impl SubAckPacket {
 impl PartialEq for SubAckPacket {
     fn eq(&self, other: &Self) -> bool {
         self.packet_id == other.packet_id
-            && self.reason_string.equals(&other.reason_string)
+            && self.reason_string.py_eq(&other.reason_string)
             && Python::with_gil(|py| -> PyResult<bool> {
                 let seq1 = self.reason_codes.bind(py);
                 let seq2 = other.reason_codes.bind(py);
@@ -1888,7 +1951,7 @@ impl PartialEq for DisconnectPacket {
     fn eq(&self, other: &Self) -> bool {
         self.reason_code == other.reason_code
             && self.session_expiry_interval == other.session_expiry_interval
-            && self.server_reference.equals(&other.server_reference)
-            && self.reason_string.equals(&other.reason_string)
+            && self.server_reference.py_eq(&other.server_reference)
+            && self.reason_string.py_eq(&other.reason_string)
     }
 }
