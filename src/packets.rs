@@ -9,6 +9,66 @@ use pyo3::PyResult;
 const PROTOCOL_NAME: &str = "MQTT";
 const PROTOCOL_VERSION: u8 = 5;
 
+macro_rules! define_properties {
+    ($name:ident, { $($property_type:expr => $field:ident: $field_type:tt = $default:tt),* $(,)? }) => {
+        macro_rules! $name {
+            (nbytes, $context:expr) => {
+                {
+                    let mut accumulator = 0usize;
+                    $(
+                        if define_properties!(@condition, $context, $field, $default) {
+                            define_properties!(@nbytes, accumulator, $context, $field, $field_type);
+                        }
+                    )*
+                    accumulator
+                }
+            };
+            (write, $cursor:expr, $context:expr) => {
+                $(
+                    if define_properties!(@condition, $context, $field, $default) {
+                        define_properties!(@write, $cursor, $context, $field, $field_type, $property_type);
+                    }
+                )*
+            };
+        }
+    };
+
+    // Determine if we handle the property
+    (@condition, $context:expr, $field:ident, None) => { $context.$field.is_some() };
+    (@condition, $context:expr, $field:ident, []) => {
+        Python::with_gil(|py| !$context.$field.bind(py).is_empty())
+    };
+    (@condition, $context:expr, $field:ident, $default:tt) => { $context.$field != $default };
+
+    // Calculate the property size
+    (@nbytes, $accumulator:ident, $context:expr, $field:ident, (Py<PyList>)) => {
+        Python::with_gil(|py| {
+            for item in $context.$field.bind(py).iter() {
+                let value: u32 = item.extract().unwrap();
+                $accumulator += 0u8.nbytes() + VariableByteInteger::new(value).nbytes();
+            }
+        })
+    };
+    (@nbytes, $accumulator:ident, $context:expr, $field:ident, $field_type:tt) => {
+        $accumulator += 0u8.nbytes() + $context.$field.nbytes()
+    };
+
+    // Write the property
+    (@write, $cursor:expr, $context:expr, $field:ident, (Py<PyList>), $property_type:expr) => {
+        Python::with_gil(|py| {
+            for item in $context.$field.bind(py).iter() {
+                ($property_type as u8).write($cursor);
+                let val: u32 = item.extract().unwrap();
+                VariableByteInteger::new(val).write($cursor);
+            }
+        })
+    };
+    (@write, $cursor:expr, $context:expr, $field:ident, $field_type:tt, $property_type:expr) => {
+        ($property_type as u8).write($cursor);
+        $context.$field.write($cursor);
+    };
+}
+
 macro_rules! read_properties {
     ($packet_name:literal, $cursor:expr, { $($pattern:tt)* }) => {
         let properties_remaining_length = VariableByteInteger::read($cursor)?.value() as usize;
@@ -177,6 +237,17 @@ impl PartialEq for Subscription {
     }
 }
 
+define_properties!(connect_properties, {
+    PropertyType::SessionExpiryInterval => session_expiry_interval: u32 = 0,
+    PropertyType::AuthenticationMethod => authentication_method: (Option<Py<PyString>>) = None,
+    PropertyType::AuthenticationData => authentication_data: (Option<Py<PyBytes>>) = None,
+    PropertyType::RequestProblemInformation => request_problem_information: bool = true,
+    PropertyType::RequestResponseInformation => request_response_information: bool = false,
+    PropertyType::ReceiveMaximum => receive_maximum: u16 = 65535,
+    PropertyType::TopicAliasMaximum => topic_alias_maximum: u16 = 0,
+    PropertyType::MaximumPacketSize => maximum_packet_size: (Option<u32>) = None,
+});
+
 #[pyclass(frozen, eq, get_all, module = "mqtt5")]
 pub struct ConnectPacket {
     pub client_id: Py<PyString>,
@@ -251,31 +322,7 @@ impl ConnectPacket {
 
     #[pyo3(signature = (buffer, /, *, index=0))]
     fn write(&self, buffer: &Bound<'_, PyByteArray>, index: usize) -> PyResult<usize> {
-        let mut properties_nbytes = 0;
-        if self.session_expiry_interval != 0 {
-            properties_nbytes += 0u8.nbytes() + self.session_expiry_interval.nbytes();
-        }
-        if let Some(ref authentication_method) = self.authentication_method {
-            properties_nbytes += 0u8.nbytes() + authentication_method.nbytes();
-        }
-        if let Some(ref authentication_data) = self.authentication_data {
-            properties_nbytes += 0u8.nbytes() + authentication_data.nbytes();
-        }
-        if !self.request_problem_information {
-            properties_nbytes += 0u8.nbytes() + self.request_problem_information.nbytes();
-        }
-        if self.request_response_information {
-            properties_nbytes += 0u8.nbytes() + self.request_response_information.nbytes();
-        }
-        if self.receive_maximum != 65535 {
-            properties_nbytes += 0u8.nbytes() + self.receive_maximum.nbytes();
-        }
-        if self.topic_alias_maximum != 0 {
-            properties_nbytes += 0u8.nbytes() + self.topic_alias_maximum.nbytes();
-        }
-        if let Some(ref maximum_packet_size) = self.maximum_packet_size {
-            properties_nbytes += 0u8.nbytes() + maximum_packet_size.nbytes();
-        }
+        let properties_nbytes = connect_properties!(nbytes, self);
         let properties_remaining_length = VariableByteInteger::new(properties_nbytes as u32);
         let mut will_properties_nbytes = 0;
         if let Some(ref will) = self.will {
@@ -344,38 +391,7 @@ impl ConnectPacket {
 
         // [3.1.2.11] Properties
         properties_remaining_length.write(&mut cursor);
-        if self.session_expiry_interval != 0 {
-            (PropertyType::SessionExpiryInterval as u8).write(&mut cursor);
-            self.session_expiry_interval.write(&mut cursor);
-        }
-        if let Some(ref authentication_method) = self.authentication_method {
-            (PropertyType::AuthenticationMethod as u8).write(&mut cursor);
-            authentication_method.write(&mut cursor);
-        }
-        if let Some(ref authentication_data) = self.authentication_data {
-            (PropertyType::AuthenticationData as u8).write(&mut cursor);
-            authentication_data.write(&mut cursor);
-        }
-        if !self.request_problem_information {
-            (PropertyType::RequestProblemInformation as u8).write(&mut cursor);
-            self.request_problem_information.write(&mut cursor);
-        }
-        if self.request_response_information {
-            (PropertyType::RequestResponseInformation as u8).write(&mut cursor);
-            self.request_response_information.write(&mut cursor);
-        }
-        if self.receive_maximum != 65535 {
-            (PropertyType::ReceiveMaximum as u8).write(&mut cursor);
-            self.receive_maximum.write(&mut cursor);
-        }
-        if self.topic_alias_maximum != 0 {
-            (PropertyType::TopicAliasMaximum as u8).write(&mut cursor);
-            self.topic_alias_maximum.write(&mut cursor);
-        }
-        if let Some(ref maximum_packet_size) = self.maximum_packet_size {
-            (PropertyType::MaximumPacketSize as u8).write(&mut cursor);
-            maximum_packet_size.write(&mut cursor);
-        }
+        connect_properties!(write, &mut cursor, self);
 
         // [3.1.3] Payload
         self.client_id.write(&mut cursor);
@@ -609,6 +625,25 @@ pub struct ConnAckPacket {
     pub shared_subscription_available: bool,
 }
 
+define_properties!(connack_properties, {
+    PropertyType::SessionExpiryInterval => session_expiry_interval: (Option<u32>) = None,
+    PropertyType::AssignedClientId => assigned_client_id: (Option<Py<PyString>>) = None,
+    PropertyType::ServerKeepAlive => server_keep_alive: (Option<u16>) = None,
+    PropertyType::AuthenticationMethod => authentication_method: (Option<Py<PyString>>) = None,
+    PropertyType::AuthenticationData => authentication_data: (Option<Py<PyBytes>>) = None,
+    PropertyType::ResponseInformation => response_information: (Option<Py<PyString>>) = None,
+    PropertyType::ServerReference => server_reference: (Option<Py<PyString>>) = None,
+    PropertyType::ReasonString => reason_string: (Option<Py<PyString>>) = None,
+    PropertyType::ReceiveMaximum => receive_maximum: u16 = 65535,
+    PropertyType::TopicAliasMaximum => topic_alias_maximum: u16 = 0,
+    PropertyType::MaximumQoS => maximum_qos: QoS = (QoS::ExactlyOnce),
+    PropertyType::RetainAvailable => retain_available: bool = true,
+    PropertyType::MaximumPacketSize => maximum_packet_size: (Option<u32>) = None,
+    PropertyType::WildcardSubscriptionAvailable => wildcard_subscription_available: bool = true,
+    PropertyType::SubscriptionIdAvailable => subscription_id_available: bool = true,
+    PropertyType::SharedSubscriptionAvailable => shared_subscription_available: bool = true,
+});
+
 #[pymethods]
 impl ConnAckPacket {
     #[new]
@@ -677,57 +712,8 @@ impl ConnAckPacket {
 
     #[pyo3(signature = (buffer, /, *, index=0))]
     pub fn write(&self, buffer: &Bound<'_, PyByteArray>, index: usize) -> PyResult<usize> {
-        let mut properties_nbytes = 0;
-        if let Some(session_expiry_interval) = self.session_expiry_interval {
-            properties_nbytes += 0u8.nbytes() + session_expiry_interval.nbytes();
-        }
-        if let Some(ref assigned_client_id) = self.assigned_client_id {
-            properties_nbytes += 0u8.nbytes() + assigned_client_id.nbytes();
-        }
-        if let Some(server_keep_alive) = self.server_keep_alive {
-            properties_nbytes += 0u8.nbytes() + server_keep_alive.nbytes();
-        }
-        if let Some(ref authentication_method) = self.authentication_method {
-            properties_nbytes += 0u8.nbytes() + authentication_method.nbytes();
-        }
-        if let Some(ref authentication_data) = self.authentication_data {
-            properties_nbytes += 0u8.nbytes() + authentication_data.nbytes();
-        }
-        if let Some(ref response_information) = self.response_information {
-            properties_nbytes += 0u8.nbytes() + response_information.nbytes();
-        }
-        if let Some(ref server_reference) = self.server_reference {
-            properties_nbytes += 0u8.nbytes() + server_reference.nbytes();
-        }
-        if let Some(ref reason_string) = self.reason_string {
-            properties_nbytes += 0u8.nbytes() + reason_string.nbytes();
-        }
-        if self.receive_maximum != 65535 {
-            properties_nbytes += 0u8.nbytes() + self.receive_maximum.nbytes();
-        }
-        if self.topic_alias_maximum != 0 {
-            properties_nbytes += 0u8.nbytes() + self.topic_alias_maximum.nbytes();
-        }
-        if self.maximum_qos != QoS::ExactlyOnce {
-            properties_nbytes += 0u8.nbytes() + 0u8.nbytes();
-        }
-        if !self.retain_available {
-            properties_nbytes += 0u8.nbytes() + self.retain_available.nbytes();
-        }
-        if let Some(ref maximum_packet_size) = self.maximum_packet_size {
-            properties_nbytes += 0u8.nbytes() + maximum_packet_size.nbytes();
-        }
-        if !self.wildcard_subscription_available {
-            properties_nbytes += 0u8.nbytes() + self.wildcard_subscription_available.nbytes();
-        }
-        if !self.subscription_id_available {
-            properties_nbytes += 0u8.nbytes() + self.subscription_id_available.nbytes();
-        }
-        if !self.shared_subscription_available {
-            properties_nbytes += 0u8.nbytes() + self.shared_subscription_available.nbytes();
-        }
+        let properties_nbytes = connack_properties!(nbytes, self);
         let properties_remaining_length = VariableByteInteger::new(properties_nbytes as u32);
-
         let nbytes = 0u8.nbytes()
             + self.reason_code.nbytes()
             + properties_remaining_length.nbytes()
@@ -748,70 +734,7 @@ impl ConnAckPacket {
 
         // [3.2.2.3] Properties
         properties_remaining_length.write(&mut cursor);
-        if let Some(session_expiry_interval) = self.session_expiry_interval {
-            (PropertyType::SessionExpiryInterval as u8).write(&mut cursor);
-            session_expiry_interval.write(&mut cursor);
-        }
-        if let Some(ref assigned_client_id) = self.assigned_client_id {
-            (PropertyType::AssignedClientId as u8).write(&mut cursor);
-            assigned_client_id.write(&mut cursor);
-        }
-        if let Some(server_keep_alive) = self.server_keep_alive {
-            (PropertyType::ServerKeepAlive as u8).write(&mut cursor);
-            server_keep_alive.write(&mut cursor);
-        }
-        if let Some(ref authentication_method) = self.authentication_method {
-            (PropertyType::AuthenticationMethod as u8).write(&mut cursor);
-            authentication_method.write(&mut cursor);
-        }
-        if let Some(ref authentication_data) = self.authentication_data {
-            (PropertyType::AuthenticationData as u8).write(&mut cursor);
-            authentication_data.write(&mut cursor);
-        }
-        if let Some(ref response_information) = self.response_information {
-            (PropertyType::ResponseInformation as u8).write(&mut cursor);
-            response_information.write(&mut cursor);
-        }
-        if let Some(ref server_reference) = self.server_reference {
-            (PropertyType::ServerReference as u8).write(&mut cursor);
-            server_reference.write(&mut cursor);
-        }
-        if let Some(ref reason_string) = self.reason_string {
-            (PropertyType::ReasonString as u8).write(&mut cursor);
-            reason_string.write(&mut cursor);
-        }
-        if self.receive_maximum != 65535 {
-            (PropertyType::ReceiveMaximum as u8).write(&mut cursor);
-            self.receive_maximum.write(&mut cursor);
-        }
-        if self.topic_alias_maximum != 0 {
-            (PropertyType::TopicAliasMaximum as u8).write(&mut cursor);
-            self.topic_alias_maximum.write(&mut cursor);
-        }
-        if self.maximum_qos != QoS::ExactlyOnce {
-            (PropertyType::MaximumQoS as u8).write(&mut cursor);
-            (self.maximum_qos as u8).write(&mut cursor);
-        }
-        if !self.retain_available {
-            (PropertyType::RetainAvailable as u8).write(&mut cursor);
-            self.retain_available.write(&mut cursor);
-        }
-        if let Some(maximum_packet_size) = self.maximum_packet_size {
-            (PropertyType::MaximumPacketSize as u8).write(&mut cursor);
-            maximum_packet_size.write(&mut cursor);
-        }
-        if !self.wildcard_subscription_available {
-            (PropertyType::WildcardSubscriptionAvailable as u8).write(&mut cursor);
-            self.wildcard_subscription_available.write(&mut cursor);
-        }
-        if !self.subscription_id_available {
-            (PropertyType::SubscriptionIdAvailable as u8).write(&mut cursor);
-            self.subscription_id_available.write(&mut cursor);
-        }
-        if !self.shared_subscription_available {
-            (PropertyType::SharedSubscriptionAvailable as u8).write(&mut cursor);
-            self.shared_subscription_available.write(&mut cursor);
-        }
+        connack_properties!(write, &mut cursor, self);
 
         Ok(cursor.index - index)
     }
@@ -969,6 +892,16 @@ pub struct PublishPacket {
     pub topic_alias: Option<u16>,
 }
 
+define_properties!(publish_properties, {
+    PropertyType::PayloadFormatIndicator => payload_format_indicator: u8 = 0,
+    PropertyType::MessageExpiryInterval => message_expiry_interval: (Option<u32>) = None,
+    PropertyType::ContentType => content_type: (Option<Py<PyString>>) = None,
+    PropertyType::ResponseTopic => response_topic: (Option<Py<PyString>>) = None,
+    PropertyType::CorrelationData => correlation_data: (Option<Py<PyBytes>>) = None,
+    PropertyType::SubscriptionId => subscription_ids: (Py<PyList>) = [],
+    PropertyType::TopicAlias => topic_alias: (Option<u16>) = None,
+});
+
 #[pymethods]
 impl PublishPacket {
     #[new]
@@ -1040,30 +973,7 @@ impl PublishPacket {
         index: usize,
     ) -> PyResult<usize> {
         let payload = self.payload.as_ref().map(|x| x.bind(py).as_bytes());
-        let mut properties_nbytes = 0;
-        if self.payload_format_indicator != 0 {
-            properties_nbytes += 0u8.nbytes() + self.payload_format_indicator.nbytes();
-        }
-        if let Some(message_expiry_interval) = self.message_expiry_interval {
-            properties_nbytes += 0u8.nbytes() + message_expiry_interval.nbytes();
-        }
-        if let Some(ref content_type) = self.content_type {
-            properties_nbytes += 0u8.nbytes() + content_type.nbytes();
-        }
-        if let Some(ref response_topic) = self.response_topic {
-            properties_nbytes += 0u8.nbytes() + response_topic.nbytes();
-        }
-        if let Some(ref correlation_data) = self.correlation_data {
-            properties_nbytes += 0u8.nbytes() + correlation_data.nbytes();
-        }
-        let subscription_ids = self.subscription_ids.bind(py);
-        for element in subscription_ids.try_iter()? {
-            let subscription_id: u32 = element?.extract()?;
-            properties_nbytes += 0u8.nbytes() + VariableByteInteger::new(subscription_id).nbytes();
-        }
-        if let Some(topic_alias) = self.topic_alias {
-            properties_nbytes += 0u8.nbytes() + topic_alias.nbytes();
-        }
+        let properties_nbytes = publish_properties!(nbytes, self);
         let properties_remaining_length = VariableByteInteger::new(properties_nbytes as u32);
         let nbytes = self.topic.nbytes()
             + self.packet_id.nbytes()
@@ -1088,35 +998,7 @@ impl PublishPacket {
 
         // [3.3.2.3] Properties
         properties_remaining_length.write(&mut cursor);
-        if self.payload_format_indicator != 0 {
-            (PropertyType::PayloadFormatIndicator as u8).write(&mut cursor);
-            self.payload_format_indicator.write(&mut cursor);
-        }
-        if let Some(message_expiry_interval) = self.message_expiry_interval {
-            (PropertyType::MessageExpiryInterval as u8).write(&mut cursor);
-            message_expiry_interval.write(&mut cursor);
-        }
-        if let Some(ref content_type) = self.content_type {
-            (PropertyType::ContentType as u8).write(&mut cursor);
-            content_type.write(&mut cursor);
-        }
-        if let Some(ref response_topic) = self.response_topic {
-            (PropertyType::ResponseTopic as u8).write(&mut cursor);
-            response_topic.write(&mut cursor);
-        }
-        if let Some(ref correlation_data) = self.correlation_data {
-            (PropertyType::CorrelationData as u8).write(&mut cursor);
-            correlation_data.write(&mut cursor);
-        }
-        for element in subscription_ids.try_iter()? {
-            let id: u32 = element?.extract()?;
-            (PropertyType::SubscriptionId as u8).write(&mut cursor);
-            VariableByteInteger::new(id).write(&mut cursor);
-        }
-        if let Some(topic_alias) = self.topic_alias {
-            (PropertyType::TopicAlias as u8).write(&mut cursor);
-            topic_alias.write(&mut cursor);
-        }
+        publish_properties!(write, &mut cursor, self);
 
         // [3.3.3] Payload
         if let Some(payload) = payload {
@@ -1242,6 +1124,10 @@ impl PartialEq for PublishPacket {
     }
 }
 
+define_properties!(puback_properties, {
+    PropertyType::ReasonString => reason_string: (Option<Py<PyString>>) = None,
+});
+
 #[pyclass(frozen, eq, get_all, module = "mqtt5")]
 pub struct PubAckPacket {
     pub packet_id: u16,
@@ -1272,10 +1158,7 @@ impl PubAckPacket {
 
     #[pyo3(signature = (buffer, /, *, index=0))]
     pub fn write(&self, buffer: &Bound<'_, PyByteArray>, index: usize) -> PyResult<usize> {
-        let mut properties_nbytes = 0;
-        if let Some(ref reason_string) = self.reason_string {
-            properties_nbytes += 0u8.nbytes() + reason_string.nbytes();
-        }
+        let properties_nbytes = puback_properties!(nbytes, self);
         let properties_remaining_length = VariableByteInteger::new(properties_nbytes as u32);
         let nbytes = self.packet_id.nbytes()
             + self.reason_code.nbytes()
@@ -1296,10 +1179,7 @@ impl PubAckPacket {
 
         // [3.4.2.2] Properties
         properties_remaining_length.write(&mut cursor);
-        if let Some(ref reason_string) = self.reason_string {
-            (PropertyType::ReasonString as u8).write(&mut cursor);
-            reason_string.write(&mut cursor);
-        }
+        puback_properties!(write, &mut cursor, self);
 
         Ok(cursor.index - index)
     }
@@ -1352,6 +1232,10 @@ impl PartialEq for PubAckPacket {
     }
 }
 
+define_properties!(subscribe_properties, {
+    PropertyType::SubscriptionId => subscription_id: (Option<VariableByteInteger>) = None,
+});
+
 #[pyclass(frozen, eq, get_all, module = "mqtt5")]
 pub struct SubscribePacket {
     pub packet_id: u16,
@@ -1387,10 +1271,7 @@ impl SubscribePacket {
         buffer: &Bound<'_, PyByteArray>,
         index: usize,
     ) -> PyResult<usize> {
-        let mut properties_nbytes = 0;
-        if let Some(ref subscription_id) = self.subscription_id {
-            properties_nbytes += 0u8.nbytes() + subscription_id.nbytes();
-        }
+        let properties_nbytes = subscribe_properties!(nbytes, self);
         let properties_remaining_length = VariableByteInteger::new(properties_nbytes as u32);
         let subscriptions = self.subscriptions.bind(py);
         let nbytes = self.packet_id.nbytes()
@@ -1415,10 +1296,7 @@ impl SubscribePacket {
 
         // [3.8.2.1] Properties
         properties_remaining_length.write(&mut cursor);
-        if let Some(ref subscription_id) = self.subscription_id {
-            (PropertyType::SubscriptionId as u8).write(&mut cursor);
-            subscription_id.write(&mut cursor);
-        }
+        subscribe_properties!(write, &mut cursor, self);
 
         // [3.8.3] Payload
         for item in subscriptions.try_iter()? {
@@ -1504,6 +1382,10 @@ impl PartialEq for SubscribePacket {
     }
 }
 
+define_properties!(suback_properties, {
+    PropertyType::ReasonString => reason_string: (Option<Py<PyString>>) = None,
+});
+
 #[pyclass(frozen, eq, get_all, module = "mqtt5")]
 pub struct SubAckPacket {
     pub packet_id: u16,
@@ -1539,10 +1421,7 @@ impl SubAckPacket {
         buffer: &Bound<'_, PyByteArray>,
         index: usize,
     ) -> PyResult<usize> {
-        let mut properties_nbytes = 0;
-        if let Some(ref reason_string) = self.reason_string {
-            properties_nbytes += 0u8.nbytes() + reason_string.nbytes();
-        }
+        let properties_nbytes = suback_properties!(nbytes, self);
         let properties_remaining_length = VariableByteInteger::new(properties_nbytes as u32);
         let reason_codes = self.reason_codes.bind(py);
         let nbytes = self.packet_id.nbytes()
@@ -1567,10 +1446,7 @@ impl SubAckPacket {
 
         // [3.9.2.1] Properties
         properties_remaining_length.write(&mut cursor);
-        if let Some(ref reason_string) = self.reason_string {
-            (PropertyType::ReasonString as u8).write(&mut cursor);
-            reason_string.write(&mut cursor);
-        }
+        suback_properties!(write, &mut cursor, self);
 
         // [3.9.3] Payload
         for item in reason_codes.try_iter()? {
@@ -1741,6 +1617,12 @@ impl PartialEq for PingRespPacket {
     }
 }
 
+define_properties!(disconnect_properties, {
+    PropertyType::SessionExpiryInterval => session_expiry_interval: (Option<u32>) = None,
+    PropertyType::ServerReference => server_reference: (Option<Py<PyString>>) = None,
+    PropertyType::ReasonString => reason_string: (Option<Py<PyString>>) = None,
+});
+
 #[pyclass(frozen, eq, get_all, module = "mqtt5")]
 pub struct DisconnectPacket {
     pub reason_code: DisconnectReasonCode,
@@ -1775,16 +1657,7 @@ impl DisconnectPacket {
 
     #[pyo3(signature = (buffer, /, *, index=0))]
     pub fn write(&self, buffer: &Bound<'_, PyByteArray>, index: usize) -> PyResult<usize> {
-        let mut properties_nbytes = 0;
-        if let Some(session_expiry_interval) = self.session_expiry_interval {
-            properties_nbytes += 0u8.nbytes() + session_expiry_interval.nbytes();
-        }
-        if let Some(ref server_reference) = self.server_reference {
-            properties_nbytes += 0u8.nbytes() + server_reference.nbytes();
-        }
-        if let Some(ref reason_string) = self.reason_string {
-            properties_nbytes += 0u8.nbytes() + reason_string.nbytes();
-        }
+        let properties_nbytes = disconnect_properties!(nbytes, self);
         let properties_remaining_length = VariableByteInteger::new(properties_nbytes as u32);
         let nbytes =
             self.reason_code.nbytes() + properties_remaining_length.nbytes() + properties_nbytes;
@@ -1802,18 +1675,7 @@ impl DisconnectPacket {
 
         // [3.14.2.2] Properties
         properties_remaining_length.write(&mut cursor);
-        if let Some(session_expiry_interval) = self.session_expiry_interval {
-            (PropertyType::SessionExpiryInterval as u8).write(&mut cursor);
-            session_expiry_interval.write(&mut cursor);
-        }
-        if let Some(ref server_reference) = self.server_reference {
-            (PropertyType::ServerReference as u8).write(&mut cursor);
-            server_reference.write(&mut cursor);
-        }
-        if let Some(ref reason_string) = self.reason_string {
-            (PropertyType::ReasonString as u8).write(&mut cursor);
-            reason_string.write(&mut cursor);
-        }
+        disconnect_properties!(write, &mut cursor, self);
 
         Ok(cursor.index - index)
     }

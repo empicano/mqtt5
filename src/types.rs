@@ -1,3 +1,4 @@
+use crate::io::{Cursor, Readable, Writable};
 use num_enum::TryFromPrimitive;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
@@ -132,6 +133,26 @@ macro_rules! py_int_enum {
         impl fmt::Display for $name {
             fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
                 write!(f, "{}", *self as u8)
+            }
+        }
+
+        impl Readable for $name {
+            fn read(cursor: &mut Cursor<'_>) -> PyResult<Self> {
+                cursor.require(1)?;
+                let result = Self::new(cursor.buffer[cursor.index])?;
+                cursor.index += 1;
+                Ok(result)
+            }
+        }
+
+        impl Writable for $name {
+            fn write(&self, cursor: &mut Cursor<'_>) {
+                cursor.buffer[cursor.index] = *self as u8;
+                cursor.index += 1;
+            }
+
+            fn nbytes(&self) -> usize {
+                1
             }
         }
     };
