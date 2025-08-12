@@ -22,6 +22,8 @@ You can run the benchmarks with:
 uv run bench.py --fast --quiet
 ```
 
+Add the `--compare` flag to benchmark against [mqttproto](https://github.com/agronholm/mqttproto). Add the `--packets` argument to run the benchmarks only for certain packets e.g. `--packets publish --packets puback`.
+
 ## Release
 
 Adjust the package's version in `Cargo.toml`, then create a new release on GitHub.

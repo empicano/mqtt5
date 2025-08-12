@@ -1,5 +1,6 @@
 import pyperf
 import inspect
+import argparse
 
 import tests.conftest
 
@@ -14,12 +15,37 @@ def source(func):
     return s
 
 
-runner = pyperf.Runner()
-for packet_name, packet_init, packet_init_mqttproto in zip(
-    tests.conftest.PACKET_NAMES,
-    tests.conftest.PACKET_INITS,
-    tests.conftest.PACKET_INITS_MQTTPROTO,
-):
+def _add_cmdline_args(cmd, args):
+    """Propagate our custom runner command line arguments to the workers."""
+    for item in args.packets:
+        cmd.extend(["--packets", item])
+    if args.compare:
+        cmd.append("--compare")
+
+
+runner = pyperf.Runner(add_cmdline_args=_add_cmdline_args)
+runner.argparser.add_argument("--packets", action="append", type=str, default=[])
+runner.argparser.add_argument("--compare", action="store_true")
+args = runner.parse_args()
+
+# Parse command line arguments for the workers
+parser = argparse.ArgumentParser()
+parser.add_argument("--packets", action="append", type=str, default=[])
+parser.add_argument("--compare", action="store_true")
+args, _ = parser.parse_known_args()
+
+benchmarks = [
+    (packet_name, packet_init, packet_init_mqttproto)
+    for (packet_name, packet_init, packet_init_mqttproto) in zip(
+        tests.conftest.PACKET_NAMES,
+        tests.conftest.PACKET_INITS,
+        tests.conftest.PACKET_INITS_MQTTPROTO,
+    )
+    if len(args.packets) == 0
+    or any(packet_name.lower().startswith(item.lower()) for item in args.packets)
+]
+
+for packet_name, packet_init, packet_init_mqttproto in benchmarks:
     buffer = bytearray()
     packet_init_mqttproto().encode(buffer)
     runner.timeit(
@@ -27,11 +53,12 @@ for packet_name, packet_init, packet_init_mqttproto in zip(
         setup=f"import mqtt5; buffer = bytearray({bytes(buffer)!r})",
         stmt="mqtt5.read(buffer)",
     )
-    runner.timeit(
-        name=f"mprot: Read {packet_name}",
-        setup=f"import mqttproto; buffer = memoryview(bytearray({bytes(buffer)!r}))",
-        stmt="mqttproto._types.decode_packet(buffer)",
-    )
+    if args.compare:
+        runner.timeit(
+            name=f"proto: Read {packet_name}",
+            setup=f"import mqttproto; buffer = memoryview(bytearray({bytes(buffer)!r}))",
+            stmt="mqttproto._types.decode_packet(buffer)",
+        )
     runner.timeit(
         name=f"mqtt5: Write {packet_name}",
         setup="import mqtt5",
@@ -40,8 +67,9 @@ for packet_name, packet_init, packet_init_mqttproto in zip(
         # instead of pre-allocating the buffer again and again between runs.
         globals={"buffer": buffer},
     )
-    runner.timeit(
-        name=f"mprot: Write {packet_name}",
-        setup="import mqttproto; buffer = bytearray()",
-        stmt=source(packet_init_mqttproto) + ".encode(buffer)",
-    )
+    if args.compare:
+        runner.timeit(
+            name=f"proto: Write {packet_name}",
+            setup="import mqttproto; buffer = bytearray()",
+            stmt=source(packet_init_mqttproto) + ".encode(buffer)",
+        )
