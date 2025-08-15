@@ -70,34 +70,60 @@ macro_rules! define_properties {
 }
 
 macro_rules! read_properties {
-    ($packet_name:literal, $cursor:expr, { $($pattern:tt)* }) => {
-        let properties_remaining_length = VariableByteInteger::read($cursor)?.value() as usize;
-        let properties_start_index = $cursor.index;
-        let mut seen = 0u64;
-        while $cursor.index - properties_start_index < properties_remaining_length {
-            let property_type = PropertyType::new(u8::read($cursor)?)?;
-            // Check for duplicates
-            if !matches!(
-                property_type,
-                PropertyType::UserProperty | PropertyType::SubscriptionId
-            ) {
-                let bit = 1u64 << (property_type as u8);
-                if seen & bit != 0 {
-                    return Err(PyValueError::new_err(format!(
-                        "Duplicate property type: {:?}", property_type
-                    )));
+    ($packet_name:literal, $cursor:expr, { $($property_type:path => $field:ident: $field_type:tt = $default:expr),* $(,)? }) => {
+        read_properties!($packet_name, $cursor, if true, { $($property_type => $field: $field_type = $default),* });
+    };
+    ($packet_name:literal, $cursor:expr, if $condition:expr, { $($property_type:path => $field:ident: $field_type:tt = $default:expr),* $(,)? }) => {
+        $(
+            #[allow(unused_mut)]
+            let mut $field = $default;
+        )*
+        if $condition {
+            let properties_remaining_length = VariableByteInteger::read($cursor)?.value() as usize;
+            let properties_start_index = $cursor.index;
+            let mut seen = 0u64;
+            while $cursor.index - properties_start_index < properties_remaining_length {
+                let property_type = PropertyType::new(u8::read($cursor)?)?;
+                // Check for duplicates
+                if !matches!(
+                    property_type,
+                    PropertyType::UserProperty | PropertyType::SubscriptionId
+                ) {
+                    let bit = 1u64 << (property_type as u8);
+                    if seen & bit != 0 {
+                        return Err(PyValueError::new_err(format!(
+                            "Duplicate property type: {:?}", property_type
+                        )));
+                    }
+                    seen |= bit;
                 }
-                seen |= bit;
-            }
-            match property_type {
-                $($pattern)*
-                _ => {
-                    return Err(PyValueError::new_err(format!(
-                        "Invalid property type for {}: {:?}", $packet_name, property_type
-                    )));
+                match property_type {
+                    $(
+                        $property_type => {
+                            read_properties!(@read, $cursor, $field, $field_type);
+                        }
+                    )*
+                    _ => {
+                        return Err(PyValueError::new_err(format!(
+                            "Invalid property type for {}: {:?}", $packet_name, property_type
+                        )));
+                    }
                 }
             }
         }
+    };
+
+    (@read, $cursor:expr, $field:ident, (Py<PyList<$inner:ty>>)) => {
+        $field.append(<$inner>::read($cursor)?.value())?
+    };
+    (@read, $cursor:expr, $field:ident (Option<Py<$inner:ty>>)) => {
+        $field = Some(Py::<$inner>::read($cursor)?)
+    };
+    (@read, $cursor:expr, $field:ident, (Option<$inner:ty>)) => {
+        $field = Some(<$inner>::read($cursor)?)
+    };
+    (@read, $cursor:expr, $field:ident, $field_type:ty) => {
+        $field = <$field_type>::read($cursor)?
     };
 }
 
@@ -458,39 +484,15 @@ impl ConnectPacket {
         let keep_alive = u16::read(cursor)?;
 
         // [3.1.2.11] Properties
-        let mut session_expiry_interval = 0;
-        let mut authentication_method = None;
-        let mut authentication_data = None;
-        let mut request_problem_information = true;
-        let mut request_response_information = false;
-        let mut receive_maximum = 65535;
-        let mut topic_alias_maximum = 0;
-        let mut maximum_packet_size = None;
         read_properties!("ConnectPacket", cursor, {
-            PropertyType::SessionExpiryInterval => {
-                session_expiry_interval = u32::read(cursor)?;
-            }
-            PropertyType::AuthenticationMethod => {
-                authentication_method = Some(Py::<PyString>::read(cursor)?);
-            }
-            PropertyType::AuthenticationData => {
-                authentication_data = Some(Py::<PyBytes>::read(cursor)?);
-            }
-            PropertyType::RequestProblemInformation => {
-                request_problem_information = bool::read(cursor)?;
-            }
-            PropertyType::RequestResponseInformation => {
-                request_response_information = bool::read(cursor)?;
-            }
-            PropertyType::ReceiveMaximum => {
-                receive_maximum = u16::read(cursor)?;
-            }
-            PropertyType::TopicAliasMaximum => {
-                topic_alias_maximum = u16::read(cursor)?;
-            }
-            PropertyType::MaximumPacketSize => {
-                maximum_packet_size = Some(u32::read(cursor)?);
-            }
+            PropertyType::SessionExpiryInterval => session_expiry_interval: u32 = 0,
+            PropertyType::AuthenticationMethod => authentication_method: (Option<Py<PyString>>) = None,
+            PropertyType::AuthenticationData => authentication_data: (Option<Py<PyBytes>>) = None,
+            PropertyType::RequestProblemInformation => request_problem_information: bool = true,
+            PropertyType::RequestResponseInformation => request_response_information: bool = false,
+            PropertyType::ReceiveMaximum => receive_maximum: u16 = 65535,
+            PropertyType::TopicAliasMaximum => topic_alias_maximum: u16 = 0,
+            PropertyType::MaximumPacketSize => maximum_packet_size: (Option<u32>) = None,
         });
 
         // [3.1.3] Payload
@@ -760,71 +762,23 @@ impl ConnAckPacket {
         let reason_code = ConnAckReasonCode::read(cursor)?;
 
         // [3.2.2.3] Properties
-        let mut session_expiry_interval = None;
-        let mut assigned_client_id = None;
-        let mut server_keep_alive = None;
-        let mut authentication_method = None;
-        let mut authentication_data = None;
-        let mut response_information = None;
-        let mut server_reference = None;
-        let mut reason_string = None;
-        let mut receive_maximum = 65535;
-        let mut topic_alias_maximum = 0;
-        let mut maximum_qos = QoS::ExactlyOnce;
-        let mut retain_available = true;
-        let mut maximum_packet_size = None;
-        let mut wildcard_subscription_available = true;
-        let mut subscription_id_available = true;
-        let mut shared_subscription_available = true;
         read_properties!("ConnAckPacket", cursor, {
-            PropertyType::SessionExpiryInterval => {
-                session_expiry_interval = Some(u32::read(cursor)?);
-            }
-            PropertyType::AssignedClientId => {
-                assigned_client_id = Some(Py::<PyString>::read(cursor)?);
-            }
-            PropertyType::ServerKeepAlive => {
-                server_keep_alive = Some(u16::read(cursor)?);
-            }
-            PropertyType::AuthenticationMethod => {
-                authentication_method = Some(Py::<PyString>::read(cursor)?);
-            }
-            PropertyType::AuthenticationData => {
-                authentication_data = Some(Py::<PyBytes>::read(cursor)?);
-            }
-            PropertyType::ResponseInformation => {
-                response_information = Some(Py::<PyString>::read(cursor)?);
-            }
-            PropertyType::ServerReference => {
-                server_reference = Some(Py::<PyString>::read(cursor)?);
-            }
-            PropertyType::ReasonString => {
-                reason_string = Some(Py::<PyString>::read(cursor)?);
-            }
-            PropertyType::ReceiveMaximum => {
-                receive_maximum = u16::read(cursor)?;
-            }
-            PropertyType::TopicAliasMaximum => {
-                topic_alias_maximum = u16::read(cursor)?;
-            }
-            PropertyType::MaximumQoS => {
-                maximum_qos = QoS::new(u8::read(cursor)?)?;
-            }
-            PropertyType::RetainAvailable => {
-                retain_available = bool::read(cursor)?;
-            }
-            PropertyType::MaximumPacketSize => {
-                maximum_packet_size = Some(u32::read(cursor)?);
-            }
-            PropertyType::WildcardSubscriptionAvailable => {
-                wildcard_subscription_available = bool::read(cursor)?;
-            }
-            PropertyType::SubscriptionIdAvailable => {
-                subscription_id_available = bool::read(cursor)?;
-            }
-            PropertyType::SharedSubscriptionAvailable => {
-                shared_subscription_available = bool::read(cursor)?;
-            }
+            PropertyType::SessionExpiryInterval => session_expiry_interval: (Option<u32>) = None,
+            PropertyType::AssignedClientId => assigned_client_id: (Option<Py<PyString>>) = None,
+            PropertyType::ServerKeepAlive => server_keep_alive: (Option<u16>) = None,
+            PropertyType::AuthenticationMethod => authentication_method: (Option<Py<PyString>>) = None,
+            PropertyType::AuthenticationData => authentication_data: (Option<Py<PyBytes>>) = None,
+            PropertyType::ResponseInformation => response_information: (Option<Py<PyString>>) = None,
+            PropertyType::ServerReference => server_reference: (Option<Py<PyString>>) = None,
+            PropertyType::ReasonString => reason_string: (Option<Py<PyString>>) = None,
+            PropertyType::ReceiveMaximum => receive_maximum: u16 = 65535,
+            PropertyType::TopicAliasMaximum => topic_alias_maximum: u16 = 0,
+            PropertyType::MaximumQoS => maximum_qos: QoS = QoS::ExactlyOnce,
+            PropertyType::RetainAvailable => retain_available: bool = true,
+            PropertyType::MaximumPacketSize => maximum_packet_size: (Option<u32>) = None,
+            PropertyType::WildcardSubscriptionAvailable => wildcard_subscription_available: bool = true,
+            PropertyType::SubscriptionIdAvailable => subscription_id_available: bool = true,
+            PropertyType::SharedSubscriptionAvailable => shared_subscription_available: bool = true,
         });
 
         // Return the Python object
@@ -1033,35 +987,14 @@ impl PublishPacket {
         };
 
         // [3.3.2.3] Properties
-        let mut payload_format_indicator = 0;
-        let mut message_expiry_interval = None;
-        let mut content_type = None;
-        let mut response_topic = None;
-        let mut correlation_data = None;
-        let subscription_ids = pyo3::types::PyList::empty(py);
-        let mut topic_alias = None;
         read_properties!("PublishPacket", cursor, {
-            PropertyType::PayloadFormatIndicator => {
-                payload_format_indicator = u8::read(cursor)?;
-            }
-            PropertyType::MessageExpiryInterval => {
-                message_expiry_interval = Some(u32::read(cursor)?);
-            }
-            PropertyType::ContentType => {
-                content_type = Some(Py::<PyString>::read(cursor)?);
-            }
-            PropertyType::ResponseTopic => {
-                response_topic = Some(Py::<PyString>::read(cursor)?);
-            }
-            PropertyType::CorrelationData => {
-                correlation_data = Some(Py::<PyBytes>::read(cursor)?);
-            }
-            PropertyType::SubscriptionId => {
-                subscription_ids.append(VariableByteInteger::read(cursor)?.value())?;
-            }
-            PropertyType::TopicAlias => {
-                topic_alias = Some(u16::read(cursor)?);
-            }
+            PropertyType::PayloadFormatIndicator => payload_format_indicator: u8 = 0,
+            PropertyType::MessageExpiryInterval => message_expiry_interval: (Option<u32>) = None,
+            PropertyType::ContentType => content_type: (Option<Py<PyString>>) = None,
+            PropertyType::ResponseTopic => response_topic: (Option<Py<PyString>>) = None,
+            PropertyType::CorrelationData => correlation_data: (Option<Py<PyBytes>>) = None,
+            PropertyType::SubscriptionId => subscription_ids: (Py<PyList<VariableByteInteger>>) = pyo3::types::PyList::empty(py),
+            PropertyType::TopicAlias => topic_alias: (Option<u16>) = None,
         });
 
         // [3.3.3] Payload
@@ -1205,14 +1138,11 @@ impl PubAckPacket {
         };
 
         // [3.4.2.2] Properties
-        let mut reason_string = None;
-        if remaining_length.value() > 3 {
-            read_properties!("PubAckPacket", cursor, {
-                PropertyType::ReasonString => {
-                    reason_string = Some(Py::<PyString>::read(cursor)?);
-                }
-            });
-        }
+        read_properties!("PubAckPacket", cursor,
+            if remaining_length.value() > 3, {
+                PropertyType::ReasonString => reason_string: (Option<Py<PyString>>) = None,
+            }
+        );
 
         // Return the Python object
         let packet = Self {
@@ -1329,11 +1259,8 @@ impl SubscribePacket {
         let packet_id = u16::read(cursor)?;
 
         // [3.8.2.1] Properties
-        let mut subscription_id = None;
         read_properties!("SubscribePacket", cursor, {
-            PropertyType::SubscriptionId => {
-                subscription_id = Some(VariableByteInteger::read(cursor)?);
-            }
+            PropertyType::SubscriptionId => subscription_id: (Option<VariableByteInteger>) = None,
         });
 
         // [3.8.3] Payload
@@ -1474,11 +1401,8 @@ impl SubAckPacket {
         let packet_id = u16::read(cursor)?;
 
         // [3.9.2.1] Properties
-        let mut reason_string = None;
         read_properties!("SubAckPacket", cursor, {
-            PropertyType::ReasonString => {
-                reason_string = Some(Py::<PyString>::read(cursor)?);
-            }
+            PropertyType::ReasonString => reason_string: (Option<Py<PyString>>) = None,
         });
 
         // [3.9.3] Payload
@@ -1700,22 +1624,13 @@ impl DisconnectPacket {
         };
 
         // [3.14.2.2] Properties
-        let mut session_expiry_interval = None;
-        let mut server_reference = None;
-        let mut reason_string = None;
-        if remaining_length.value() > 1 {
-            read_properties!("DisconnectPacket", cursor, {
-                PropertyType::SessionExpiryInterval => {
-                    session_expiry_interval = Some(u32::read(cursor)?);
-                }
-                PropertyType::ServerReference => {
-                    server_reference = Some(Py::<PyString>::read(cursor)?);
-                }
-                PropertyType::ReasonString => {
-                    reason_string = Some(Py::<PyString>::read(cursor)?);
-                }
-            });
-        }
+        read_properties!("DisconnectPacket", cursor,
+            if remaining_length.value() > 1, {
+                PropertyType::SessionExpiryInterval => session_expiry_interval: (Option<u32>) = None,
+                PropertyType::ServerReference => server_reference: (Option<Py<PyString>>) = None,
+                PropertyType::ReasonString => reason_string: (Option<Py<PyString>>) = None,
+            }
+        );
 
         // Return the Python object
         let packet = Self {
