@@ -10,7 +10,7 @@ crate-type = ["cdylib"]
 num_enum = "0.7.3"
 
 [dependencies.pyo3]
-version = "0.24.0"
+version = "0.25.1"
 features = ["abi3-py310"]
 
 [profile.release]
