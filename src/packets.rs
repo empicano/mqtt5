@@ -70,19 +70,18 @@ macro_rules! define_properties {
 }
 
 macro_rules! read_properties {
-    ($packet_name:literal, $cursor:expr, { $($property_type:path => $field:ident: $field_type:tt = $default:expr),* $(,)? }) => {
-        read_properties!($packet_name, $cursor, if true, { $($property_type => $field: $field_type = $default),* });
-    };
-    ($packet_name:literal, $cursor:expr, if $condition:expr, { $($property_type:path => $field:ident: $field_type:tt = $default:expr),* $(,)? }) => {
+    ($packet_name:literal, $cursor:expr, $index:expr, $remaining_length:expr, {
+        $($property_type:path => $field:ident: $field_type:tt = $default:expr),* $(,)?
+    }) => {
         $(
             #[allow(unused_mut)]
             let mut $field = $default;
         )*
-        if $condition {
-            let properties_remaining_length = VariableByteInteger::read($cursor)?.value() as usize;
+        if $cursor.index - $index < $remaining_length.value() as usize {
+            let properties_remaining_length = VariableByteInteger::read($cursor)?;
             let properties_start_index = $cursor.index;
             let mut seen = 0u64;
-            while $cursor.index - properties_start_index < properties_remaining_length {
+            while $cursor.index - properties_start_index < properties_remaining_length.value() as usize {
                 let property_type = PropertyType::new(u8::read($cursor)?)?;
                 // Check for duplicates
                 if !matches!(
@@ -105,7 +104,7 @@ macro_rules! read_properties {
                     )*
                     _ => {
                         return Err(PyValueError::new_err(format!(
-                            "Invalid property type for {}: {:?}", $packet_name, property_type
+                            "Invalid property type for {}Packet: {:?}", $packet_name, property_type
                         )));
                     }
                 }
@@ -115,9 +114,6 @@ macro_rules! read_properties {
 
     (@read, $cursor:expr, $field:ident, (Py<PyList<$inner:ty>>)) => {
         $field.append(<$inner>::read($cursor)?.value())?
-    };
-    (@read, $cursor:expr, $field:ident (Option<Py<$inner:ty>>)) => {
-        $field = Some(Py::<$inner>::read($cursor)?)
     };
     (@read, $cursor:expr, $field:ident, (Option<$inner:ty>)) => {
         $field = Some(<$inner>::read($cursor)?)
@@ -263,17 +259,6 @@ impl PartialEq for Subscription {
     }
 }
 
-define_properties!(connect_properties, {
-    PropertyType::SessionExpiryInterval => session_expiry_interval: u32 = 0,
-    PropertyType::AuthenticationMethod => authentication_method: (Option<Py<PyString>>) = None,
-    PropertyType::AuthenticationData => authentication_data: (Option<Py<PyBytes>>) = None,
-    PropertyType::RequestProblemInformation => request_problem_information: bool = true,
-    PropertyType::RequestResponseInformation => request_response_information: bool = false,
-    PropertyType::ReceiveMaximum => receive_maximum: u16 = 65535,
-    PropertyType::TopicAliasMaximum => topic_alias_maximum: u16 = 0,
-    PropertyType::MaximumPacketSize => maximum_packet_size: (Option<u32>) = None,
-});
-
 #[pyclass(frozen, eq, get_all, module = "mqtt5")]
 pub struct ConnectPacket {
     pub client_id: Py<PyString>,
@@ -291,6 +276,17 @@ pub struct ConnectPacket {
     pub topic_alias_maximum: u16,
     pub maximum_packet_size: Option<u32>,
 }
+
+define_properties!(connect_properties, {
+    PropertyType::SessionExpiryInterval => session_expiry_interval: u32 = 0,
+    PropertyType::AuthenticationMethod => authentication_method: (Option<Py<PyString>>) = None,
+    PropertyType::AuthenticationData => authentication_data: (Option<Py<PyBytes>>) = None,
+    PropertyType::RequestProblemInformation => request_problem_information: bool = true,
+    PropertyType::RequestResponseInformation => request_response_information: bool = false,
+    PropertyType::ReceiveMaximum => receive_maximum: u16 = 65535,
+    PropertyType::TopicAliasMaximum => topic_alias_maximum: u16 = 0,
+    PropertyType::MaximumPacketSize => maximum_packet_size: (Option<u32>) = None,
+});
 
 #[pymethods]
 impl ConnectPacket {
@@ -414,8 +410,6 @@ impl ConnectPacket {
         }
         packet_flags.write(&mut cursor);
         self.keep_alive.write(&mut cursor);
-
-        // [3.1.2.11] Properties
         properties_remaining_length.write(&mut cursor);
         connect_properties!(write, &mut cursor, self);
 
@@ -466,11 +460,12 @@ impl ConnectPacket {
         py: Python,
         cursor: &mut Cursor,
         flags: u8,
-        _remaining_length: VariableByteInteger,
+        remaining_length: VariableByteInteger,
     ) -> PyResult<Py<Self>> {
         if flags != 0x00 {
             return Err(PyValueError::new_err("Malformed bytes"));
         }
+        let start_index = cursor.index;
 
         // [3.1.2] Variable header
         if String::read(cursor)? != PROTOCOL_NAME {
@@ -482,9 +477,7 @@ impl ConnectPacket {
         let packet_flags = u8::read(cursor)?;
         let clean_start = (packet_flags & 0x02) != 0;
         let keep_alive = u16::read(cursor)?;
-
-        // [3.1.2.11] Properties
-        read_properties!("ConnectPacket", cursor, {
+        read_properties!("Connect", cursor, start_index, remaining_length, {
             PropertyType::SessionExpiryInterval => session_expiry_interval: u32 = 0,
             PropertyType::AuthenticationMethod => authentication_method: (Option<Py<PyString>>) = None,
             PropertyType::AuthenticationData => authentication_data: (Option<Py<PyBytes>>) = None,
@@ -733,8 +726,6 @@ impl ConnAckPacket {
         let packet_flags = self.session_present as u8;
         packet_flags.write(&mut cursor);
         self.reason_code.write(&mut cursor);
-
-        // [3.2.2.3] Properties
         properties_remaining_length.write(&mut cursor);
         connack_properties!(write, &mut cursor, self);
 
@@ -747,11 +738,12 @@ impl ConnAckPacket {
         py: Python,
         cursor: &mut Cursor,
         flags: u8,
-        _remaining_length: VariableByteInteger,
+        remaining_length: VariableByteInteger,
     ) -> PyResult<Py<Self>> {
         if flags != 0x00 {
             return Err(PyValueError::new_err("Malformed bytes"));
         }
+        let start_index = cursor.index;
 
         // [3.2.2] Variable header
         let packet_flags = u8::read(cursor)?;
@@ -760,9 +752,7 @@ impl ConnAckPacket {
         }
         let session_present = (packet_flags & 0x01) != 0;
         let reason_code = ConnAckReasonCode::read(cursor)?;
-
-        // [3.2.2.3] Properties
-        read_properties!("ConnAckPacket", cursor, {
+        read_properties!("ConnAck", cursor, start_index, remaining_length, {
             PropertyType::SessionExpiryInterval => session_expiry_interval: (Option<u32>) = None,
             PropertyType::AssignedClientId => assigned_client_id: (Option<Py<PyString>>) = None,
             PropertyType::ServerKeepAlive => server_keep_alive: (Option<u16>) = None,
@@ -949,8 +939,6 @@ impl PublishPacket {
         // [3.3.2] Variable header
         self.topic.write(&mut cursor);
         self.packet_id.write(&mut cursor);
-
-        // [3.3.2.3] Properties
         properties_remaining_length.write(&mut cursor);
         publish_properties!(write, &mut cursor, self);
 
@@ -985,9 +973,7 @@ impl PublishPacket {
         } else {
             None
         };
-
-        // [3.3.2.3] Properties
-        read_properties!("PublishPacket", cursor, {
+        read_properties!("Publish", cursor, start_index, remaining_length, {
             PropertyType::PayloadFormatIndicator => payload_format_indicator: u8 = 0,
             PropertyType::MessageExpiryInterval => message_expiry_interval: (Option<u32>) = None,
             PropertyType::ContentType => content_type: (Option<Py<PyString>>) = None,
@@ -1057,16 +1043,16 @@ impl PartialEq for PublishPacket {
     }
 }
 
-define_properties!(puback_properties, {
-    PropertyType::ReasonString => reason_string: (Option<Py<PyString>>) = None,
-});
-
 #[pyclass(frozen, eq, get_all, module = "mqtt5")]
 pub struct PubAckPacket {
     pub packet_id: u16,
     pub reason_code: PubAckReasonCode,
     pub reason_string: Option<Py<PyString>>,
 }
+
+define_properties!(puback_properties, {
+    PropertyType::ReasonString => reason_string: (Option<Py<PyString>>) = None,
+});
 
 #[pymethods]
 impl PubAckPacket {
@@ -1109,8 +1095,6 @@ impl PubAckPacket {
         // [3.4.2] Variable header
         self.packet_id.write(&mut cursor);
         self.reason_code.write(&mut cursor);
-
-        // [3.4.2.2] Properties
         properties_remaining_length.write(&mut cursor);
         puback_properties!(write, &mut cursor, self);
 
@@ -1128,6 +1112,7 @@ impl PubAckPacket {
         if flags != 0x00 {
             return Err(PyValueError::new_err("Malformed bytes"));
         }
+        let start_index = cursor.index;
 
         // [3.4.2] Variable header
         let packet_id = u16::read(cursor)?;
@@ -1136,13 +1121,9 @@ impl PubAckPacket {
         } else {
             PubAckReasonCode::Success
         };
-
-        // [3.4.2.2] Properties
-        read_properties!("PubAckPacket", cursor,
-            if remaining_length.value() > 3, {
-                PropertyType::ReasonString => reason_string: (Option<Py<PyString>>) = None,
-            }
-        );
+        read_properties!("PubAck", cursor, start_index, remaining_length, {
+            PropertyType::ReasonString => reason_string: (Option<Py<PyString>>) = None,
+        });
 
         // Return the Python object
         let packet = Self {
@@ -1162,16 +1143,16 @@ impl PartialEq for PubAckPacket {
     }
 }
 
-define_properties!(subscribe_properties, {
-    PropertyType::SubscriptionId => subscription_id: (Option<VariableByteInteger>) = None,
-});
-
 #[pyclass(frozen, eq, get_all, module = "mqtt5")]
 pub struct SubscribePacket {
     pub packet_id: u16,
     pub subscriptions: Py<PyList>,
     pub subscription_id: Option<VariableByteInteger>,
 }
+
+define_properties!(subscribe_properties, {
+    PropertyType::SubscriptionId => subscription_id: (Option<VariableByteInteger>) = None,
+});
 
 #[pymethods]
 impl SubscribePacket {
@@ -1223,8 +1204,6 @@ impl SubscribePacket {
 
         // [3.8.2] Variable header
         self.packet_id.write(&mut cursor);
-
-        // [3.8.2.1] Properties
         properties_remaining_length.write(&mut cursor);
         subscribe_properties!(write, &mut cursor, self);
 
@@ -1257,9 +1236,7 @@ impl SubscribePacket {
 
         // [3.8.2] Variable header
         let packet_id = u16::read(cursor)?;
-
-        // [3.8.2.1] Properties
-        read_properties!("SubscribePacket", cursor, {
+        read_properties!("Subscribe", cursor, start_index, remaining_length, {
             PropertyType::SubscriptionId => subscription_id: (Option<VariableByteInteger>) = None,
         });
 
@@ -1309,16 +1286,16 @@ impl PartialEq for SubscribePacket {
     }
 }
 
-define_properties!(suback_properties, {
-    PropertyType::ReasonString => reason_string: (Option<Py<PyString>>) = None,
-});
-
 #[pyclass(frozen, eq, get_all, module = "mqtt5")]
 pub struct SubAckPacket {
     pub packet_id: u16,
     pub reason_codes: Py<PyList>,
     pub reason_string: Option<Py<PyString>>,
 }
+
+define_properties!(suback_properties, {
+    PropertyType::ReasonString => reason_string: (Option<Py<PyString>>) = None,
+});
 
 #[pymethods]
 impl SubAckPacket {
@@ -1370,8 +1347,6 @@ impl SubAckPacket {
 
         // [3.9.2] Variable header
         self.packet_id.write(&mut cursor);
-
-        // [3.9.2.1] Properties
         properties_remaining_length.write(&mut cursor);
         suback_properties!(write, &mut cursor, self);
 
@@ -1399,9 +1374,7 @@ impl SubAckPacket {
 
         // [3.9.2] Variable header
         let packet_id = u16::read(cursor)?;
-
-        // [3.9.2.1] Properties
-        read_properties!("SubAckPacket", cursor, {
+        read_properties!("SubAck", cursor, start_index, remaining_length, {
             PropertyType::ReasonString => reason_string: (Option<Py<PyString>>) = None,
         });
 
@@ -1541,12 +1514,6 @@ impl PartialEq for PingRespPacket {
     }
 }
 
-define_properties!(disconnect_properties, {
-    PropertyType::SessionExpiryInterval => session_expiry_interval: (Option<u32>) = None,
-    PropertyType::ServerReference => server_reference: (Option<Py<PyString>>) = None,
-    PropertyType::ReasonString => reason_string: (Option<Py<PyString>>) = None,
-});
-
 #[pyclass(frozen, eq, get_all, module = "mqtt5")]
 pub struct DisconnectPacket {
     pub reason_code: DisconnectReasonCode,
@@ -1554,6 +1521,12 @@ pub struct DisconnectPacket {
     pub server_reference: Option<Py<PyString>>,
     pub reason_string: Option<Py<PyString>>,
 }
+
+define_properties!(disconnect_properties, {
+    PropertyType::SessionExpiryInterval => session_expiry_interval: (Option<u32>) = None,
+    PropertyType::ServerReference => server_reference: (Option<Py<PyString>>) = None,
+    PropertyType::ReasonString => reason_string: (Option<Py<PyString>>) = None,
+});
 
 #[pymethods]
 impl DisconnectPacket {
@@ -1596,8 +1569,6 @@ impl DisconnectPacket {
 
         // [3.14.2] Variable header
         self.reason_code.write(&mut cursor);
-
-        // [3.14.2.2] Properties
         properties_remaining_length.write(&mut cursor);
         disconnect_properties!(write, &mut cursor, self);
 
@@ -1615,6 +1586,7 @@ impl DisconnectPacket {
         if flags != 0x00 {
             return Err(PyValueError::new_err("Malformed bytes"));
         }
+        let start_index = cursor.index;
 
         // [3.14.2] Variable header
         let reason_code = if remaining_length.value() > 0 {
@@ -1622,15 +1594,11 @@ impl DisconnectPacket {
         } else {
             DisconnectReasonCode::NormalDisconnection
         };
-
-        // [3.14.2.2] Properties
-        read_properties!("DisconnectPacket", cursor,
-            if remaining_length.value() > 1, {
-                PropertyType::SessionExpiryInterval => session_expiry_interval: (Option<u32>) = None,
-                PropertyType::ServerReference => server_reference: (Option<Py<PyString>>) = None,
-                PropertyType::ReasonString => reason_string: (Option<Py<PyString>>) = None,
-            }
-        );
+        read_properties!("Disconnect", cursor, start_index, remaining_length, {
+            PropertyType::SessionExpiryInterval => session_expiry_interval: (Option<u32>) = None,
+            PropertyType::ServerReference => server_reference: (Option<Py<PyString>>) = None,
+            PropertyType::ReasonString => reason_string: (Option<Py<PyString>>) = None,
+        });
 
         // Return the Python object
         let packet = Self {

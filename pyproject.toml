@@ -5,7 +5,7 @@ build-backend = "maturin"
 [project]
 name = "mqtt5"
 description = "The MQTTv5 protocol for Python written in Rust"
-requires-python = ">=3.10,4.0"
+requires-python = ">=3.10,<4.0"
 authors = [{ name = "Felix Böhm", email = "f@bo3hm.com" }]
 classifiers = [
     "Programming Language :: Python :: 3.10",
