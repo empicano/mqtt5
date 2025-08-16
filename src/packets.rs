@@ -104,7 +104,7 @@ macro_rules! read_properties {
                     )*
                     _ => {
                         return Err(PyValueError::new_err(format!(
-                            "Invalid property type for {}Packet: {:?}", $packet_name, property_type
+                            "Invalid property type for {}: {:?}", $packet_name, property_type
                         )));
                     }
                 }
@@ -179,6 +179,15 @@ impl Will {
         }
     }
 }
+
+define_properties!(will_properties, {
+    PropertyType::PayloadFormatIndicator => payload_format_indicator: u8 = 0,
+    PropertyType::MessageExpiryInterval => message_expiry_interval: (Option<u32>) = None,
+    PropertyType::ContentType => content_type: (Option<Py<PyString>>) = None,
+    PropertyType::ResponseTopic => response_topic: (Option<Py<PyString>>) = None,
+    PropertyType::CorrelationData => correlation_data: (Option<Py<PyBytes>>) = None,
+    PropertyType::WillDelayInterval => will_delay_interval: u32 = 0,
+});
 
 impl Clone for Will {
     fn clone(&self) -> Self {
@@ -346,27 +355,10 @@ impl ConnectPacket {
     fn write(&self, buffer: &Bound<'_, PyByteArray>, index: usize) -> PyResult<usize> {
         let properties_nbytes = connect_properties!(nbytes, self);
         let properties_remaining_length = VariableByteInteger::new(properties_nbytes as u32);
-        let mut will_properties_nbytes = 0;
-        if let Some(ref will) = self.will {
-            if will.payload_format_indicator != 0 {
-                will_properties_nbytes += 0u8.nbytes() + will.payload_format_indicator.nbytes();
-            }
-            if let Some(message_expiry_interval) = will.message_expiry_interval {
-                will_properties_nbytes += 0u8.nbytes() + message_expiry_interval.nbytes();
-            }
-            if let Some(ref content_type) = will.content_type {
-                will_properties_nbytes += 0u8.nbytes() + content_type.nbytes();
-            }
-            if let Some(ref response_topic) = will.response_topic {
-                will_properties_nbytes += 0u8.nbytes() + response_topic.nbytes();
-            }
-            if let Some(ref correlation_data) = will.correlation_data {
-                will_properties_nbytes += 0u8.nbytes() + correlation_data.nbytes();
-            }
-            if will.will_delay_interval != 0 {
-                will_properties_nbytes += 0u8.nbytes() + will.will_delay_interval.nbytes();
-            }
-        }
+        let will_properties_nbytes = self
+            .will
+            .as_ref()
+            .map_or(0, |will| will_properties!(nbytes, will));
         let will_properties_remaining_length =
             VariableByteInteger::new(will_properties_nbytes as u32);
         let nbytes = PROTOCOL_NAME.nbytes()
@@ -376,11 +368,11 @@ impl ConnectPacket {
             + properties_remaining_length.nbytes()
             + properties_nbytes
             + self.client_id.nbytes()
-            + self.will.as_ref().map_or(0, |x| {
+            + self.will.as_ref().map_or(0, |will| {
                 will_properties_remaining_length.nbytes()
                     + will_properties_nbytes
-                    + x.topic.nbytes()
-                    + x.payload.as_ref().map_or(0u16.nbytes(), |x| x.nbytes())
+                    + will.topic.nbytes()
+                    + will.payload.as_ref().map_or(0u16.nbytes(), |x| x.nbytes())
             })
             + self.username.nbytes()
             + self.password.nbytes();
@@ -417,30 +409,7 @@ impl ConnectPacket {
         self.client_id.write(&mut cursor);
         if let Some(ref will) = self.will {
             will_properties_remaining_length.write(&mut cursor);
-            if will.payload_format_indicator != 0 {
-                (PropertyType::PayloadFormatIndicator as u8).write(&mut cursor);
-                will.payload_format_indicator.write(&mut cursor);
-            }
-            if let Some(message_expiry_interval) = will.message_expiry_interval {
-                (PropertyType::MessageExpiryInterval as u8).write(&mut cursor);
-                message_expiry_interval.write(&mut cursor);
-            }
-            if let Some(ref content_type) = will.content_type {
-                (PropertyType::ContentType as u8).write(&mut cursor);
-                content_type.write(&mut cursor);
-            }
-            if let Some(ref response_topic) = will.response_topic {
-                (PropertyType::ResponseTopic as u8).write(&mut cursor);
-                response_topic.write(&mut cursor);
-            }
-            if let Some(ref correlation_data) = will.correlation_data {
-                (PropertyType::CorrelationData as u8).write(&mut cursor);
-                correlation_data.write(&mut cursor);
-            }
-            if will.will_delay_interval != 0 {
-                (PropertyType::WillDelayInterval as u8).write(&mut cursor);
-                will.will_delay_interval.write(&mut cursor);
-            }
+            will_properties!(write, &mut cursor, will);
             will.topic.write(&mut cursor);
             if let Some(ref payload) = will.payload {
                 payload.write(&mut cursor);
@@ -477,7 +446,7 @@ impl ConnectPacket {
         let packet_flags = u8::read(cursor)?;
         let clean_start = (packet_flags & 0x02) != 0;
         let keep_alive = u16::read(cursor)?;
-        read_properties!("Connect", cursor, start_index, remaining_length, {
+        read_properties!("ConnectPacket", cursor, start_index, remaining_length, {
             PropertyType::SessionExpiryInterval => session_expiry_interval: u32 = 0,
             PropertyType::AuthenticationMethod => authentication_method: (Option<Py<PyString>>) = None,
             PropertyType::AuthenticationData => authentication_data: (Option<Py<PyBytes>>) = None,
@@ -491,43 +460,14 @@ impl ConnectPacket {
         // [3.1.3] Payload
         let client_id = Py::<PyString>::read(cursor)?;
         let will = if (packet_flags & 0x04) != 0 {
-            let mut payload_format_indicator = 0;
-            let mut message_expiry_interval = None;
-            let mut content_type = None;
-            let mut response_topic = None;
-            let mut correlation_data = None;
-            let mut will_delay_interval = 0;
-            let will_properties_remaining_length =
-                VariableByteInteger::read(cursor)?.value() as usize;
-            let will_properties_start_index = cursor.index;
-            while cursor.index - will_properties_start_index < will_properties_remaining_length {
-                match PropertyType::new(u8::read(cursor)?)? {
-                    PropertyType::PayloadFormatIndicator => {
-                        payload_format_indicator = u8::read(cursor)?;
-                    }
-                    PropertyType::MessageExpiryInterval => {
-                        message_expiry_interval = Some(u32::read(cursor)?);
-                    }
-                    PropertyType::ContentType => {
-                        content_type = Some(Py::<PyString>::read(cursor)?);
-                    }
-                    PropertyType::ResponseTopic => {
-                        response_topic = Some(Py::<PyString>::read(cursor)?);
-                    }
-                    PropertyType::CorrelationData => {
-                        correlation_data = Some(Py::<PyBytes>::read(cursor)?);
-                    }
-                    PropertyType::WillDelayInterval => {
-                        will_delay_interval = u32::read(cursor)?;
-                    }
-                    other => {
-                        return Err(PyValueError::new_err(format!(
-                            "Invalid property type for Will: {:?}",
-                            other
-                        )));
-                    }
-                }
-            }
+            read_properties!("Will", cursor, cursor.index, remaining_length, {
+                PropertyType::PayloadFormatIndicator => payload_format_indicator: u8 = 0,
+                PropertyType::MessageExpiryInterval => message_expiry_interval: (Option<u32>) = None,
+                PropertyType::ContentType => content_type: (Option<Py<PyString>>) = None,
+                PropertyType::ResponseTopic => response_topic: (Option<Py<PyString>>) = None,
+                PropertyType::CorrelationData => correlation_data: (Option<Py<PyBytes>>) = None,
+                PropertyType::WillDelayInterval => will_delay_interval: u32 = 0,
+            });
             let topic = Py::<PyString>::read(cursor)?;
             let payload = Py::<PyBytes>::read(cursor)?;
             Some(Will {
@@ -752,7 +692,7 @@ impl ConnAckPacket {
         }
         let session_present = (packet_flags & 0x01) != 0;
         let reason_code = ConnAckReasonCode::read(cursor)?;
-        read_properties!("ConnAck", cursor, start_index, remaining_length, {
+        read_properties!("ConnAckPacket", cursor, start_index, remaining_length, {
             PropertyType::SessionExpiryInterval => session_expiry_interval: (Option<u32>) = None,
             PropertyType::AssignedClientId => assigned_client_id: (Option<Py<PyString>>) = None,
             PropertyType::ServerKeepAlive => server_keep_alive: (Option<u16>) = None,
@@ -923,7 +863,7 @@ impl PublishPacket {
             + self.packet_id.nbytes()
             + properties_remaining_length.nbytes()
             + properties_nbytes
-            + payload.map_or(0, |x| x.len());
+            + payload.map_or(0, |payload| payload.len());
         let remaining_length = VariableByteInteger::new(nbytes as u32);
         let mut cursor = Cursor::new(buffer, index);
         cursor.require(1 + remaining_length.nbytes() + nbytes)?;
@@ -973,7 +913,7 @@ impl PublishPacket {
         } else {
             None
         };
-        read_properties!("Publish", cursor, start_index, remaining_length, {
+        read_properties!("PublishPacket", cursor, start_index, remaining_length, {
             PropertyType::PayloadFormatIndicator => payload_format_indicator: u8 = 0,
             PropertyType::MessageExpiryInterval => message_expiry_interval: (Option<u32>) = None,
             PropertyType::ContentType => content_type: (Option<Py<PyString>>) = None,
@@ -1121,7 +1061,7 @@ impl PubAckPacket {
         } else {
             PubAckReasonCode::Success
         };
-        read_properties!("PubAck", cursor, start_index, remaining_length, {
+        read_properties!("PubAckPacket", cursor, start_index, remaining_length, {
             PropertyType::ReasonString => reason_string: (Option<Py<PyString>>) = None,
         });
 
@@ -1236,7 +1176,7 @@ impl SubscribePacket {
 
         // [3.8.2] Variable header
         let packet_id = u16::read(cursor)?;
-        read_properties!("Subscribe", cursor, start_index, remaining_length, {
+        read_properties!("SubscribePacket", cursor, start_index, remaining_length, {
             PropertyType::SubscriptionId => subscription_id: (Option<VariableByteInteger>) = None,
         });
 
@@ -1374,7 +1314,7 @@ impl SubAckPacket {
 
         // [3.9.2] Variable header
         let packet_id = u16::read(cursor)?;
-        read_properties!("SubAck", cursor, start_index, remaining_length, {
+        read_properties!("SubAckPacket", cursor, start_index, remaining_length, {
             PropertyType::ReasonString => reason_string: (Option<Py<PyString>>) = None,
         });
 
@@ -1594,7 +1534,7 @@ impl DisconnectPacket {
         } else {
             DisconnectReasonCode::NormalDisconnection
         };
-        read_properties!("Disconnect", cursor, start_index, remaining_length, {
+        read_properties!("DisconnectPacket", cursor, start_index, remaining_length, {
             PropertyType::SessionExpiryInterval => session_expiry_interval: (Option<u32>) = None,
             PropertyType::ServerReference => server_reference: (Option<Py<PyString>>) = None,
             PropertyType::ReasonString => reason_string: (Option<Py<PyString>>) = None,
