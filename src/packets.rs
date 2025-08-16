@@ -9,75 +9,15 @@ use pyo3::PyResult;
 const PROTOCOL_NAME: &str = "MQTT";
 const PROTOCOL_VERSION: u8 = 5;
 
-macro_rules! define_properties {
-    ($name:ident, { $($property_type:expr => $field:ident: $field_type:tt = $default:tt),* $(,)? }) => {
-        macro_rules! $name {
-            (nbytes, $context:expr) => {
-                {
-                    let mut accumulator = 0usize;
-                    $(
-                        if define_properties!(@condition, $context, $field, $default) {
-                            define_properties!(@nbytes, accumulator, $context, $field, $field_type);
-                        }
-                    )*
-                    accumulator
-                }
-            };
-            (write, $cursor:expr, $context:expr) => {
-                $(
-                    if define_properties!(@condition, $context, $field, $default) {
-                        define_properties!(@write, $cursor, $context, $field, $field_type, $property_type);
-                    }
-                )*
-            };
-        }
-    };
-
-    // Determine if we handle the property
-    (@condition, $context:expr, $field:ident, None) => { $context.$field.is_some() };
-    (@condition, $context:expr, $field:ident, []) => {
-        Python::with_gil(|py| !$context.$field.bind(py).is_empty())
-    };
-    (@condition, $context:expr, $field:ident, $default:tt) => { $context.$field != $default };
-
-    // Calculate the property size
-    (@nbytes, $accumulator:ident, $context:expr, $field:ident, (Py<PyList>)) => {
-        Python::with_gil(|py| {
-            for item in $context.$field.bind(py).iter() {
-                let value: u32 = item.extract().unwrap();
-                $accumulator += 0u8.nbytes() + VariableByteInteger::new(value).nbytes();
-            }
-        })
-    };
-    (@nbytes, $accumulator:ident, $context:expr, $field:ident, $field_type:tt) => {
-        $accumulator += 0u8.nbytes() + $context.$field.nbytes()
-    };
-
-    // Write the property
-    (@write, $cursor:expr, $context:expr, $field:ident, (Py<PyList>), $property_type:expr) => {
-        Python::with_gil(|py| {
-            for item in $context.$field.bind(py).iter() {
-                ($property_type as u8).write($cursor);
-                let val: u32 = item.extract().unwrap();
-                VariableByteInteger::new(val).write($cursor);
-            }
-        })
-    };
-    (@write, $cursor:expr, $context:expr, $field:ident, $field_type:tt, $property_type:expr) => {
-        ($property_type as u8).write($cursor);
-        $context.$field.write($cursor);
-    };
-}
-
 macro_rules! read_properties {
-    ($packet_name:literal, $cursor:expr, $index:expr, $remaining_length:expr, {
+    ($packet_name:literal, $cursor:expr, $start_index:expr, $remaining_length:expr, {
         $($property_type:path => $field:ident: $field_type:tt = $default:expr),* $(,)?
     }) => {
         $(
             #[allow(unused_mut)]
             let mut $field = $default;
         )*
-        if $cursor.index - $index < $remaining_length.value() as usize {
+        if $cursor.index - $start_index < $remaining_length.value() as usize {
             let properties_remaining_length = VariableByteInteger::read($cursor)?;
             let properties_start_index = $cursor.index;
             let mut seen = 0u64;
@@ -120,6 +60,46 @@ macro_rules! read_properties {
     };
     (@read, $cursor:expr, $field:ident, $field_type:ty) => {
         $field = <$field_type>::read($cursor)?
+    };
+}
+
+macro_rules! write_properties {
+    ($cursor:expr, $context:expr, {
+        $($property_type:path => $field:ident: $field_type:tt = $default:expr),* $(,)?
+    }) => {
+        $(
+            if write_properties!(@condition, $context, $field, $field_type, $default) {
+                ($property_type as u8).write($cursor);
+                $context.$field.write($cursor);
+            }
+        )*
+    };
+
+    (@condition, $context:expr, $field:ident, (Py<PyList<$inner:ty>>), $default:expr) => {
+        Python::with_gil(|py| !$context.$field.bind(py).is_empty())
+    };
+    (@condition, $context:expr, $field:ident, (Option<$inner:ty>), $default:expr) => {
+        $context.$field.is_some()
+    };
+    (@condition, $context:expr, $field:ident, $field_type:ty, $default:expr) => {
+        // Write properties only if not equal to their default value to minimize packet size
+        $context.$field != $default
+    };
+}
+
+macro_rules! nbytes_properties {
+    ($context: expr, {
+        $($property_type:path => $field:ident: $field_type:tt = $default:expr),* $(,)?
+    }) => {
+        {
+            let mut accumulator: usize = 0;
+            $(
+                if write_properties!(@condition, $context, $field, $field_type, $default) {
+                    accumulator += 0u8.nbytes() + $context.$field.nbytes()
+                }
+            )*
+            accumulator
+        }
     };
 }
 
@@ -179,15 +159,6 @@ impl Will {
         }
     }
 }
-
-define_properties!(will_properties, {
-    PropertyType::PayloadFormatIndicator => payload_format_indicator: u8 = 0,
-    PropertyType::MessageExpiryInterval => message_expiry_interval: (Option<u32>) = None,
-    PropertyType::ContentType => content_type: (Option<Py<PyString>>) = None,
-    PropertyType::ResponseTopic => response_topic: (Option<Py<PyString>>) = None,
-    PropertyType::CorrelationData => correlation_data: (Option<Py<PyBytes>>) = None,
-    PropertyType::WillDelayInterval => will_delay_interval: u32 = 0,
-});
 
 impl Clone for Will {
     fn clone(&self) -> Self {
@@ -286,17 +257,6 @@ pub struct ConnectPacket {
     pub maximum_packet_size: Option<u32>,
 }
 
-define_properties!(connect_properties, {
-    PropertyType::SessionExpiryInterval => session_expiry_interval: u32 = 0,
-    PropertyType::AuthenticationMethod => authentication_method: (Option<Py<PyString>>) = None,
-    PropertyType::AuthenticationData => authentication_data: (Option<Py<PyBytes>>) = None,
-    PropertyType::RequestProblemInformation => request_problem_information: bool = true,
-    PropertyType::RequestResponseInformation => request_response_information: bool = false,
-    PropertyType::ReceiveMaximum => receive_maximum: u16 = 65535,
-    PropertyType::TopicAliasMaximum => topic_alias_maximum: u16 = 0,
-    PropertyType::MaximumPacketSize => maximum_packet_size: (Option<u32>) = None,
-});
-
 #[pymethods]
 impl ConnectPacket {
     #[new]
@@ -353,12 +313,28 @@ impl ConnectPacket {
 
     #[pyo3(signature = (buffer, /, *, index=0))]
     fn write(&self, buffer: &Bound<'_, PyByteArray>, index: usize) -> PyResult<usize> {
-        let properties_nbytes = connect_properties!(nbytes, self);
+        let properties_nbytes = nbytes_properties!(self, {
+            PropertyType::SessionExpiryInterval => session_expiry_interval: u32 = 0,
+            PropertyType::AuthenticationMethod => authentication_method: (Option<Py<PyString>>) = None,
+            PropertyType::AuthenticationData => authentication_data: (Option<Py<PyBytes>>) = None,
+            PropertyType::RequestProblemInformation => request_problem_information: bool = true,
+            PropertyType::RequestResponseInformation => request_response_information: bool = false,
+            PropertyType::ReceiveMaximum => receive_maximum: u16 = 65535,
+            PropertyType::TopicAliasMaximum => topic_alias_maximum: u16 = 0,
+            PropertyType::MaximumPacketSize => maximum_packet_size: (Option<u32>) = None,
+        });
         let properties_remaining_length = VariableByteInteger::new(properties_nbytes as u32);
         let will_properties_nbytes = self
             .will
             .as_ref()
-            .map_or(0, |will| will_properties!(nbytes, will));
+            .map_or(0, |will| nbytes_properties!(will, {
+                PropertyType::PayloadFormatIndicator => payload_format_indicator: u8 = 0,
+                PropertyType::MessageExpiryInterval => message_expiry_interval: (Option<u32>) = None,
+                PropertyType::ContentType => content_type: (Option<Py<PyString>>) = None,
+                PropertyType::ResponseTopic => response_topic: (Option<Py<PyString>>) = None,
+                PropertyType::CorrelationData => correlation_data: (Option<Py<PyBytes>>) = None,
+                PropertyType::WillDelayInterval => will_delay_interval: u32 = 0,
+            }));
         let will_properties_remaining_length =
             VariableByteInteger::new(will_properties_nbytes as u32);
         let nbytes = PROTOCOL_NAME.nbytes()
@@ -403,13 +379,29 @@ impl ConnectPacket {
         packet_flags.write(&mut cursor);
         self.keep_alive.write(&mut cursor);
         properties_remaining_length.write(&mut cursor);
-        connect_properties!(write, &mut cursor, self);
+        write_properties!(&mut cursor, self, {
+            PropertyType::SessionExpiryInterval => session_expiry_interval: u32 = 0,
+            PropertyType::AuthenticationMethod => authentication_method: (Option<Py<PyString>>) = None,
+            PropertyType::AuthenticationData => authentication_data: (Option<Py<PyBytes>>) = None,
+            PropertyType::RequestProblemInformation => request_problem_information: bool = true,
+            PropertyType::RequestResponseInformation => request_response_information: bool = false,
+            PropertyType::ReceiveMaximum => receive_maximum: u16 = 65535,
+            PropertyType::TopicAliasMaximum => topic_alias_maximum: u16 = 0,
+            PropertyType::MaximumPacketSize => maximum_packet_size: (Option<u32>) = None,
+        });
 
         // [3.1.3] Payload
         self.client_id.write(&mut cursor);
         if let Some(ref will) = self.will {
             will_properties_remaining_length.write(&mut cursor);
-            will_properties!(write, &mut cursor, will);
+            write_properties!(&mut cursor, will, {
+                PropertyType::PayloadFormatIndicator => payload_format_indicator: u8 = 0,
+                PropertyType::MessageExpiryInterval => message_expiry_interval: (Option<u32>) = None,
+                PropertyType::ContentType => content_type: (Option<Py<PyString>>) = None,
+                PropertyType::ResponseTopic => response_topic: (Option<Py<PyString>>) = None,
+                PropertyType::CorrelationData => correlation_data: (Option<Py<PyBytes>>) = None,
+                PropertyType::WillDelayInterval => will_delay_interval: u32 = 0,
+            });
             will.topic.write(&mut cursor);
             if let Some(ref payload) = will.payload {
                 payload.write(&mut cursor);
@@ -560,25 +552,6 @@ pub struct ConnAckPacket {
     pub shared_subscription_available: bool,
 }
 
-define_properties!(connack_properties, {
-    PropertyType::SessionExpiryInterval => session_expiry_interval: (Option<u32>) = None,
-    PropertyType::AssignedClientId => assigned_client_id: (Option<Py<PyString>>) = None,
-    PropertyType::ServerKeepAlive => server_keep_alive: (Option<u16>) = None,
-    PropertyType::AuthenticationMethod => authentication_method: (Option<Py<PyString>>) = None,
-    PropertyType::AuthenticationData => authentication_data: (Option<Py<PyBytes>>) = None,
-    PropertyType::ResponseInformation => response_information: (Option<Py<PyString>>) = None,
-    PropertyType::ServerReference => server_reference: (Option<Py<PyString>>) = None,
-    PropertyType::ReasonString => reason_string: (Option<Py<PyString>>) = None,
-    PropertyType::ReceiveMaximum => receive_maximum: u16 = 65535,
-    PropertyType::TopicAliasMaximum => topic_alias_maximum: u16 = 0,
-    PropertyType::MaximumQoS => maximum_qos: QoS = (QoS::ExactlyOnce),
-    PropertyType::RetainAvailable => retain_available: bool = true,
-    PropertyType::MaximumPacketSize => maximum_packet_size: (Option<u32>) = None,
-    PropertyType::WildcardSubscriptionAvailable => wildcard_subscription_available: bool = true,
-    PropertyType::SubscriptionIdAvailable => subscription_id_available: bool = true,
-    PropertyType::SharedSubscriptionAvailable => shared_subscription_available: bool = true,
-});
-
 #[pymethods]
 impl ConnAckPacket {
     #[new]
@@ -647,7 +620,24 @@ impl ConnAckPacket {
 
     #[pyo3(signature = (buffer, /, *, index=0))]
     pub fn write(&self, buffer: &Bound<'_, PyByteArray>, index: usize) -> PyResult<usize> {
-        let properties_nbytes = connack_properties!(nbytes, self);
+        let properties_nbytes = nbytes_properties!(self, {
+            PropertyType::SessionExpiryInterval => session_expiry_interval: (Option<u32>) = None,
+            PropertyType::AssignedClientId => assigned_client_id: (Option<Py<PyString>>) = None,
+            PropertyType::ServerKeepAlive => server_keep_alive: (Option<u16>) = None,
+            PropertyType::AuthenticationMethod => authentication_method: (Option<Py<PyString>>) = None,
+            PropertyType::AuthenticationData => authentication_data: (Option<Py<PyBytes>>) = None,
+            PropertyType::ResponseInformation => response_information: (Option<Py<PyString>>) = None,
+            PropertyType::ServerReference => server_reference: (Option<Py<PyString>>) = None,
+            PropertyType::ReasonString => reason_string: (Option<Py<PyString>>) = None,
+            PropertyType::ReceiveMaximum => receive_maximum: u16 = 65535,
+            PropertyType::TopicAliasMaximum => topic_alias_maximum: u16 = 0,
+            PropertyType::MaximumQoS => maximum_qos: QoS = (QoS::ExactlyOnce),
+            PropertyType::RetainAvailable => retain_available: bool = true,
+            PropertyType::MaximumPacketSize => maximum_packet_size: (Option<u32>) = None,
+            PropertyType::WildcardSubscriptionAvailable => wildcard_subscription_available: bool = true,
+            PropertyType::SubscriptionIdAvailable => subscription_id_available: bool = true,
+            PropertyType::SharedSubscriptionAvailable => shared_subscription_available: bool = true,
+        });
         let properties_remaining_length = VariableByteInteger::new(properties_nbytes as u32);
         let nbytes = 0u8.nbytes()
             + self.reason_code.nbytes()
@@ -667,7 +657,24 @@ impl ConnAckPacket {
         packet_flags.write(&mut cursor);
         self.reason_code.write(&mut cursor);
         properties_remaining_length.write(&mut cursor);
-        connack_properties!(write, &mut cursor, self);
+        write_properties!(&mut cursor, self, {
+            PropertyType::SessionExpiryInterval => session_expiry_interval: (Option<u32>) = None,
+            PropertyType::AssignedClientId => assigned_client_id: (Option<Py<PyString>>) = None,
+            PropertyType::ServerKeepAlive => server_keep_alive: (Option<u16>) = None,
+            PropertyType::AuthenticationMethod => authentication_method: (Option<Py<PyString>>) = None,
+            PropertyType::AuthenticationData => authentication_data: (Option<Py<PyBytes>>) = None,
+            PropertyType::ResponseInformation => response_information: (Option<Py<PyString>>) = None,
+            PropertyType::ServerReference => server_reference: (Option<Py<PyString>>) = None,
+            PropertyType::ReasonString => reason_string: (Option<Py<PyString>>) = None,
+            PropertyType::ReceiveMaximum => receive_maximum: u16 = 65535,
+            PropertyType::TopicAliasMaximum => topic_alias_maximum: u16 = 0,
+            PropertyType::MaximumQoS => maximum_qos: QoS = (QoS::ExactlyOnce),
+            PropertyType::RetainAvailable => retain_available: bool = true,
+            PropertyType::MaximumPacketSize => maximum_packet_size: (Option<u32>) = None,
+            PropertyType::WildcardSubscriptionAvailable => wildcard_subscription_available: bool = true,
+            PropertyType::SubscriptionIdAvailable => subscription_id_available: bool = true,
+            PropertyType::SharedSubscriptionAvailable => shared_subscription_available: bool = true,
+        });
 
         Ok(cursor.index - index)
     }
@@ -776,16 +783,6 @@ pub struct PublishPacket {
     pub topic_alias: Option<u16>,
 }
 
-define_properties!(publish_properties, {
-    PropertyType::PayloadFormatIndicator => payload_format_indicator: u8 = 0,
-    PropertyType::MessageExpiryInterval => message_expiry_interval: (Option<u32>) = None,
-    PropertyType::ContentType => content_type: (Option<Py<PyString>>) = None,
-    PropertyType::ResponseTopic => response_topic: (Option<Py<PyString>>) = None,
-    PropertyType::CorrelationData => correlation_data: (Option<Py<PyBytes>>) = None,
-    PropertyType::SubscriptionId => subscription_ids: (Py<PyList>) = [],
-    PropertyType::TopicAlias => topic_alias: (Option<u16>) = None,
-});
-
 #[pymethods]
 impl PublishPacket {
     #[new]
@@ -857,7 +854,15 @@ impl PublishPacket {
         index: usize,
     ) -> PyResult<usize> {
         let payload = self.payload.as_ref().map(|x| x.bind(py).as_bytes());
-        let properties_nbytes = publish_properties!(nbytes, self);
+        let properties_nbytes = nbytes_properties!(self, {
+            PropertyType::PayloadFormatIndicator => payload_format_indicator: u8 = 0,
+            PropertyType::MessageExpiryInterval => message_expiry_interval: (Option<u32>) = None,
+            PropertyType::ContentType => content_type: (Option<Py<PyString>>) = None,
+            PropertyType::ResponseTopic => response_topic: (Option<Py<PyString>>) = None,
+            PropertyType::CorrelationData => correlation_data: (Option<Py<PyBytes>>) = None,
+            PropertyType::SubscriptionId => subscription_ids: (Py<PyList<VariableByteInteger>>) = pyo3::types::PyList::empty(py),
+            PropertyType::TopicAlias => topic_alias: (Option<u16>) = None,
+        });
         let properties_remaining_length = VariableByteInteger::new(properties_nbytes as u32);
         let nbytes = self.topic.nbytes()
             + self.packet_id.nbytes()
@@ -880,7 +885,15 @@ impl PublishPacket {
         self.topic.write(&mut cursor);
         self.packet_id.write(&mut cursor);
         properties_remaining_length.write(&mut cursor);
-        publish_properties!(write, &mut cursor, self);
+        write_properties!(&mut cursor, self, {
+            PropertyType::PayloadFormatIndicator => payload_format_indicator: u8 = 0,
+            PropertyType::MessageExpiryInterval => message_expiry_interval: (Option<u32>) = None,
+            PropertyType::ContentType => content_type: (Option<Py<PyString>>) = None,
+            PropertyType::ResponseTopic => response_topic: (Option<Py<PyString>>) = None,
+            PropertyType::CorrelationData => correlation_data: (Option<Py<PyBytes>>) = None,
+            PropertyType::SubscriptionId => subscription_ids: (Py<PyList<VariableByteInteger>>) = pyo3::types::PyList::empty(py),
+            PropertyType::TopicAlias => topic_alias: (Option<u16>) = None,
+        });
 
         // [3.3.3] Payload
         if let Some(payload) = payload {
@@ -990,10 +1003,6 @@ pub struct PubAckPacket {
     pub reason_string: Option<Py<PyString>>,
 }
 
-define_properties!(puback_properties, {
-    PropertyType::ReasonString => reason_string: (Option<Py<PyString>>) = None,
-});
-
 #[pymethods]
 impl PubAckPacket {
     #[new]
@@ -1017,7 +1026,9 @@ impl PubAckPacket {
 
     #[pyo3(signature = (buffer, /, *, index=0))]
     pub fn write(&self, buffer: &Bound<'_, PyByteArray>, index: usize) -> PyResult<usize> {
-        let properties_nbytes = puback_properties!(nbytes, self);
+        let properties_nbytes = nbytes_properties!(self, {
+            PropertyType::ReasonString => reason_string: (Option<Py<PyString>>) = None,
+        });
         let properties_remaining_length = VariableByteInteger::new(properties_nbytes as u32);
         let nbytes = self.packet_id.nbytes()
             + self.reason_code.nbytes()
@@ -1036,7 +1047,9 @@ impl PubAckPacket {
         self.packet_id.write(&mut cursor);
         self.reason_code.write(&mut cursor);
         properties_remaining_length.write(&mut cursor);
-        puback_properties!(write, &mut cursor, self);
+        write_properties!(&mut cursor, self, {
+            PropertyType::ReasonString => reason_string: (Option<Py<PyString>>) = None,
+        });
 
         Ok(cursor.index - index)
     }
@@ -1090,10 +1103,6 @@ pub struct SubscribePacket {
     pub subscription_id: Option<VariableByteInteger>,
 }
 
-define_properties!(subscribe_properties, {
-    PropertyType::SubscriptionId => subscription_id: (Option<VariableByteInteger>) = None,
-});
-
 #[pymethods]
 impl SubscribePacket {
     #[new]
@@ -1122,7 +1131,9 @@ impl SubscribePacket {
         buffer: &Bound<'_, PyByteArray>,
         index: usize,
     ) -> PyResult<usize> {
-        let properties_nbytes = subscribe_properties!(nbytes, self);
+        let properties_nbytes = nbytes_properties!(self, {
+            PropertyType::SubscriptionId => subscription_id: (Option<VariableByteInteger>) = None,
+        });
         let properties_remaining_length = VariableByteInteger::new(properties_nbytes as u32);
         let subscriptions = self.subscriptions.bind(py);
         let nbytes = self.packet_id.nbytes()
@@ -1145,7 +1156,9 @@ impl SubscribePacket {
         // [3.8.2] Variable header
         self.packet_id.write(&mut cursor);
         properties_remaining_length.write(&mut cursor);
-        subscribe_properties!(write, &mut cursor, self);
+        write_properties!(&mut cursor, self, {
+            PropertyType::SubscriptionId => subscription_id: (Option<VariableByteInteger>) = None,
+        });
 
         // [3.8.3] Payload
         for item in subscriptions.try_iter()? {
@@ -1233,10 +1246,6 @@ pub struct SubAckPacket {
     pub reason_string: Option<Py<PyString>>,
 }
 
-define_properties!(suback_properties, {
-    PropertyType::ReasonString => reason_string: (Option<Py<PyString>>) = None,
-});
-
 #[pymethods]
 impl SubAckPacket {
     #[new]
@@ -1265,7 +1274,9 @@ impl SubAckPacket {
         buffer: &Bound<'_, PyByteArray>,
         index: usize,
     ) -> PyResult<usize> {
-        let properties_nbytes = suback_properties!(nbytes, self);
+        let properties_nbytes = nbytes_properties!(self, {
+            PropertyType::ReasonString => reason_string: (Option<Py<PyString>>) = None,
+        });
         let properties_remaining_length = VariableByteInteger::new(properties_nbytes as u32);
         let reason_codes = self.reason_codes.bind(py);
         let nbytes = self.packet_id.nbytes()
@@ -1288,7 +1299,9 @@ impl SubAckPacket {
         // [3.9.2] Variable header
         self.packet_id.write(&mut cursor);
         properties_remaining_length.write(&mut cursor);
-        suback_properties!(write, &mut cursor, self);
+        write_properties!(&mut cursor, self, {
+            PropertyType::ReasonString => reason_string: (Option<Py<PyString>>) = None,
+        });
 
         // [3.9.3] Payload
         for item in reason_codes.try_iter()? {
@@ -1462,12 +1475,6 @@ pub struct DisconnectPacket {
     pub reason_string: Option<Py<PyString>>,
 }
 
-define_properties!(disconnect_properties, {
-    PropertyType::SessionExpiryInterval => session_expiry_interval: (Option<u32>) = None,
-    PropertyType::ServerReference => server_reference: (Option<Py<PyString>>) = None,
-    PropertyType::ReasonString => reason_string: (Option<Py<PyString>>) = None,
-});
-
 #[pymethods]
 impl DisconnectPacket {
     #[new]
@@ -1494,7 +1501,11 @@ impl DisconnectPacket {
 
     #[pyo3(signature = (buffer, /, *, index=0))]
     pub fn write(&self, buffer: &Bound<'_, PyByteArray>, index: usize) -> PyResult<usize> {
-        let properties_nbytes = disconnect_properties!(nbytes, self);
+        let properties_nbytes = nbytes_properties!(self, {
+            PropertyType::SessionExpiryInterval => session_expiry_interval: (Option<u32>) = None,
+            PropertyType::ServerReference => server_reference: (Option<Py<PyString>>) = None,
+            PropertyType::ReasonString => reason_string: (Option<Py<PyString>>) = None,
+        });
         let properties_remaining_length = VariableByteInteger::new(properties_nbytes as u32);
         let nbytes =
             self.reason_code.nbytes() + properties_remaining_length.nbytes() + properties_nbytes;
@@ -1510,7 +1521,11 @@ impl DisconnectPacket {
         // [3.14.2] Variable header
         self.reason_code.write(&mut cursor);
         properties_remaining_length.write(&mut cursor);
-        disconnect_properties!(write, &mut cursor, self);
+        write_properties!(&mut cursor, self, {
+            PropertyType::SessionExpiryInterval => session_expiry_interval: (Option<u32>) = None,
+            PropertyType::ServerReference => server_reference: (Option<Py<PyString>>) = None,
+            PropertyType::ReasonString => reason_string: (Option<Py<PyString>>) = None,
+        });
 
         Ok(cursor.index - index)
     }

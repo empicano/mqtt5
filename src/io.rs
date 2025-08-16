@@ -1,9 +1,11 @@
 use core::str;
 use pyo3::exceptions::{PyIndexError, PyValueError};
 use pyo3::prelude::*;
-use pyo3::types::{PyByteArray, PyBytes, PyString, PyStringMethods};
+use pyo3::types::{PyByteArray, PyBytes, PyList, PyString, PyStringMethods};
 use pyo3::PyResult;
 use std::fmt;
+
+use crate::types::PropertyType;
 
 pub struct Cursor<'a> {
     pub buffer: &'a mut [u8],
@@ -304,8 +306,32 @@ impl Writable for &Bound<'_, PyString> {
     fn write(&self, cursor: &mut Cursor<'_>) {
         self.to_str().unwrap().write(cursor);
     }
+
     fn nbytes(&self) -> usize {
         self.to_str().unwrap().nbytes()
+    }
+}
+
+impl Writable for Py<PyList> {
+    fn write(&self, cursor: &mut Cursor<'_>) {
+        Python::with_gil(|py| {
+            for item in self.bind(py).iter() {
+                (PropertyType::SubscriptionId as u8).write(cursor);
+                let val: u32 = item.extract().unwrap();
+                VariableByteInteger::new(val).write(cursor);
+            }
+        })
+    }
+
+    fn nbytes(&self) -> usize {
+        let mut accumulator: usize = 0;
+        Python::with_gil(|py| {
+            for item in self.bind(py).iter() {
+                let value: u32 = item.extract().unwrap();
+                accumulator += 0u8.nbytes() + VariableByteInteger::new(value).nbytes();
+            }
+        });
+        accumulator
     }
 }
 
