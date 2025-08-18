@@ -69,13 +69,13 @@ def connect_packet_full():
         ),
         keep_alive=6789,
         session_expiry_interval=9999,
-        authentication_method="GS2-KRB5",
-        authentication_data=b"\x12" * 2**8,
-        request_problem_information=False,
-        request_response_information=True,
-        receive_maximum=55555,
-        topic_alias_maximum=3,
-        maximum_packet_size=5000,
+        auth_method="GS2-KRB5",
+        auth_data=b"\x12" * 2**8,
+        request_problem_info=False,
+        request_response_info=True,
+        receive_max=55555,
+        topic_alias_max=3,
+        max_packet_size=5000,
     )
 
 
@@ -130,16 +130,16 @@ def connack_packet_full():
         session_expiry_interval=9999,
         assigned_client_id="Bulbasaur",
         server_keep_alive=6789,
-        authentication_method="GS2-KRB5",
-        authentication_data=b"\x12" * 2**8,
-        response_information="response/information",
+        auth_method="GS2-KRB5",
+        auth_data=b"\x12" * 2**8,
+        response_info="response/information",
         server_reference="example.com:1883",
-        reason_string="The reason string is a human readable string designed for diagnostics.",
-        receive_maximum=2**10,
-        topic_alias_maximum=2**8,
-        maximum_qos=mqtt5.QoS.AT_MOST_ONCE,
+        reason_str="The reason string is a human readable string designed for diagnostics.",
+        receive_max=2**10,
+        topic_alias_max=2**8,
+        max_qos=mqtt5.QoS.AT_MOST_ONCE,
         retain_available=False,
-        maximum_packet_size=2**12,
+        max_packet_size=2**12,
         wildcard_subscription_available=False,
         subscription_id_available=False,
         shared_subscription_available=False,
@@ -211,7 +211,7 @@ def puback_packet_full():
     return mqtt5.PubAckPacket(
         packet_id=1234,
         reason_code=mqtt5.PubAckReasonCode.NO_MATCHING_SUBSCRIBERS,
-        reason_string="The reason string is a human readable string designed for diagnostics.",
+        reason_str="The reason string is a human readable string designed for diagnostics.",
     )
 
 
@@ -280,7 +280,7 @@ def disconnect_packet_full():
         reason_code=mqtt5.DisconnectReasonCode.SERVER_SHUTTING_DOWN,
         session_expiry_interval=9999,
         server_reference="example.com:1883",
-        reason_string="The reason string is a human readable string designed for diagnostics.",
+        reason_str="The reason string is a human readable string designed for diagnostics.",
     )
 
 

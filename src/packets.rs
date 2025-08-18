@@ -195,7 +195,7 @@ impl PartialEq for Will {
 #[pyclass(frozen, eq, get_all, module = "mqtt5")]
 pub struct Subscription {
     pub pattern: Py<PyString>,
-    pub maximum_qos: QoS,
+    pub max_qos: QoS,
     pub no_local: bool,
     pub retain_as_published: bool,
     pub retain_handling: RetainHandling,
@@ -207,14 +207,14 @@ impl Subscription {
     #[pyo3(signature = (
         pattern,
         *,
-        maximum_qos=QoS::ExactlyOnce,
+        max_qos=QoS::ExactlyOnce,
         no_local=false,
         retain_as_published=true,
         retain_handling=RetainHandling::SendAlways,
     ))]
     pub fn new(
         pattern: &Bound<'_, PyString>,
-        maximum_qos: QoS,
+        max_qos: QoS,
         no_local: bool,
         retain_as_published: bool,
         retain_handling: RetainHandling,
@@ -222,7 +222,7 @@ impl Subscription {
         Self {
             pattern: pattern.clone().unbind(),
             no_local,
-            maximum_qos,
+            max_qos,
             retain_as_published,
             retain_handling,
         }
@@ -232,7 +232,7 @@ impl Subscription {
 impl PartialEq for Subscription {
     fn eq(&self, other: &Self) -> bool {
         self.pattern.py_eq(&other.pattern)
-            && self.maximum_qos == other.maximum_qos
+            && self.max_qos == other.max_qos
             && self.no_local == other.no_local
             && self.retain_as_published == other.retain_as_published
             && self.retain_handling == other.retain_handling
@@ -248,13 +248,13 @@ pub struct ConnectPacket {
     pub will: Option<Will>,
     pub keep_alive: u16,
     pub session_expiry_interval: u32,
-    pub authentication_method: Option<Py<PyString>>,
-    pub authentication_data: Option<Py<PyBytes>>,
-    pub request_problem_information: bool,
-    pub request_response_information: bool,
-    pub receive_maximum: u16,
-    pub topic_alias_maximum: u16,
-    pub maximum_packet_size: Option<u32>,
+    pub auth_method: Option<Py<PyString>>,
+    pub auth_data: Option<Py<PyBytes>>,
+    pub request_problem_info: bool,
+    pub request_response_info: bool,
+    pub receive_max: u16,
+    pub topic_alias_max: u16,
+    pub max_packet_size: Option<u32>,
 }
 
 #[pymethods]
@@ -269,13 +269,13 @@ impl ConnectPacket {
         will=None,
         keep_alive=0,
         session_expiry_interval=0,
-        authentication_method=None,
-        authentication_data=None,
-        request_problem_information=true,
-        request_response_information=false,
-        receive_maximum=65535,
-        topic_alias_maximum=0,
-        maximum_packet_size=None,
+        auth_method=None,
+        auth_data=None,
+        request_problem_info=true,
+        request_response_info=false,
+        receive_max=65535,
+        topic_alias_max=0,
+        max_packet_size=None,
     ))]
     pub fn new(
         client_id: &Bound<'_, PyString>,
@@ -285,13 +285,13 @@ impl ConnectPacket {
         will: Option<Will>,
         keep_alive: u16,
         session_expiry_interval: u32,
-        authentication_method: Option<Py<PyString>>,
-        authentication_data: Option<Py<PyBytes>>,
-        request_problem_information: bool,
-        request_response_information: bool,
-        receive_maximum: u16,
-        topic_alias_maximum: u16,
-        maximum_packet_size: Option<u32>,
+        auth_method: Option<Py<PyString>>,
+        auth_data: Option<Py<PyBytes>>,
+        request_problem_info: bool,
+        request_response_info: bool,
+        receive_max: u16,
+        topic_alias_max: u16,
+        max_packet_size: Option<u32>,
     ) -> PyResult<Self> {
         Ok(Self {
             client_id: client_id.clone().unbind(),
@@ -301,13 +301,13 @@ impl ConnectPacket {
             will,
             keep_alive,
             session_expiry_interval,
-            authentication_method,
-            authentication_data,
-            request_problem_information,
-            request_response_information,
-            receive_maximum,
-            topic_alias_maximum,
-            maximum_packet_size,
+            auth_method,
+            auth_data,
+            request_problem_info,
+            request_response_info,
+            receive_max,
+            topic_alias_max,
+            max_packet_size,
         })
     }
 
@@ -315,13 +315,13 @@ impl ConnectPacket {
     fn write(&self, buffer: &Bound<'_, PyByteArray>, index: usize) -> PyResult<usize> {
         let properties_nbytes = nbytes_properties!(self, {
             PropertyType::SessionExpiryInterval => session_expiry_interval: u32 = 0,
-            PropertyType::AuthenticationMethod => authentication_method: (Option<Py<PyString>>) = None,
-            PropertyType::AuthenticationData => authentication_data: (Option<Py<PyBytes>>) = None,
-            PropertyType::RequestProblemInformation => request_problem_information: bool = true,
-            PropertyType::RequestResponseInformation => request_response_information: bool = false,
-            PropertyType::ReceiveMaximum => receive_maximum: u16 = 65535,
-            PropertyType::TopicAliasMaximum => topic_alias_maximum: u16 = 0,
-            PropertyType::MaximumPacketSize => maximum_packet_size: (Option<u32>) = None,
+            PropertyType::AuthMethod => auth_method: (Option<Py<PyString>>) = None,
+            PropertyType::AuthData => auth_data: (Option<Py<PyBytes>>) = None,
+            PropertyType::RequestProblemInfo => request_problem_info: bool = true,
+            PropertyType::RequestResponseInfo => request_response_info: bool = false,
+            PropertyType::ReceiveMax => receive_max: u16 = 65535,
+            PropertyType::TopicAliasMax => topic_alias_max: u16 = 0,
+            PropertyType::MaxPacketSize => max_packet_size: (Option<u32>) = None,
         });
         let properties_remaining_length = VariableByteInteger::new(properties_nbytes as u32);
         let will_properties_nbytes = self
@@ -381,13 +381,13 @@ impl ConnectPacket {
         properties_remaining_length.write(&mut cursor);
         write_properties!(&mut cursor, self, {
             PropertyType::SessionExpiryInterval => session_expiry_interval: u32 = 0,
-            PropertyType::AuthenticationMethod => authentication_method: (Option<Py<PyString>>) = None,
-            PropertyType::AuthenticationData => authentication_data: (Option<Py<PyBytes>>) = None,
-            PropertyType::RequestProblemInformation => request_problem_information: bool = true,
-            PropertyType::RequestResponseInformation => request_response_information: bool = false,
-            PropertyType::ReceiveMaximum => receive_maximum: u16 = 65535,
-            PropertyType::TopicAliasMaximum => topic_alias_maximum: u16 = 0,
-            PropertyType::MaximumPacketSize => maximum_packet_size: (Option<u32>) = None,
+            PropertyType::AuthMethod => auth_method: (Option<Py<PyString>>) = None,
+            PropertyType::AuthData => auth_data: (Option<Py<PyBytes>>) = None,
+            PropertyType::RequestProblemInfo => request_problem_info: bool = true,
+            PropertyType::RequestResponseInfo => request_response_info: bool = false,
+            PropertyType::ReceiveMax => receive_max: u16 = 65535,
+            PropertyType::TopicAliasMax => topic_alias_max: u16 = 0,
+            PropertyType::MaxPacketSize => max_packet_size: (Option<u32>) = None,
         });
 
         // [3.1.3] Payload
@@ -440,13 +440,13 @@ impl ConnectPacket {
         let keep_alive = u16::read(cursor)?;
         read_properties!("ConnectPacket", cursor, start_index, remaining_length, {
             PropertyType::SessionExpiryInterval => session_expiry_interval: u32 = 0,
-            PropertyType::AuthenticationMethod => authentication_method: (Option<Py<PyString>>) = None,
-            PropertyType::AuthenticationData => authentication_data: (Option<Py<PyBytes>>) = None,
-            PropertyType::RequestProblemInformation => request_problem_information: bool = true,
-            PropertyType::RequestResponseInformation => request_response_information: bool = false,
-            PropertyType::ReceiveMaximum => receive_maximum: u16 = 65535,
-            PropertyType::TopicAliasMaximum => topic_alias_maximum: u16 = 0,
-            PropertyType::MaximumPacketSize => maximum_packet_size: (Option<u32>) = None,
+            PropertyType::AuthMethod => auth_method: (Option<Py<PyString>>) = None,
+            PropertyType::AuthData => auth_data: (Option<Py<PyBytes>>) = None,
+            PropertyType::RequestProblemInfo => request_problem_info: bool = true,
+            PropertyType::RequestResponseInfo => request_response_info: bool = false,
+            PropertyType::ReceiveMax => receive_max: u16 = 65535,
+            PropertyType::TopicAliasMax => topic_alias_max: u16 = 0,
+            PropertyType::MaxPacketSize => max_packet_size: (Option<u32>) = None,
         });
 
         // [3.1.3] Payload
@@ -497,13 +497,13 @@ impl ConnectPacket {
             will,
             keep_alive,
             session_expiry_interval,
-            authentication_method,
-            authentication_data,
-            request_problem_information,
-            request_response_information,
-            receive_maximum,
-            topic_alias_maximum,
-            maximum_packet_size,
+            auth_method,
+            auth_data,
+            request_problem_info,
+            request_response_info,
+            receive_max,
+            topic_alias_max,
+            max_packet_size,
         };
         Py::new(py, packet)
     }
@@ -518,15 +518,13 @@ impl PartialEq for ConnectPacket {
             && self.will == other.will
             && self.keep_alive == other.keep_alive
             && self.session_expiry_interval == other.session_expiry_interval
-            && self
-                .authentication_method
-                .py_eq(&other.authentication_method)
-            && self.authentication_data.py_eq(&other.authentication_data)
-            && self.request_problem_information == other.request_problem_information
-            && self.request_response_information == other.request_response_information
-            && self.receive_maximum == other.receive_maximum
-            && self.topic_alias_maximum == other.topic_alias_maximum
-            && self.maximum_packet_size == other.maximum_packet_size
+            && self.auth_method.py_eq(&other.auth_method)
+            && self.auth_data.py_eq(&other.auth_data)
+            && self.request_problem_info == other.request_problem_info
+            && self.request_response_info == other.request_response_info
+            && self.receive_max == other.receive_max
+            && self.topic_alias_max == other.topic_alias_max
+            && self.max_packet_size == other.max_packet_size
     }
 }
 
@@ -537,16 +535,16 @@ pub struct ConnAckPacket {
     pub session_expiry_interval: Option<u32>,
     pub assigned_client_id: Option<Py<PyString>>,
     pub server_keep_alive: Option<u16>,
-    pub authentication_method: Option<Py<PyString>>,
-    pub authentication_data: Option<Py<PyBytes>>,
-    pub response_information: Option<Py<PyString>>,
+    pub auth_method: Option<Py<PyString>>,
+    pub auth_data: Option<Py<PyBytes>>,
+    pub response_info: Option<Py<PyString>>,
     pub server_reference: Option<Py<PyString>>,
-    pub reason_string: Option<Py<PyString>>,
-    pub receive_maximum: u16,
-    pub topic_alias_maximum: u16,
-    pub maximum_qos: QoS,
+    pub reason_str: Option<Py<PyString>>,
+    pub receive_max: u16,
+    pub topic_alias_max: u16,
+    pub max_qos: QoS,
     pub retain_available: bool,
-    pub maximum_packet_size: Option<u32>,
+    pub max_packet_size: Option<u32>,
     pub wildcard_subscription_available: bool,
     pub subscription_id_available: bool,
     pub shared_subscription_available: bool,
@@ -562,16 +560,16 @@ impl ConnAckPacket {
         session_expiry_interval=None,
         assigned_client_id=None,
         server_keep_alive=None,
-        authentication_method=None,
-        authentication_data=None,
-        response_information=None,
+        auth_method=None,
+        auth_data=None,
+        response_info=None,
         server_reference=None,
-        reason_string=None,
-        receive_maximum=65535,
-        topic_alias_maximum=0,
-        maximum_qos=QoS::ExactlyOnce,
+        reason_str=None,
+        receive_max=65535,
+        topic_alias_max=0,
+        max_qos=QoS::ExactlyOnce,
         retain_available=true,
-        maximum_packet_size=None,
+        max_packet_size=None,
         wildcard_subscription_available=true,
         subscription_id_available=true,
         shared_subscription_available=true,
@@ -582,16 +580,16 @@ impl ConnAckPacket {
         session_expiry_interval: Option<u32>,
         assigned_client_id: Option<Py<PyString>>,
         server_keep_alive: Option<u16>,
-        authentication_method: Option<Py<PyString>>,
-        authentication_data: Option<Py<PyBytes>>,
-        response_information: Option<Py<PyString>>,
+        auth_method: Option<Py<PyString>>,
+        auth_data: Option<Py<PyBytes>>,
+        response_info: Option<Py<PyString>>,
         server_reference: Option<Py<PyString>>,
-        reason_string: Option<Py<PyString>>,
-        receive_maximum: u16,
-        topic_alias_maximum: u16,
-        maximum_qos: QoS,
+        reason_str: Option<Py<PyString>>,
+        receive_max: u16,
+        topic_alias_max: u16,
+        max_qos: QoS,
         retain_available: bool,
-        maximum_packet_size: Option<u32>,
+        max_packet_size: Option<u32>,
         wildcard_subscription_available: bool,
         subscription_id_available: bool,
         shared_subscription_available: bool,
@@ -602,16 +600,16 @@ impl ConnAckPacket {
             session_expiry_interval,
             assigned_client_id,
             server_keep_alive,
-            authentication_method,
-            authentication_data,
-            response_information,
+            auth_method,
+            auth_data,
+            response_info,
             server_reference,
-            reason_string,
-            receive_maximum,
-            topic_alias_maximum,
-            maximum_qos,
+            reason_str,
+            receive_max,
+            topic_alias_max,
+            max_qos,
             retain_available,
-            maximum_packet_size,
+            max_packet_size,
             wildcard_subscription_available,
             subscription_id_available,
             shared_subscription_available,
@@ -624,16 +622,16 @@ impl ConnAckPacket {
             PropertyType::SessionExpiryInterval => session_expiry_interval: (Option<u32>) = None,
             PropertyType::AssignedClientId => assigned_client_id: (Option<Py<PyString>>) = None,
             PropertyType::ServerKeepAlive => server_keep_alive: (Option<u16>) = None,
-            PropertyType::AuthenticationMethod => authentication_method: (Option<Py<PyString>>) = None,
-            PropertyType::AuthenticationData => authentication_data: (Option<Py<PyBytes>>) = None,
-            PropertyType::ResponseInformation => response_information: (Option<Py<PyString>>) = None,
+            PropertyType::AuthMethod => auth_method: (Option<Py<PyString>>) = None,
+            PropertyType::AuthData => auth_data: (Option<Py<PyBytes>>) = None,
+            PropertyType::ResponseInfo => response_info: (Option<Py<PyString>>) = None,
             PropertyType::ServerReference => server_reference: (Option<Py<PyString>>) = None,
-            PropertyType::ReasonString => reason_string: (Option<Py<PyString>>) = None,
-            PropertyType::ReceiveMaximum => receive_maximum: u16 = 65535,
-            PropertyType::TopicAliasMaximum => topic_alias_maximum: u16 = 0,
-            PropertyType::MaximumQoS => maximum_qos: QoS = (QoS::ExactlyOnce),
+            PropertyType::ReasonStr => reason_str: (Option<Py<PyString>>) = None,
+            PropertyType::ReceiveMax => receive_max: u16 = 65535,
+            PropertyType::TopicAliasMax => topic_alias_max: u16 = 0,
+            PropertyType::MaxQoS => max_qos: QoS = (QoS::ExactlyOnce),
             PropertyType::RetainAvailable => retain_available: bool = true,
-            PropertyType::MaximumPacketSize => maximum_packet_size: (Option<u32>) = None,
+            PropertyType::MaxPacketSize => max_packet_size: (Option<u32>) = None,
             PropertyType::WildcardSubscriptionAvailable => wildcard_subscription_available: bool = true,
             PropertyType::SubscriptionIdAvailable => subscription_id_available: bool = true,
             PropertyType::SharedSubscriptionAvailable => shared_subscription_available: bool = true,
@@ -661,16 +659,16 @@ impl ConnAckPacket {
             PropertyType::SessionExpiryInterval => session_expiry_interval: (Option<u32>) = None,
             PropertyType::AssignedClientId => assigned_client_id: (Option<Py<PyString>>) = None,
             PropertyType::ServerKeepAlive => server_keep_alive: (Option<u16>) = None,
-            PropertyType::AuthenticationMethod => authentication_method: (Option<Py<PyString>>) = None,
-            PropertyType::AuthenticationData => authentication_data: (Option<Py<PyBytes>>) = None,
-            PropertyType::ResponseInformation => response_information: (Option<Py<PyString>>) = None,
+            PropertyType::AuthMethod => auth_method: (Option<Py<PyString>>) = None,
+            PropertyType::AuthData => auth_data: (Option<Py<PyBytes>>) = None,
+            PropertyType::ResponseInfo => response_info: (Option<Py<PyString>>) = None,
             PropertyType::ServerReference => server_reference: (Option<Py<PyString>>) = None,
-            PropertyType::ReasonString => reason_string: (Option<Py<PyString>>) = None,
-            PropertyType::ReceiveMaximum => receive_maximum: u16 = 65535,
-            PropertyType::TopicAliasMaximum => topic_alias_maximum: u16 = 0,
-            PropertyType::MaximumQoS => maximum_qos: QoS = (QoS::ExactlyOnce),
+            PropertyType::ReasonStr => reason_str: (Option<Py<PyString>>) = None,
+            PropertyType::ReceiveMax => receive_max: u16 = 65535,
+            PropertyType::TopicAliasMax => topic_alias_max: u16 = 0,
+            PropertyType::MaxQoS => max_qos: QoS = (QoS::ExactlyOnce),
             PropertyType::RetainAvailable => retain_available: bool = true,
-            PropertyType::MaximumPacketSize => maximum_packet_size: (Option<u32>) = None,
+            PropertyType::MaxPacketSize => max_packet_size: (Option<u32>) = None,
             PropertyType::WildcardSubscriptionAvailable => wildcard_subscription_available: bool = true,
             PropertyType::SubscriptionIdAvailable => subscription_id_available: bool = true,
             PropertyType::SharedSubscriptionAvailable => shared_subscription_available: bool = true,
@@ -703,16 +701,16 @@ impl ConnAckPacket {
             PropertyType::SessionExpiryInterval => session_expiry_interval: (Option<u32>) = None,
             PropertyType::AssignedClientId => assigned_client_id: (Option<Py<PyString>>) = None,
             PropertyType::ServerKeepAlive => server_keep_alive: (Option<u16>) = None,
-            PropertyType::AuthenticationMethod => authentication_method: (Option<Py<PyString>>) = None,
-            PropertyType::AuthenticationData => authentication_data: (Option<Py<PyBytes>>) = None,
-            PropertyType::ResponseInformation => response_information: (Option<Py<PyString>>) = None,
+            PropertyType::AuthMethod => auth_method: (Option<Py<PyString>>) = None,
+            PropertyType::AuthData => auth_data: (Option<Py<PyBytes>>) = None,
+            PropertyType::ResponseInfo => response_info: (Option<Py<PyString>>) = None,
             PropertyType::ServerReference => server_reference: (Option<Py<PyString>>) = None,
-            PropertyType::ReasonString => reason_string: (Option<Py<PyString>>) = None,
-            PropertyType::ReceiveMaximum => receive_maximum: u16 = 65535,
-            PropertyType::TopicAliasMaximum => topic_alias_maximum: u16 = 0,
-            PropertyType::MaximumQoS => maximum_qos: QoS = QoS::ExactlyOnce,
+            PropertyType::ReasonStr => reason_str: (Option<Py<PyString>>) = None,
+            PropertyType::ReceiveMax => receive_max: u16 = 65535,
+            PropertyType::TopicAliasMax => topic_alias_max: u16 = 0,
+            PropertyType::MaxQoS => max_qos: QoS = QoS::ExactlyOnce,
             PropertyType::RetainAvailable => retain_available: bool = true,
-            PropertyType::MaximumPacketSize => maximum_packet_size: (Option<u32>) = None,
+            PropertyType::MaxPacketSize => max_packet_size: (Option<u32>) = None,
             PropertyType::WildcardSubscriptionAvailable => wildcard_subscription_available: bool = true,
             PropertyType::SubscriptionIdAvailable => subscription_id_available: bool = true,
             PropertyType::SharedSubscriptionAvailable => shared_subscription_available: bool = true,
@@ -725,16 +723,16 @@ impl ConnAckPacket {
             session_expiry_interval,
             assigned_client_id,
             server_keep_alive,
-            authentication_method,
-            authentication_data,
-            response_information,
+            auth_method,
+            auth_data,
+            response_info,
             server_reference,
-            reason_string,
-            receive_maximum,
-            topic_alias_maximum,
-            maximum_qos,
+            reason_str,
+            receive_max,
+            topic_alias_max,
+            max_qos,
             retain_available,
-            maximum_packet_size,
+            max_packet_size,
             wildcard_subscription_available,
             subscription_id_available,
             shared_subscription_available,
@@ -750,16 +748,14 @@ impl PartialEq for ConnAckPacket {
             && self.session_expiry_interval == other.session_expiry_interval
             && self.assigned_client_id.py_eq(&other.assigned_client_id)
             && self.server_keep_alive == other.server_keep_alive
-            && self
-                .authentication_method
-                .py_eq(&other.authentication_method)
-            && self.response_information.py_eq(&other.response_information)
+            && self.auth_method.py_eq(&other.auth_method)
+            && self.response_info.py_eq(&other.response_info)
             && self.server_reference.py_eq(&other.server_reference)
-            && self.reason_string.py_eq(&other.reason_string)
-            && self.topic_alias_maximum == other.topic_alias_maximum
-            && self.maximum_qos == other.maximum_qos
+            && self.reason_str.py_eq(&other.reason_str)
+            && self.topic_alias_max == other.topic_alias_max
+            && self.max_qos == other.max_qos
             && self.retain_available == other.retain_available
-            && self.maximum_packet_size == other.maximum_packet_size
+            && self.max_packet_size == other.max_packet_size
             && self.wildcard_subscription_available == other.wildcard_subscription_available
             && self.subscription_id_available == other.subscription_id_available
             && self.shared_subscription_available == other.shared_subscription_available
@@ -1000,7 +996,7 @@ impl PartialEq for PublishPacket {
 pub struct PubAckPacket {
     pub packet_id: u16,
     pub reason_code: PubAckReasonCode,
-    pub reason_string: Option<Py<PyString>>,
+    pub reason_str: Option<Py<PyString>>,
 }
 
 #[pymethods]
@@ -1010,24 +1006,24 @@ impl PubAckPacket {
         packet_id,
         *,
         reason_code=PubAckReasonCode::Success,
-        reason_string=None,
+        reason_str=None,
     ))]
     pub fn new(
         packet_id: u16,
         reason_code: PubAckReasonCode,
-        reason_string: Option<Py<PyString>>,
+        reason_str: Option<Py<PyString>>,
     ) -> PyResult<Self> {
         Ok(Self {
             packet_id,
             reason_code,
-            reason_string,
+            reason_str,
         })
     }
 
     #[pyo3(signature = (buffer, /, *, index=0))]
     pub fn write(&self, buffer: &Bound<'_, PyByteArray>, index: usize) -> PyResult<usize> {
         let properties_nbytes = nbytes_properties!(self, {
-            PropertyType::ReasonString => reason_string: (Option<Py<PyString>>) = None,
+            PropertyType::ReasonStr => reason_str: (Option<Py<PyString>>) = None,
         });
         let properties_remaining_length = VariableByteInteger::new(properties_nbytes as u32);
         let nbytes = self.packet_id.nbytes()
@@ -1048,7 +1044,7 @@ impl PubAckPacket {
         self.reason_code.write(&mut cursor);
         properties_remaining_length.write(&mut cursor);
         write_properties!(&mut cursor, self, {
-            PropertyType::ReasonString => reason_string: (Option<Py<PyString>>) = None,
+            PropertyType::ReasonStr => reason_str: (Option<Py<PyString>>) = None,
         });
 
         Ok(cursor.index - index)
@@ -1075,14 +1071,14 @@ impl PubAckPacket {
             PubAckReasonCode::Success
         };
         read_properties!("PubAckPacket", cursor, start_index, remaining_length, {
-            PropertyType::ReasonString => reason_string: (Option<Py<PyString>>) = None,
+            PropertyType::ReasonStr => reason_str: (Option<Py<PyString>>) = None,
         });
 
         // Return the Python object
         let packet = Self {
             packet_id,
             reason_code,
-            reason_string,
+            reason_str,
         };
         Py::new(py, packet)
     }
@@ -1092,7 +1088,7 @@ impl PartialEq for PubAckPacket {
     fn eq(&self, other: &Self) -> bool {
         self.packet_id == other.packet_id
             && self.reason_code == other.reason_code
-            && self.reason_string.py_eq(&other.reason_string)
+            && self.reason_str.py_eq(&other.reason_str)
     }
 }
 
@@ -1164,7 +1160,7 @@ impl SubscribePacket {
         for item in subscriptions.try_iter()? {
             let subscription: PyRef<Subscription> = item?.extract()?;
             subscription.pattern.write(&mut cursor);
-            let options = subscription.maximum_qos as u8
+            let options = subscription.max_qos as u8
                 | (subscription.no_local as u8) << 2
                 | (subscription.retain_as_published as u8) << 3
                 | (subscription.retain_handling as u8) << 4;
@@ -1200,7 +1196,7 @@ impl SubscribePacket {
             let options = u8::read(cursor)?;
             let subscription = Subscription {
                 pattern,
-                maximum_qos: QoS::new(options & 0x03)?,
+                max_qos: QoS::new(options & 0x03)?,
                 no_local: (options >> 2) & 0x01 != 0,
                 retain_as_published: (options >> 3) & 0x01 != 0,
                 retain_handling: RetainHandling::new((options >> 4) & 0x03)?,
@@ -1243,7 +1239,7 @@ impl PartialEq for SubscribePacket {
 pub struct SubAckPacket {
     pub packet_id: u16,
     pub reason_codes: Py<PyList>,
-    pub reason_string: Option<Py<PyString>>,
+    pub reason_str: Option<Py<PyString>>,
 }
 
 #[pymethods]
@@ -1253,17 +1249,17 @@ impl SubAckPacket {
         packet_id,
         reason_codes,
         *,
-        reason_string=None,
+        reason_str=None,
     ))]
     pub fn new(
         packet_id: u16,
         reason_codes: &Bound<'_, PyList>,
-        reason_string: Option<Py<PyString>>,
+        reason_str: Option<Py<PyString>>,
     ) -> PyResult<Self> {
         Ok(Self {
             packet_id,
             reason_codes: reason_codes.clone().unbind(),
-            reason_string,
+            reason_str,
         })
     }
 
@@ -1275,7 +1271,7 @@ impl SubAckPacket {
         index: usize,
     ) -> PyResult<usize> {
         let properties_nbytes = nbytes_properties!(self, {
-            PropertyType::ReasonString => reason_string: (Option<Py<PyString>>) = None,
+            PropertyType::ReasonStr => reason_str: (Option<Py<PyString>>) = None,
         });
         let properties_remaining_length = VariableByteInteger::new(properties_nbytes as u32);
         let reason_codes = self.reason_codes.bind(py);
@@ -1300,7 +1296,7 @@ impl SubAckPacket {
         self.packet_id.write(&mut cursor);
         properties_remaining_length.write(&mut cursor);
         write_properties!(&mut cursor, self, {
-            PropertyType::ReasonString => reason_string: (Option<Py<PyString>>) = None,
+            PropertyType::ReasonStr => reason_str: (Option<Py<PyString>>) = None,
         });
 
         // [3.9.3] Payload
@@ -1328,7 +1324,7 @@ impl SubAckPacket {
         // [3.9.2] Variable header
         let packet_id = u16::read(cursor)?;
         read_properties!("SubAckPacket", cursor, start_index, remaining_length, {
-            PropertyType::ReasonString => reason_string: (Option<Py<PyString>>) = None,
+            PropertyType::ReasonStr => reason_str: (Option<Py<PyString>>) = None,
         });
 
         // [3.9.3] Payload
@@ -1342,7 +1338,7 @@ impl SubAckPacket {
         let packet = Self {
             packet_id,
             reason_codes: reason_codes.unbind(),
-            reason_string,
+            reason_str,
         };
         Py::new(py, packet)
     }
@@ -1351,7 +1347,7 @@ impl SubAckPacket {
 impl PartialEq for SubAckPacket {
     fn eq(&self, other: &Self) -> bool {
         self.packet_id == other.packet_id
-            && self.reason_string.py_eq(&other.reason_string)
+            && self.reason_str.py_eq(&other.reason_str)
             && Python::with_gil(|py| -> PyResult<bool> {
                 let seq1 = self.reason_codes.bind(py);
                 let seq2 = other.reason_codes.bind(py);
@@ -1472,7 +1468,7 @@ pub struct DisconnectPacket {
     pub reason_code: DisconnectReasonCode,
     pub session_expiry_interval: Option<u32>,
     pub server_reference: Option<Py<PyString>>,
-    pub reason_string: Option<Py<PyString>>,
+    pub reason_str: Option<Py<PyString>>,
 }
 
 #[pymethods]
@@ -1483,19 +1479,19 @@ impl DisconnectPacket {
         reason_code=DisconnectReasonCode::NormalDisconnection,
         session_expiry_interval=None,
         server_reference=None,
-        reason_string=None,
+        reason_str=None,
     ))]
     pub fn new(
         reason_code: DisconnectReasonCode,
         session_expiry_interval: Option<u32>,
         server_reference: Option<Py<PyString>>,
-        reason_string: Option<Py<PyString>>,
+        reason_str: Option<Py<PyString>>,
     ) -> PyResult<Self> {
         Ok(Self {
             reason_code,
             session_expiry_interval,
             server_reference,
-            reason_string,
+            reason_str,
         })
     }
 
@@ -1504,7 +1500,7 @@ impl DisconnectPacket {
         let properties_nbytes = nbytes_properties!(self, {
             PropertyType::SessionExpiryInterval => session_expiry_interval: (Option<u32>) = None,
             PropertyType::ServerReference => server_reference: (Option<Py<PyString>>) = None,
-            PropertyType::ReasonString => reason_string: (Option<Py<PyString>>) = None,
+            PropertyType::ReasonStr => reason_str: (Option<Py<PyString>>) = None,
         });
         let properties_remaining_length = VariableByteInteger::new(properties_nbytes as u32);
         let nbytes =
@@ -1524,7 +1520,7 @@ impl DisconnectPacket {
         write_properties!(&mut cursor, self, {
             PropertyType::SessionExpiryInterval => session_expiry_interval: (Option<u32>) = None,
             PropertyType::ServerReference => server_reference: (Option<Py<PyString>>) = None,
-            PropertyType::ReasonString => reason_string: (Option<Py<PyString>>) = None,
+            PropertyType::ReasonStr => reason_str: (Option<Py<PyString>>) = None,
         });
 
         Ok(cursor.index - index)
@@ -1552,7 +1548,7 @@ impl DisconnectPacket {
         read_properties!("DisconnectPacket", cursor, start_index, remaining_length, {
             PropertyType::SessionExpiryInterval => session_expiry_interval: (Option<u32>) = None,
             PropertyType::ServerReference => server_reference: (Option<Py<PyString>>) = None,
-            PropertyType::ReasonString => reason_string: (Option<Py<PyString>>) = None,
+            PropertyType::ReasonStr => reason_str: (Option<Py<PyString>>) = None,
         });
 
         // Return the Python object
@@ -1560,7 +1556,7 @@ impl DisconnectPacket {
             reason_code,
             session_expiry_interval,
             server_reference,
-            reason_string,
+            reason_str,
         };
         Py::new(py, packet)
     }
@@ -1571,6 +1567,6 @@ impl PartialEq for DisconnectPacket {
         self.reason_code == other.reason_code
             && self.session_expiry_interval == other.session_expiry_interval
             && self.server_reference.py_eq(&other.server_reference)
-            && self.reason_string.py_eq(&other.reason_string)
+            && self.reason_str.py_eq(&other.reason_str)
     }
 }

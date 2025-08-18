@@ -40,7 +40,7 @@ pip install mqtt5
 
 See the [stub file](https://github.com/empicano/mqtt5/blob/main/mqtt5.pyi) for an API reference and the [MQTTv5 specification](https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html) for details about the de/serialization.
 
-mqtt5 enforces the specification. Invalid packets raise exceptions rather than being silently ignored or partially parsed.
+Note that mqtt5 enforces the MQTTv5 specification. Invalid packets raise exceptions rather than being silently ignored or partially parsed.
 
 ## Versioning
 

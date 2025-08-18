@@ -24,7 +24,7 @@ class ConnAckReasonCode(enum.IntEnum):
     SERVER_UNAVAILABLE = 136
     SERVER_BUSY = 137
     BANNED = 138
-    BAD_AUTHENTICATION_METHOD = 140
+    BAD_AUTH_METHOD = 140
     TOPIC_NAME_INVALID = 144
     PACKET_TOO_LARGE = 149
     QUOTA_EXCEEDED = 151
@@ -89,7 +89,7 @@ class DisconnectReasonCode(enum.IntEnum):
     SESSION_TAKEN_OVER = 142
     TOPIC_FILTER_INVALID = 143
     TOPIC_NAME_INVALID = 144
-    RECEIVE_MAXIMUM_EXCEEDED = 147
+    RECEIVE_MAX_EXCEEDED = 147
     TOPIC_ALIAS_INVALID = 148
     PACKET_TOO_LARGE = 149
     MESSAGE_RATE_TOO_HIGH = 150
@@ -102,7 +102,7 @@ class DisconnectReasonCode(enum.IntEnum):
     SERVER_MOVED = 157
     SHARED_SUBSCRIPTIONS_NOT_SUPPORTED = 158
     CONNECTION_RATE_EXCEEDED = 159
-    MAXIMUM_CONNECT_TIME = 160
+    MAX_CONNECT_TIME = 160
     SUBSCRIPTION_IDS_NOT_SUPPORTED = 161
     WILDCARD_SUBSCRIPTIONS_NOT_SUPPORTED = 162
 
@@ -135,7 +135,7 @@ class Will:
 
 class Subscription:
     pattern: str
-    maximum_qos: QoS
+    max_qos: QoS
     no_local: bool
     retain_as_published: bool
     retain_handling: RetainHandling
@@ -144,7 +144,7 @@ class Subscription:
         self,
         pattern: str,
         *,
-        maximum_qos: QoS = QoS.AT_MOST_ONCE,
+        max_qos: QoS = QoS.AT_MOST_ONCE,
         no_local: bool = False,
         retain_as_published: bool = True,
         retain_handling: RetainHandling = RetainHandling.SEND_ALWAYS,
@@ -166,13 +166,13 @@ class ConnectPacket:
     will: Will
     keep_alive: int
     session_expiry_interval: int
-    authentication_method: str | None
-    authentication_data: bytes | None
-    request_problem_information: bool
-    request_response_information: bool
-    receive_maximum: int
-    topic_alias_maximum: int
-    maximum_packet_size: int | None
+    auth_method: str | None
+    auth_data: bytes | None
+    request_problem_info: bool
+    request_response_info: bool
+    receive_max: int
+    topic_alias_max: int
+    max_packet_size: int | None
 
     def __init__(
         self,
@@ -184,13 +184,13 @@ class ConnectPacket:
         will: Will | None = None,
         keep_alive: int = 0,
         session_expiry_interval: int = 0,
-        authentication_method: str | None = None,
-        authentication_data: bytes | None = None,
-        request_problem_information: bool = True,
-        request_response_information: bool = False,
-        receive_maximum: int = 65535,
-        topic_alias_maximum: int = 0,
-        maximum_packet_size: int | None = None,
+        auth_method: str | None = None,
+        auth_data: bytes | None = None,
+        request_problem_info: bool = True,
+        request_response_info: bool = False,
+        receive_max: int = 65535,
+        topic_alias_max: int = 0,
+        max_packet_size: int | None = None,
     ) -> None: ...
     def write(self, buffer: bytearray, /, *, index: int = 0) -> int:
         """
@@ -205,16 +205,16 @@ class ConnAckPacket:
     session_expiry_interval: int | None
     assigned_client_id: str | None
     server_keep_alive: int | None
-    authentication_method: str | None
-    authentication_data: bytes | None
-    response_information: str | None
+    auth_method: str | None
+    auth_data: bytes | None
+    response_info: str | None
     server_reference: str | None
-    reason_string: str | None
-    receive_maximum: int
-    topic_alias_maximum: int
-    maximum_qos: QoS
+    reason_str: str | None
+    receive_max: int
+    topic_alias_max: int
+    max_qos: QoS
     retain_available: bool
-    maximum_packet_size: int | None
+    max_packet_size: int | None
     wildcard_subscription_available: bool
     subscription_id_available: bool
     shared_subscription_available: bool
@@ -227,16 +227,16 @@ class ConnAckPacket:
         session_expiry_interval: int | None = None,
         assigned_client_id: str | None = None,
         server_keep_alive: int | None = None,
-        authentication_method: str | None = None,
-        authentication_data: bytes | None = None,
-        response_information: str | None = None,
+        auth_method: str | None = None,
+        auth_data: bytes | None = None,
+        response_info: str | None = None,
         server_reference: str | None = None,
-        reason_string: str | None = None,
-        receive_maximum: int = 65535,
-        topic_alias_maximum: int = 0,
-        maximum_qos: QoS = QoS.EXACTLY_ONCE,
+        reason_str: str | None = None,
+        receive_max: int = 65535,
+        topic_alias_max: int = 0,
+        max_qos: QoS = QoS.EXACTLY_ONCE,
         retain_available: bool = True,
-        maximum_packet_size: int | None = None,
+        max_packet_size: int | None = None,
         wildcard_subscription_available: bool = True,
         subscription_id_available: bool = True,
         shared_subscription_available: bool = True,
@@ -290,14 +290,14 @@ class PublishPacket:
 class PubAckPacket:
     packet_id: int
     reason_code: PubAckReasonCode
-    reason_string: str | None
+    reason_str: str | None
 
     def __init__(
         self,
         packet_id: int,
         *,
         reason_code: PubAckReasonCode = PubAckReasonCode.SUCCESS,
-        reason_string: str | None = None,
+        reason_str: str | None = None,
     ) -> None: ...
     def write(self, buffer: bytearray, /, *, index: int = 0) -> int:
         """
@@ -328,14 +328,14 @@ class SubscribePacket:
 class SubAckPacket:
     packet_id: int
     reason_codes: list[SubAckReasonCode]
-    reason_string: str | None
+    reason_str: str | None
 
     def __init__(
         self,
         packet_id: int,
         reason_codes: list[SubAckReasonCode],
         *,
-        reason_string: str | None = None,
+        reason_str: str | None = None,
     ) -> None: ...
     def write(self, buffer: bytearray, /, *, index: int = 0) -> int:
         """
@@ -366,7 +366,7 @@ class DisconnectPacket:
     reason_code: DisconnectReasonCode
     session_expiry_interval: int | None
     server_reference: str | None
-    reason_string: str | None
+    reason_str: str | None
 
     def __init__(
         self,
@@ -374,7 +374,7 @@ class DisconnectPacket:
         reason_code: DisconnectReasonCode = DisconnectReasonCode.NORMAL_DISCONNECTION,
         session_expiry_interval: int | None = None,
         server_reference: str | None = None,
-        reason_string: str | None = None,
+        reason_str: str | None = None,
     ) -> None: ...
     def write(self, buffer: bytearray, /, *, index: int = 0) -> int:
         """
