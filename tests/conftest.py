@@ -249,6 +249,16 @@ def suback_packet_mqttproto():
     )
 
 
+def unsubscribe_packet():
+    return mqtt5.UnsubscribePacket(packet_id=1234, patterns=["foo/bar/+", "baz/#"])
+
+
+def unsubscribe_packet_mqttproto():
+    return mqttproto.MQTTUnsubscribePacket(
+        packet_id=1234, patterns=["foo/bar/+", "baz/#"]
+    )
+
+
 def pingreq_packet():
     return mqtt5.PingReqPacket()
 

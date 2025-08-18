@@ -344,6 +344,22 @@ class SubAckPacket:
         :return: The number of bytes written
         """
 
+class UnsubscribePacket:
+    packet_id: int
+    patterns: list[str]
+
+    def __init__(
+        self,
+        packet_id: int,
+        patterns: list[str],
+    ) -> None: ...
+    def write(self, buffer: bytearray, /, *, index: int = 0) -> int:
+        """
+        Writes the packet to the buffer.
+
+        :return: The number of bytes written
+        """
+
 class PingReqPacket:
     def __init__(self) -> None: ...
     def write(self, buffer: bytearray, /, *, index: int = 0) -> int:

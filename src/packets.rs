@@ -978,11 +978,11 @@ impl PartialEq for PublishPacket {
                 let list1 = self.subscription_ids.bind(py);
                 let list2 = other.subscription_ids.bind(py);
                 Ok(list1.len() == list2.len()
-                    && list1.try_iter()?.zip(list2.try_iter()?).try_fold(
+                    && list1.iter().zip(list2.iter()).try_fold(
                         true,
                         |acc, (a, b)| -> PyResult<bool> {
-                            let val1: u32 = a?.extract()?;
-                            let val2: u32 = b?.extract()?;
+                            let val1: u32 = a.extract()?;
+                            let val2: u32 = b.extract()?;
                             Ok(acc && val1 == val2)
                         },
                     )?)
@@ -1136,9 +1136,9 @@ impl SubscribePacket {
             + properties_remaining_length.nbytes()
             + properties_nbytes
             + subscriptions
-                .try_iter()?
+                .iter()
                 .try_fold(0, |acc, item| -> PyResult<usize> {
-                    Ok(acc + item?.extract::<PyRef<Subscription>>()?.pattern.nbytes() + 1)
+                    Ok(acc + item.extract::<PyRef<Subscription>>()?.pattern.nbytes() + 1)
                 })?;
         let remaining_length = VariableByteInteger::new(nbytes as u32);
         let mut cursor = Cursor::new(buffer, index);
@@ -1157,8 +1157,8 @@ impl SubscribePacket {
         });
 
         // [3.8.3] Payload
-        for item in subscriptions.try_iter()? {
-            let subscription: PyRef<Subscription> = item?.extract()?;
+        for item in subscriptions.iter() {
+            let subscription: PyRef<Subscription> = item.extract()?;
             subscription.pattern.write(&mut cursor);
             let options = subscription.max_qos as u8
                 | (subscription.no_local as u8) << 2
@@ -1358,6 +1358,126 @@ impl PartialEq for SubAckPacket {
                             let sub1: PyRef<SubAckReasonCode> = a?.extract()?;
                             let sub2: PyRef<SubAckReasonCode> = b?.extract()?;
                             Ok(acc && *sub1 == *sub2)
+                        },
+                    )?)
+            })
+            .unwrap_or(false)
+    }
+}
+
+#[pyclass(frozen, eq, get_all, module = "mqtt5")]
+pub struct UnsubscribePacket {
+    pub packet_id: u16,
+    pub patterns: Py<PyList>,
+}
+
+#[pymethods]
+impl UnsubscribePacket {
+    #[new]
+    #[pyo3(signature = (
+        packet_id,
+        patterns,
+    ))]
+    pub fn new(packet_id: u16, patterns: &Bound<'_, PyList>) -> PyResult<Self> {
+        Ok(Self {
+            packet_id,
+            patterns: patterns.clone().unbind(),
+        })
+    }
+
+    #[pyo3(signature = (buffer, /, *, index=0))]
+    pub fn write(
+        &self,
+        py: Python,
+        buffer: &Bound<'_, PyByteArray>,
+        index: usize,
+    ) -> PyResult<usize> {
+        let properties_nbytes = nbytes_properties!(self, {});
+        let properties_remaining_length = VariableByteInteger::new(properties_nbytes as u32);
+        let patterns = self.patterns.bind(py);
+        let nbytes = self.packet_id.nbytes()
+            + properties_remaining_length.nbytes()
+            + properties_nbytes
+            + patterns
+                .iter()
+                .try_fold(0, |acc, item| -> PyResult<usize> {
+                    Ok(acc + item.extract::<Py<PyString>>()?.nbytes())
+                })?;
+        let remaining_length = VariableByteInteger::new(nbytes as u32);
+        let mut cursor = Cursor::new(buffer, index);
+        cursor.require(1 + remaining_length.nbytes() + nbytes)?;
+
+        // [3.9.1] Fixed header
+        let first_byte = (PacketType::Unsubscribe as u8) << 4 | 0x02;
+        first_byte.write(&mut cursor);
+        remaining_length.write(&mut cursor);
+
+        // [3.9.2] Variable header
+        self.packet_id.write(&mut cursor);
+        properties_remaining_length.write(&mut cursor);
+        write_properties!(&mut cursor, self, {});
+
+        // [3.9.3] Payload
+        for item in patterns.iter() {
+            let pattern: Py<PyString> = item.extract()?;
+            pattern.write(&mut cursor);
+        }
+
+        Ok(cursor.index - index)
+    }
+}
+
+impl UnsubscribePacket {
+    pub fn read(
+        py: Python,
+        cursor: &mut Cursor,
+        flags: u8,
+        remaining_length: VariableByteInteger,
+    ) -> PyResult<Py<Self>> {
+        if flags != 0x02 {
+            return Err(PyValueError::new_err("Malformed bytes"));
+        }
+        let start_index = cursor.index;
+
+        // [3.9.2] Variable header
+        let packet_id = u16::read(cursor)?;
+        read_properties!(
+            "UnsubscribePacket",
+            cursor,
+            start_index,
+            remaining_length,
+            {}
+        );
+
+        // [3.9.3] Payload
+        let patterns = PyList::empty(py);
+        while cursor.index - start_index < remaining_length.value() as usize {
+            let pattern = Py::<PyString>::read(cursor)?;
+            patterns.append(pattern)?;
+        }
+
+        // Return the Python object
+        let packet = Self {
+            packet_id,
+            patterns: patterns.unbind(),
+        };
+        Py::new(py, packet)
+    }
+}
+
+impl PartialEq for UnsubscribePacket {
+    fn eq(&self, other: &Self) -> bool {
+        self.packet_id == other.packet_id
+            && Python::with_gil(|py| -> PyResult<bool> {
+                let seq1 = self.patterns.bind(py);
+                let seq2 = other.patterns.bind(py);
+                Ok(seq1.len() == seq2.len()
+                    && seq1.iter().zip(seq2.iter()).try_fold(
+                        true,
+                        |acc, (a, b)| -> PyResult<bool> {
+                            let a: Py<PyString> = a.extract()?;
+                            let b: Py<PyString> = b.extract()?;
+                            Ok(acc && a.py_eq(&b))
                         },
                     )?)
             })
