@@ -147,6 +147,18 @@ reason_code! {
 }
 
 reason_code! {
+    UnsubAckReasonCode {
+        Success = 0,
+        NoSubscriptionExisted = 17,
+        UnspecifiedError = 128,
+        ImplementationSpecificError = 131,
+        NotAuthorized = 135,
+        TopicFilterInvalid = 143,
+        PacketIdInUse = 145,
+    }
+}
+
+reason_code! {
     DisconnectReasonCode {
         NormalDisconnection = 0,
         DisconnectWithWillMessage = 4,

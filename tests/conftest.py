@@ -259,6 +259,24 @@ def unsubscribe_packet_mqttproto():
     )
 
 
+def unsuback_packet():
+    return mqtt5.UnsubAckPacket(
+        packet_id=1234,
+        reason_codes=[mqtt5.UnsubAckReasonCode.TOPIC_FILTER_INVALID],
+        reason_str="The reason string is a human readable string designed for diagnostics.",
+    )
+
+
+def unsuback_packet_mqttproto():
+    return mqttproto.MQTTUnsubscribeAckPacket(
+        packet_id=1234,
+        reason_codes=[mqttproto.ReasonCode.TOPIC_FILTER_INVALID],
+        properties={
+            mqttproto.PropertyType.REASON_STRING: "The reason string is a human readable string designed for diagnostics.",
+        },
+    )
+
+
 def pingreq_packet():
     return mqtt5.PingReqPacket()
 

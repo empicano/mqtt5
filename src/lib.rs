@@ -53,7 +53,10 @@ fn read(py: Python, buffer: &Bound<'_, PyByteArray>, index: usize) -> PyResult<(
             let packet = UnsubscribePacket::read(py, &mut cursor, flags, remaining_length)?;
             Ok((packet.into(), cursor.index))
         }
-        PacketType::UnsubAck => Err(PyValueError::new_err("Not implemented")),
+        PacketType::UnsubAck => {
+            let packet = UnsubAckPacket::read(py, &mut cursor, flags, remaining_length)?;
+            Ok((packet.into(), cursor.index))
+        }
         PacketType::PingReq => {
             let packet = PingReqPacket::read(py, &mut cursor, flags, remaining_length)?;
             Ok((packet.into(), cursor.index))
@@ -80,6 +83,7 @@ fn mqtt5(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<SubscribePacket>()?;
     m.add_class::<SubAckPacket>()?;
     m.add_class::<UnsubscribePacket>()?;
+    m.add_class::<UnsubAckPacket>()?;
     m.add_class::<PingReqPacket>()?;
     m.add_class::<PingRespPacket>()?;
     m.add_class::<DisconnectPacket>()?;
@@ -87,6 +91,7 @@ fn mqtt5(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<ConnAckReasonCode>()?;
     m.add_class::<PubAckReasonCode>()?;
     m.add_class::<SubAckReasonCode>()?;
+    m.add_class::<UnsubAckReasonCode>()?;
     m.add_class::<DisconnectReasonCode>()?;
     // Misc
     m.add_class::<QoS>()?;

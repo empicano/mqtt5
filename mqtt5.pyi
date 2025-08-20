@@ -35,20 +35,6 @@ class ConnAckReasonCode(enum.IntEnum):
     SERVER_MOVED = 157
     CONNECTION_RATE_EXCEEDED = 159
 
-class SubAckReasonCode(enum.IntEnum):
-    GRANTED_QOS_AT_MOST_ONCE = 0
-    GRANTED_QOS_AT_LEAST_ONCE = 1
-    GRANTED_QOS_EXACTLY_ONCE = 2
-    UNSPECIFIED_ERROR = 128
-    IMPLEMENTATION_SPECIFIC_ERROR = 131
-    NOT_AUTHORIZED = 135
-    TOPIC_FILTER_INVALID = 143
-    PACKET_ID_IN_USE = 145
-    QUOTA_EXCEEDED = 151
-    SHARED_SUBSCRIPTIONS_NOT_SUPPORTED = 158
-    SUBSCRIPTION_IDS_NOT_SUPPORTED = 161
-    WILDCARD_SUBSCRIPTIONS_NOT_SUPPORTED = 162
-
 class PubAckReasonCode(enum.IntEnum):
     SUCCESS = 0
     NO_MATCHING_SUBSCRIBERS = 16
@@ -74,6 +60,29 @@ class PubRecReasonCode(enum.IntEnum):
 class PubCompReasonCode(enum.IntEnum):
     SUCCESS = 0
     PACKET_ID_NOT_FOUND = 146
+
+class SubAckReasonCode(enum.IntEnum):
+    GRANTED_QOS_AT_MOST_ONCE = 0
+    GRANTED_QOS_AT_LEAST_ONCE = 1
+    GRANTED_QOS_EXACTLY_ONCE = 2
+    UNSPECIFIED_ERROR = 128
+    IMPLEMENTATION_SPECIFIC_ERROR = 131
+    NOT_AUTHORIZED = 135
+    TOPIC_FILTER_INVALID = 143
+    PACKET_ID_IN_USE = 145
+    QUOTA_EXCEEDED = 151
+    SHARED_SUBSCRIPTIONS_NOT_SUPPORTED = 158
+    SUBSCRIPTION_IDS_NOT_SUPPORTED = 161
+    WILDCARD_SUBSCRIPTIONS_NOT_SUPPORTED = 162
+
+class UnsubAckReasonCode(enum.IntEnum):
+    SUCCESS = 0
+    NO_SUBSCRIPTION_EXISTED = 17
+    UNSPECIFIED_ERROR = 128
+    IMPLEMENTATION_SPECIFIC_ERROR = 131
+    NOT_AUTHORIZED = 135
+    TOPIC_FILTER_INVALID = 143
+    PACKET_ID_IN_USE = 145
 
 class DisconnectReasonCode(enum.IntEnum):
     NORMAL_DISCONNECTION = 0
@@ -352,6 +361,25 @@ class UnsubscribePacket:
         self,
         packet_id: int,
         patterns: list[str],
+    ) -> None: ...
+    def write(self, buffer: bytearray, /, *, index: int = 0) -> int:
+        """
+        Writes the packet to the buffer.
+
+        :return: The number of bytes written
+        """
+
+class UnsubAckPacket:
+    packet_id: int
+    reason_codes: list[UnsubAckReasonCode]
+    reason_str: str | None
+
+    def __init__(
+        self,
+        packet_id: int,
+        reason_codes: list[UnsubAckReasonCode],
+        *,
+        reason_str: str | None = None,
     ) -> None: ...
     def write(self, buffer: bytearray, /, *, index: int = 0) -> int:
         """

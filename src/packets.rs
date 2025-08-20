@@ -1439,7 +1439,7 @@ impl UnsubscribePacket {
         }
         let start_index = cursor.index;
 
-        // [3.9.2] Variable header
+        // [3.10.2] Variable header
         let packet_id = u16::read(cursor)?;
         read_properties!(
             "UnsubscribePacket",
@@ -1478,6 +1478,136 @@ impl PartialEq for UnsubscribePacket {
                             let a: Py<PyString> = a.extract()?;
                             let b: Py<PyString> = b.extract()?;
                             Ok(acc && a.py_eq(&b))
+                        },
+                    )?)
+            })
+            .unwrap_or(false)
+    }
+}
+
+#[pyclass(frozen, eq, get_all, module = "mqtt5")]
+pub struct UnsubAckPacket {
+    pub packet_id: u16,
+    pub reason_codes: Py<PyList>,
+    pub reason_str: Option<Py<PyString>>,
+}
+
+#[pymethods]
+impl UnsubAckPacket {
+    #[new]
+    #[pyo3(signature = (
+        packet_id,
+        reason_codes,
+        *,
+        reason_str=None,
+    ))]
+    pub fn new(
+        packet_id: u16,
+        reason_codes: &Bound<'_, PyList>,
+        reason_str: Option<Py<PyString>>,
+    ) -> PyResult<Self> {
+        Ok(Self {
+            packet_id,
+            reason_codes: reason_codes.clone().unbind(),
+            reason_str,
+        })
+    }
+
+    #[pyo3(signature = (buffer, /, *, index=0))]
+    pub fn write(
+        &self,
+        py: Python,
+        buffer: &Bound<'_, PyByteArray>,
+        index: usize,
+    ) -> PyResult<usize> {
+        let properties_nbytes = nbytes_properties!(self, {
+            PropertyType::ReasonStr => reason_str: (Option<Py<PyString>>) = None,
+        });
+        let properties_remaining_length = VariableByteInteger::new(properties_nbytes as u32);
+        let reason_codes = self.reason_codes.bind(py);
+        let nbytes = self.packet_id.nbytes()
+            + properties_remaining_length.nbytes()
+            + properties_nbytes
+            + reason_codes
+                .try_iter()?
+                .try_fold(0, |acc, item| -> PyResult<usize> {
+                    Ok(acc + item?.extract::<PyRef<UnsubAckReasonCode>>()?.nbytes())
+                })?;
+        let remaining_length = VariableByteInteger::new(nbytes as u32);
+        let mut cursor = Cursor::new(buffer, index);
+        cursor.require(1 + remaining_length.nbytes() + nbytes)?;
+
+        // [3.11.1] Fixed header
+        let first_byte = (PacketType::UnsubAck as u8) << 4;
+        first_byte.write(&mut cursor);
+        remaining_length.write(&mut cursor);
+
+        // [3.11.2] Variable header
+        self.packet_id.write(&mut cursor);
+        properties_remaining_length.write(&mut cursor);
+        write_properties!(&mut cursor, self, {
+            PropertyType::ReasonStr => reason_str: (Option<Py<PyString>>) = None,
+        });
+
+        // [3.11.3] Payload
+        for item in reason_codes.try_iter()? {
+            let reason_code: PyRef<UnsubAckReasonCode> = item?.extract()?;
+            reason_code.write(&mut cursor);
+        }
+
+        Ok(cursor.index - index)
+    }
+}
+
+impl UnsubAckPacket {
+    pub fn read(
+        py: Python,
+        cursor: &mut Cursor,
+        flags: u8,
+        remaining_length: VariableByteInteger,
+    ) -> PyResult<Py<Self>> {
+        if flags != 0x00 {
+            return Err(PyValueError::new_err("Malformed bytes"));
+        }
+        let start_index = cursor.index;
+
+        // [3.11.2] Variable header
+        let packet_id = u16::read(cursor)?;
+        read_properties!("UnsubAckPacket", cursor, start_index, remaining_length, {
+            PropertyType::ReasonStr => reason_str: (Option<Py<PyString>>) = None,
+        });
+
+        // [3.11.3] Payload
+        let reason_codes = PyList::empty(py);
+        while cursor.index - start_index < remaining_length.value() as usize {
+            let reason_code = UnsubAckReasonCode::read(cursor)?;
+            reason_codes.append(reason_code)?;
+        }
+
+        // Return the Python object
+        let packet = Self {
+            packet_id,
+            reason_codes: reason_codes.unbind(),
+            reason_str,
+        };
+        Py::new(py, packet)
+    }
+}
+
+impl PartialEq for UnsubAckPacket {
+    fn eq(&self, other: &Self) -> bool {
+        self.packet_id == other.packet_id
+            && self.reason_str.py_eq(&other.reason_str)
+            && Python::with_gil(|py| -> PyResult<bool> {
+                let seq1 = self.reason_codes.bind(py);
+                let seq2 = other.reason_codes.bind(py);
+                Ok(seq1.len() == seq2.len()
+                    && seq1.try_iter()?.zip(seq2.try_iter()?).try_fold(
+                        true,
+                        |acc, (a, b)| -> PyResult<bool> {
+                            let sub1: PyRef<UnsubAckReasonCode> = a?.extract()?;
+                            let sub2: PyRef<UnsubAckReasonCode> = b?.extract()?;
+                            Ok(acc && *sub1 == *sub2)
                         },
                     )?)
             })
