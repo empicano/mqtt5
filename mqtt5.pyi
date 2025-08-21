@@ -24,7 +24,7 @@ class ConnAckReasonCode(enum.IntEnum):
     SERVER_UNAVAILABLE = 136
     SERVER_BUSY = 137
     BANNED = 138
-    BAD_AUTH_METHOD = 140
+    BAD_AUTHENTICATION_METHOD = 140
     TOPIC_NAME_INVALID = 144
     PACKET_TOO_LARGE = 149
     QUOTA_EXCEEDED = 151
@@ -119,6 +119,11 @@ class DisconnectReasonCode(enum.IntEnum):
     SUBSCRIPTION_IDS_NOT_SUPPORTED = 161
     WILDCARD_SUBSCRIPTIONS_NOT_SUPPORTED = 162
 
+class AuthReasonCode(enum.IntEnum):
+    SUCCESS = 0
+    CONTINUE_AUTHENTICATION = 24
+    RE_AUTHENTICATE = 25
+
 class Will:
     topic: str
     payload: bytes | None
@@ -145,7 +150,7 @@ class Will:
         response_topic: str | None = None,
         correlation_data: bytes | None = None,
         will_delay_interval: int = 0,
-        user_properties: list[tuple[str, str]] | None = None
+        user_properties: list[tuple[str, str]] | None = None,
     ) -> None: ...
 
 class Subscription:
@@ -181,8 +186,8 @@ class ConnectPacket:
     will: Will
     keep_alive: int
     session_expiry_interval: int
-    auth_method: str | None
-    auth_data: bytes | None
+    authentication_method: str | None
+    authentication_data: bytes | None
     request_problem_info: bool
     request_response_info: bool
     receive_max: int
@@ -200,8 +205,8 @@ class ConnectPacket:
         will: Will | None = None,
         keep_alive: int = 0,
         session_expiry_interval: int = 0,
-        auth_method: str | None = None,
-        auth_data: bytes | None = None,
+        authentication_method: str | None = None,
+        authentication_data: bytes | None = None,
         request_problem_info: bool = True,
         request_response_info: bool = False,
         receive_max: int = 65535,
@@ -222,8 +227,8 @@ class ConnAckPacket:
     session_expiry_interval: int | None
     assigned_client_id: str | None
     server_keep_alive: int | None
-    auth_method: str | None
-    auth_data: bytes | None
+    authentication_method: str | None
+    authentication_data: bytes | None
     response_info: str | None
     server_reference: str | None
     reason_str: str | None
@@ -245,8 +250,8 @@ class ConnAckPacket:
         session_expiry_interval: int | None = None,
         assigned_client_id: str | None = None,
         server_keep_alive: int | None = None,
-        auth_method: str | None = None,
-        auth_data: bytes | None = None,
+        authentication_method: str | None = None,
+        authentication_data: bytes | None = None,
         response_info: str | None = None,
         server_reference: str | None = None,
         reason_str: str | None = None,
@@ -505,6 +510,29 @@ class DisconnectPacket:
         reason_code: DisconnectReasonCode = DisconnectReasonCode.NORMAL_DISCONNECTION,
         session_expiry_interval: int | None = None,
         server_reference: str | None = None,
+        reason_str: str | None = None,
+        user_properties: list[tuple[str, str]] | None = None,
+    ) -> None: ...
+    def write(self, buffer: bytearray, /, *, index: int = 0) -> int:
+        """
+        Writes the packet to the buffer.
+
+        :return: The number of bytes written
+        """
+
+class AuthPacket:
+    reason_code: AuthReasonCode
+    authentication_method: str | None
+    authentication_data: bytes | None
+    reason_str: str | None
+    user_properties: list[tuple[str, str]]
+
+    def __init__(
+        self,
+        *,
+        reason_code: AuthReasonCode = AuthReasonCode.SUCCESS,
+        authentication_method: str | None = None,
+        authentication_data: bytes | None = None,
         reason_str: str | None = None,
         user_properties: list[tuple[str, str]] | None = None,
     ) -> None: ...

@@ -282,8 +282,8 @@ pub struct ConnectPacket {
     pub will: Option<Will>,
     pub keep_alive: u16,
     pub session_expiry_interval: u32,
-    pub auth_method: Option<Py<PyString>>,
-    pub auth_data: Option<Py<PyBytes>>,
+    pub authentication_method: Option<Py<PyString>>,
+    pub authentication_data: Option<Py<PyBytes>>,
     pub request_problem_info: bool,
     pub request_response_info: bool,
     pub receive_max: u16,
@@ -304,8 +304,8 @@ impl ConnectPacket {
         will=None,
         keep_alive=0,
         session_expiry_interval=0,
-        auth_method=None,
-        auth_data=None,
+        authentication_method=None,
+        authentication_data=None,
         request_problem_info=true,
         request_response_info=false,
         receive_max=65535,
@@ -321,8 +321,8 @@ impl ConnectPacket {
         will: Option<Will>,
         keep_alive: u16,
         session_expiry_interval: u32,
-        auth_method: Option<Py<PyString>>,
-        auth_data: Option<Py<PyBytes>>,
+        authentication_method: Option<Py<PyString>>,
+        authentication_data: Option<Py<PyBytes>>,
         request_problem_info: bool,
         request_response_info: bool,
         receive_max: u16,
@@ -338,8 +338,8 @@ impl ConnectPacket {
             will,
             keep_alive,
             session_expiry_interval,
-            auth_method,
-            auth_data,
+            authentication_method,
+            authentication_data,
             request_problem_info,
             request_response_info,
             receive_max,
@@ -354,8 +354,8 @@ impl ConnectPacket {
     fn write(&self, buffer: &Bound<'_, PyByteArray>, index: usize) -> PyResult<usize> {
         let properties_nbytes = nbytes_properties!(self, {
             PropertyType::SessionExpiryInterval => session_expiry_interval: u32 = 0,
-            PropertyType::AuthMethod => auth_method: (Option<Py<PyString>>) = None,
-            PropertyType::AuthData => auth_data: (Option<Py<PyBytes>>) = None,
+            PropertyType::AuthenticationMethod => authentication_method: (Option<Py<PyString>>) = None,
+            PropertyType::AuthenticationData => authentication_data: (Option<Py<PyBytes>>) = None,
             PropertyType::RequestProblemInfo => request_problem_info: bool = true,
             PropertyType::RequestResponseInfo => request_response_info: bool = false,
             PropertyType::ReceiveMax => receive_max: u16 = 65535,
@@ -422,8 +422,8 @@ impl ConnectPacket {
         properties_remaining_length.write(&mut cursor);
         write_properties!(&mut cursor, self, {
             PropertyType::SessionExpiryInterval => session_expiry_interval: u32 = 0,
-            PropertyType::AuthMethod => auth_method: (Option<Py<PyString>>) = None,
-            PropertyType::AuthData => auth_data: (Option<Py<PyBytes>>) = None,
+            PropertyType::AuthenticationMethod => authentication_method: (Option<Py<PyString>>) = None,
+            PropertyType::AuthenticationData => authentication_data: (Option<Py<PyBytes>>) = None,
             PropertyType::RequestProblemInfo => request_problem_info: bool = true,
             PropertyType::RequestResponseInfo => request_response_info: bool = false,
             PropertyType::ReceiveMax => receive_max: u16 = 65535,
@@ -483,8 +483,8 @@ impl ConnectPacket {
         let keep_alive = u16::read(cursor)?;
         read_properties!("ConnectPacket", cursor, start_index, remaining_length, {
             PropertyType::SessionExpiryInterval => session_expiry_interval: u32 = 0,
-            PropertyType::AuthMethod => auth_method: (Option<Py<PyString>>) = None,
-            PropertyType::AuthData => auth_data: (Option<Py<PyBytes>>) = None,
+            PropertyType::AuthenticationMethod => authentication_method: (Option<Py<PyString>>) = None,
+            PropertyType::AuthenticationData => authentication_data: (Option<Py<PyBytes>>) = None,
             PropertyType::RequestProblemInfo => request_problem_info: bool = true,
             PropertyType::RequestResponseInfo => request_response_info: bool = false,
             PropertyType::ReceiveMax => receive_max: u16 = 65535,
@@ -543,8 +543,8 @@ impl ConnectPacket {
             will,
             keep_alive,
             session_expiry_interval,
-            auth_method,
-            auth_data,
+            authentication_method,
+            authentication_data,
             request_problem_info,
             request_response_info,
             receive_max,
@@ -565,8 +565,10 @@ impl PartialEq for ConnectPacket {
             && self.will == other.will
             && self.keep_alive == other.keep_alive
             && self.session_expiry_interval == other.session_expiry_interval
-            && self.auth_method.py_eq(&other.auth_method)
-            && self.auth_data.py_eq(&other.auth_data)
+            && self
+                .authentication_method
+                .py_eq(&other.authentication_method)
+            && self.authentication_data.py_eq(&other.authentication_data)
             && self.request_problem_info == other.request_problem_info
             && self.request_response_info == other.request_response_info
             && self.receive_max == other.receive_max
@@ -583,8 +585,8 @@ pub struct ConnAckPacket {
     pub session_expiry_interval: Option<u32>,
     pub assigned_client_id: Option<Py<PyString>>,
     pub server_keep_alive: Option<u16>,
-    pub auth_method: Option<Py<PyString>>,
-    pub auth_data: Option<Py<PyBytes>>,
+    pub authentication_method: Option<Py<PyString>>,
+    pub authentication_data: Option<Py<PyBytes>>,
     pub response_info: Option<Py<PyString>>,
     pub server_reference: Option<Py<PyString>>,
     pub reason_str: Option<Py<PyString>>,
@@ -609,8 +611,8 @@ impl ConnAckPacket {
         session_expiry_interval=None,
         assigned_client_id=None,
         server_keep_alive=None,
-        auth_method=None,
-        auth_data=None,
+        authentication_method=None,
+        authentication_data=None,
         response_info=None,
         server_reference=None,
         reason_str=None,
@@ -630,8 +632,8 @@ impl ConnAckPacket {
         session_expiry_interval: Option<u32>,
         assigned_client_id: Option<Py<PyString>>,
         server_keep_alive: Option<u16>,
-        auth_method: Option<Py<PyString>>,
-        auth_data: Option<Py<PyBytes>>,
+        authentication_method: Option<Py<PyString>>,
+        authentication_data: Option<Py<PyBytes>>,
         response_info: Option<Py<PyString>>,
         server_reference: Option<Py<PyString>>,
         reason_str: Option<Py<PyString>>,
@@ -651,8 +653,8 @@ impl ConnAckPacket {
             session_expiry_interval,
             assigned_client_id,
             server_keep_alive,
-            auth_method,
-            auth_data,
+            authentication_method,
+            authentication_data,
             response_info,
             server_reference,
             reason_str,
@@ -675,8 +677,8 @@ impl ConnAckPacket {
             PropertyType::SessionExpiryInterval => session_expiry_interval: (Option<u32>) = None,
             PropertyType::AssignedClientId => assigned_client_id: (Option<Py<PyString>>) = None,
             PropertyType::ServerKeepAlive => server_keep_alive: (Option<u16>) = None,
-            PropertyType::AuthMethod => auth_method: (Option<Py<PyString>>) = None,
-            PropertyType::AuthData => auth_data: (Option<Py<PyBytes>>) = None,
+            PropertyType::AuthenticationMethod => authentication_method: (Option<Py<PyString>>) = None,
+            PropertyType::AuthenticationData => authentication_data: (Option<Py<PyBytes>>) = None,
             PropertyType::ResponseInfo => response_info: (Option<Py<PyString>>) = None,
             PropertyType::ServerReference => server_reference: (Option<Py<PyString>>) = None,
             PropertyType::ReasonStr => reason_str: (Option<Py<PyString>>) = None,
@@ -713,8 +715,8 @@ impl ConnAckPacket {
             PropertyType::SessionExpiryInterval => session_expiry_interval: (Option<u32>) = None,
             PropertyType::AssignedClientId => assigned_client_id: (Option<Py<PyString>>) = None,
             PropertyType::ServerKeepAlive => server_keep_alive: (Option<u16>) = None,
-            PropertyType::AuthMethod => auth_method: (Option<Py<PyString>>) = None,
-            PropertyType::AuthData => auth_data: (Option<Py<PyBytes>>) = None,
+            PropertyType::AuthenticationMethod => authentication_method: (Option<Py<PyString>>) = None,
+            PropertyType::AuthenticationData => authentication_data: (Option<Py<PyBytes>>) = None,
             PropertyType::ResponseInfo => response_info: (Option<Py<PyString>>) = None,
             PropertyType::ServerReference => server_reference: (Option<Py<PyString>>) = None,
             PropertyType::ReasonStr => reason_str: (Option<Py<PyString>>) = None,
@@ -756,8 +758,8 @@ impl ConnAckPacket {
             PropertyType::SessionExpiryInterval => session_expiry_interval: (Option<u32>) = None,
             PropertyType::AssignedClientId => assigned_client_id: (Option<Py<PyString>>) = None,
             PropertyType::ServerKeepAlive => server_keep_alive: (Option<u16>) = None,
-            PropertyType::AuthMethod => auth_method: (Option<Py<PyString>>) = None,
-            PropertyType::AuthData => auth_data: (Option<Py<PyBytes>>) = None,
+            PropertyType::AuthenticationMethod => authentication_method: (Option<Py<PyString>>) = None,
+            PropertyType::AuthenticationData => authentication_data: (Option<Py<PyBytes>>) = None,
             PropertyType::ResponseInfo => response_info: (Option<Py<PyString>>) = None,
             PropertyType::ServerReference => server_reference: (Option<Py<PyString>>) = None,
             PropertyType::ReasonStr => reason_str: (Option<Py<PyString>>) = None,
@@ -779,8 +781,8 @@ impl ConnAckPacket {
             session_expiry_interval,
             assigned_client_id,
             server_keep_alive,
-            auth_method,
-            auth_data,
+            authentication_method,
+            authentication_data,
             response_info,
             server_reference,
             reason_str,
@@ -805,7 +807,10 @@ impl PartialEq for ConnAckPacket {
             && self.session_expiry_interval == other.session_expiry_interval
             && self.assigned_client_id.py_eq(&other.assigned_client_id)
             && self.server_keep_alive == other.server_keep_alive
-            && self.auth_method.py_eq(&other.auth_method)
+            && self
+                .authentication_method
+                .py_eq(&other.authentication_method)
+            && self.authentication_data.py_eq(&other.authentication_data)
             && self.response_info.py_eq(&other.response_info)
             && self.server_reference.py_eq(&other.server_reference)
             && self.reason_str.py_eq(&other.reason_str)
@@ -2197,6 +2202,126 @@ impl PartialEq for DisconnectPacket {
         self.reason_code == other.reason_code
             && self.session_expiry_interval == other.session_expiry_interval
             && self.server_reference.py_eq(&other.server_reference)
+            && self.reason_str.py_eq(&other.reason_str)
+            && self.user_properties.py_eq(&other.user_properties)
+    }
+}
+
+#[pyclass(frozen, eq, get_all, module = "mqtt5")]
+pub struct AuthPacket {
+    pub reason_code: AuthReasonCode,
+    pub authentication_method: Option<Py<PyString>>,
+    pub authentication_data: Option<Py<PyBytes>>,
+    pub reason_str: Option<Py<PyString>>,
+    pub user_properties: Py<PyList>,
+}
+
+#[pymethods]
+impl AuthPacket {
+    #[new]
+    #[pyo3(signature = (
+        *,
+        reason_code=AuthReasonCode::Success,
+        authentication_method=None,
+        authentication_data=None,
+        reason_str=None,
+        user_properties=None,
+    ))]
+    pub fn new(
+        reason_code: AuthReasonCode,
+        authentication_method: Option<Py<PyString>>,
+        authentication_data: Option<Py<PyBytes>>,
+        reason_str: Option<Py<PyString>>,
+        user_properties: Option<Py<PyList>>,
+    ) -> PyResult<Self> {
+        Ok(Self {
+            reason_code,
+            authentication_method,
+            authentication_data,
+            reason_str,
+            user_properties: user_properties
+                .unwrap_or_else(|| Python::with_gil(|py| PyList::empty(py).unbind())),
+        })
+    }
+
+    #[pyo3(signature = (buffer, /, *, index=0))]
+    pub fn write(&self, buffer: &Bound<'_, PyByteArray>, index: usize) -> PyResult<usize> {
+        let properties_nbytes = nbytes_properties!(self, {
+            PropertyType::AuthenticationMethod => authentication_method: (Option<Py<PyString>>) = None,
+            PropertyType::AuthenticationData => authentication_data: (Option<Py<PyBytes>>) = None,
+            PropertyType::ReasonStr => reason_str: (Option<Py<PyString>>) = None,
+            PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = PyList::empty(py),
+        });
+        let properties_remaining_length = VariableByteInteger::new(properties_nbytes as u32);
+        let nbytes =
+            self.reason_code.nbytes() + properties_remaining_length.nbytes() + properties_nbytes;
+        let remaining_length = VariableByteInteger::new(nbytes as u32);
+        let mut cursor = Cursor::new(buffer, index);
+        cursor.require(1 + remaining_length.nbytes() + nbytes)?;
+
+        // [3.15.1] Fixed header
+        let first_byte = (PacketType::Auth as u8) << 4;
+        first_byte.write(&mut cursor);
+        remaining_length.write(&mut cursor);
+
+        // [3.15.2] Variable header
+        self.reason_code.write(&mut cursor);
+        properties_remaining_length.write(&mut cursor);
+        write_properties!(&mut cursor, self, {
+            PropertyType::AuthenticationMethod => authentication_method: (Option<Py<PyString>>) = None,
+            PropertyType::AuthenticationData => authentication_data: (Option<Py<PyBytes>>) = None,
+            PropertyType::ReasonStr => reason_str: (Option<Py<PyString>>) = None,
+            PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = PyList::empty(py),
+        });
+
+        Ok(cursor.index - index)
+    }
+}
+
+impl AuthPacket {
+    pub fn read(
+        py: Python,
+        cursor: &mut Cursor,
+        flags: u8,
+        remaining_length: VariableByteInteger,
+    ) -> PyResult<Py<Self>> {
+        if flags != 0x00 {
+            return Err(PyValueError::new_err("Malformed bytes"));
+        }
+        let start_index = cursor.index;
+
+        // [3.15.2] Variable header
+        let reason_code = if remaining_length.value() > 0 {
+            AuthReasonCode::read(cursor)?
+        } else {
+            AuthReasonCode::Success
+        };
+        read_properties!("AuthPacket", cursor, start_index, remaining_length, {
+            PropertyType::AuthenticationMethod => authentication_method: (Option<Py<PyString>>) = None,
+            PropertyType::AuthenticationData => authentication_data: (Option<Py<PyBytes>>) = None,
+            PropertyType::ReasonStr => reason_str: (Option<Py<PyString>>) = None,
+            PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = PyList::empty(py),
+        });
+
+        // Return the Python object
+        let packet = Self {
+            reason_code,
+            authentication_method,
+            authentication_data,
+            reason_str,
+            user_properties: user_properties.unbind(),
+        };
+        Py::new(py, packet)
+    }
+}
+
+impl PartialEq for AuthPacket {
+    fn eq(&self, other: &Self) -> bool {
+        self.reason_code == other.reason_code
+            && self
+                .authentication_method
+                .py_eq(&other.authentication_method)
+            && self.authentication_data.py_eq(&other.authentication_data)
             && self.reason_str.py_eq(&other.reason_str)
             && self.user_properties.py_eq(&other.user_properties)
     }

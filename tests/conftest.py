@@ -74,8 +74,8 @@ def connect_packet_full():
         ),
         keep_alive=6789,
         session_expiry_interval=9999,
-        auth_method="GS2-KRB5",
-        auth_data=b"\x12" * 2**8,
+        authentication_method="GS2-KRB5",
+        authentication_data=b"\x12" * 2**8,
         request_problem_info=False,
         request_response_info=True,
         receive_max=55555,
@@ -142,8 +142,8 @@ def connack_packet_full():
         session_expiry_interval=9999,
         assigned_client_id="Bulbasaur",
         server_keep_alive=6789,
-        auth_method="GS2-KRB5",
-        auth_data=b"\x12" * 2**8,
+        authentication_method="GS2-KRB5",
+        authentication_data=b"\x12" * 2**8,
         response_info="response/information",
         server_reference="example.com:1883",
         reason_str="The reason string is a human readable string designed for diagnostics.",
@@ -449,6 +449,40 @@ def disconnect_packet_full_mqttproto():
         properties={
             mqttproto.PropertyType.SESSION_EXPIRY_INTERVAL: 9999,
             mqttproto.PropertyType.SERVER_REFERENCE: "example.com:1883",
+            mqttproto.PropertyType.REASON_STRING: "The reason string is a human readable string designed for diagnostics.",
+        },
+        user_properties={"location": "Pallet Town", "type": "Grass"},
+    )
+
+
+def auth_packet():
+    return mqtt5.AuthPacket()
+
+
+def auth_packet_mqttproto():
+    return mqttproto.MQTTAuthPacket(reason_code=mqttproto.ReasonCode.SUCCESS)
+
+
+def auth_packet_full():
+    return mqtt5.AuthPacket(
+        reason_code=mqtt5.AuthReasonCode.CONTINUE_AUTHENTICATION,
+        authentication_method="GS2-KRB5",
+        authentication_data=b"\x12" * 2**8,
+        reason_str="The reason string is a human readable string designed for diagnostics.",
+        user_properties=[
+            ("location", "Pallet Town"),
+            ("type", "Grass"),
+            # ("type", "Poison"),  # TODO: mqttproto doesn't support duplicate property keys
+        ],
+    )
+
+
+def auth_packet_full_mqttproto():
+    return mqttproto.MQTTAuthPacket(
+        reason_code=mqttproto.ReasonCode.CONTINUE_AUTHENTICATION,
+        properties={
+            mqttproto.PropertyType.AUTHENTICATION_METHOD: "GS2-KRB5",
+            mqttproto.PropertyType.AUTHENTICATION_DATA: b"\x12" * 2**8,
             mqttproto.PropertyType.REASON_STRING: "The reason string is a human readable string designed for diagnostics.",
         },
         user_properties={"location": "Pallet Town", "type": "Grass"},

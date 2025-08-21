@@ -5,7 +5,6 @@ mod types;
 
 use io::{Cursor, Readable, VariableByteInteger};
 use packets::*;
-use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::types::PyByteArray;
 use pyo3::PyResult;
@@ -21,65 +20,25 @@ fn read(py: Python, buffer: &Bound<'_, PyByteArray>, index: usize) -> PyResult<(
     let flags = first_byte & 0x0F;
     let remaining_length = VariableByteInteger::read(&mut cursor)?;
     // Call the read method of the corresponding packet for the remaining bytes
-    match PacketType::new(first_byte >> 4)? {
-        PacketType::Connect => {
-            let packet = ConnectPacket::read(py, &mut cursor, flags, remaining_length)?;
-            Ok((packet.into(), cursor.index))
-        }
-        PacketType::ConnAck => {
-            let packet = ConnAckPacket::read(py, &mut cursor, flags, remaining_length)?;
-            Ok((packet.into(), cursor.index))
-        }
-        PacketType::Publish => {
-            let packet = PublishPacket::read(py, &mut cursor, flags, remaining_length)?;
-            Ok((packet.into(), cursor.index))
-        }
-        PacketType::PubAck => {
-            let packet = PubAckPacket::read(py, &mut cursor, flags, remaining_length)?;
-            Ok((packet.into(), cursor.index))
-        }
-        PacketType::PubRec => {
-            let packet = PubRecPacket::read(py, &mut cursor, flags, remaining_length)?;
-            Ok((packet.into(), cursor.index))
-        }
-        PacketType::PubRel => {
-            let packet = PubRelPacket::read(py, &mut cursor, flags, remaining_length)?;
-            Ok((packet.into(), cursor.index))
-        }
-        PacketType::PubComp => {
-            let packet = PubCompPacket::read(py, &mut cursor, flags, remaining_length)?;
-            Ok((packet.into(), cursor.index))
-        }
-        PacketType::Subscribe => {
-            let packet = SubscribePacket::read(py, &mut cursor, flags, remaining_length)?;
-            Ok((packet.into(), cursor.index))
-        }
-        PacketType::SubAck => {
-            let packet = SubAckPacket::read(py, &mut cursor, flags, remaining_length)?;
-            Ok((packet.into(), cursor.index))
-        }
-        PacketType::Unsubscribe => {
-            let packet = UnsubscribePacket::read(py, &mut cursor, flags, remaining_length)?;
-            Ok((packet.into(), cursor.index))
-        }
-        PacketType::UnsubAck => {
-            let packet = UnsubAckPacket::read(py, &mut cursor, flags, remaining_length)?;
-            Ok((packet.into(), cursor.index))
-        }
-        PacketType::PingReq => {
-            let packet = PingReqPacket::read(py, &mut cursor, flags, remaining_length)?;
-            Ok((packet.into(), cursor.index))
-        }
-        PacketType::PingResp => {
-            let packet = PingRespPacket::read(py, &mut cursor, flags, remaining_length)?;
-            Ok((packet.into(), cursor.index))
-        }
-        PacketType::Disconnect => {
-            let packet = DisconnectPacket::read(py, &mut cursor, flags, remaining_length)?;
-            Ok((packet.into(), cursor.index))
-        }
-        PacketType::Auth => Err(PyValueError::new_err("Not implemented")),
-    }
+    #[rustfmt::skip]
+    let packet = match PacketType::new(first_byte >> 4)? {
+        PacketType::Connect => ConnectPacket::read(py, &mut cursor, flags, remaining_length)?.into(),
+        PacketType::ConnAck => ConnAckPacket::read(py, &mut cursor, flags, remaining_length)?.into(),
+        PacketType::Publish => PublishPacket::read(py, &mut cursor, flags, remaining_length)?.into(),
+        PacketType::PubAck => PubAckPacket::read(py, &mut cursor, flags, remaining_length)?.into(),
+        PacketType::PubRec => PubRecPacket::read(py, &mut cursor, flags, remaining_length)?.into(),
+        PacketType::PubRel => PubRelPacket::read(py, &mut cursor, flags, remaining_length)?.into(),
+        PacketType::PubComp => PubCompPacket::read(py, &mut cursor, flags, remaining_length)?.into(),
+        PacketType::Subscribe => SubscribePacket::read(py, &mut cursor, flags, remaining_length)?.into(),
+        PacketType::SubAck => SubAckPacket::read(py, &mut cursor, flags, remaining_length)?.into(),
+        PacketType::Unsubscribe => UnsubscribePacket::read(py, &mut cursor, flags, remaining_length)?.into(),
+        PacketType::UnsubAck => UnsubAckPacket::read(py, &mut cursor, flags, remaining_length)?.into(),
+        PacketType::PingReq => PingReqPacket::read(py, &mut cursor, flags, remaining_length)?.into(),
+        PacketType::PingResp => PingRespPacket::read(py, &mut cursor, flags, remaining_length)?.into(),
+        PacketType::Disconnect => DisconnectPacket::read(py, &mut cursor, flags, remaining_length)?.into(),
+        PacketType::Auth => AuthPacket::read(py, &mut cursor, flags, remaining_length)?.into(),
+    };
+    Ok((packet, cursor.index))
 }
 
 #[pymodule]
@@ -99,6 +58,7 @@ fn mqtt5(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PingReqPacket>()?;
     m.add_class::<PingRespPacket>()?;
     m.add_class::<DisconnectPacket>()?;
+    m.add_class::<AuthPacket>()?;
     // Reason codes
     m.add_class::<ConnAckReasonCode>()?;
     m.add_class::<PubAckReasonCode>()?;
@@ -108,6 +68,7 @@ fn mqtt5(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<SubAckReasonCode>()?;
     m.add_class::<UnsubAckReasonCode>()?;
     m.add_class::<DisconnectReasonCode>()?;
+    m.add_class::<AuthReasonCode>()?;
     // Misc
     m.add_class::<QoS>()?;
     m.add_class::<RetainHandling>()?;

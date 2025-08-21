@@ -20,7 +20,7 @@ py_int_enum! {
         ServerUnavailable = 136,
         ServerBusy = 137,
         Banned = 138,
-        BadAuthMethod = 140,
+        BadAuthenticationMethod = 140,
         TopicNameInvalid = 144,
         PacketTooLarge = 149,
         QuotaExceeded = 151,
@@ -101,6 +101,14 @@ py_int_enum! {
         NotAuthorized = 135,
         TopicFilterInvalid = 143,
         PacketIdInUse = 145,
+    }
+}
+
+py_int_enum! {
+    AuthReasonCode {
+        Success = 0,
+        ContinueAuthentication = 24,
+        ReAuthenticate = 25,
     }
 }
 
