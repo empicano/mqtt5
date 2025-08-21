@@ -66,6 +66,11 @@ def connect_packet_full():
             response_topic="HELLO/4444/#",
             correlation_data=b"\x12" * 2**8,
             will_delay_interval=12,
+            user_properties=[
+                ("location", "Pallet Town"),
+                ("type", "Grass"),
+                # ("type", "Poison"),  # mqttproto doesn't support duplicate property keys
+            ],
         ),
         keep_alive=6789,
         session_expiry_interval=9999,
@@ -76,6 +81,11 @@ def connect_packet_full():
         receive_max=55555,
         topic_alias_max=3,
         max_packet_size=5000,
+        user_properties=[
+            ("location", "Pallet Town"),
+            ("type", "Grass"),
+            # ("type", "Poison"),  # mqttproto doesn't support duplicate property keys
+        ],
     )
 
 
@@ -98,6 +108,7 @@ def connect_packet_full_mqttproto():
                 mqttproto.PropertyType.CORRELATION_DATA: b"\x12" * 2**8,
                 mqttproto.PropertyType.WILL_DELAY_INTERVAL: 12,
             },
+            user_properties={"location": "Pallet Town", "type": "Grass"},
         ),
         keep_alive=6789,
         properties={
@@ -110,6 +121,7 @@ def connect_packet_full_mqttproto():
             mqttproto.PropertyType.TOPIC_ALIAS_MAXIMUM: 3,
             mqttproto.PropertyType.MAXIMUM_PACKET_SIZE: 5000,
         },
+        user_properties={"location": "Pallet Town", "type": "Grass"},
     )
 
 
@@ -143,6 +155,11 @@ def connack_packet_full():
         wildcard_subscription_available=False,
         subscription_id_available=False,
         shared_subscription_available=False,
+        user_properties=[
+            ("location", "Pallet Town"),
+            ("type", "Grass"),
+            # ("type", "Poison"),  # mqttproto doesn't support duplicate property keys
+        ],
     )
 
 
@@ -168,6 +185,7 @@ def connack_packet_full_mqttproto():
             mqttproto.PropertyType.SUBSCRIPTION_IDENTIFIER_AVAILABLE: 0,
             mqttproto.PropertyType.SHARED_SUBSCRIPTION_AVAILABLE: 0,
         },
+        user_properties={"location": "Pallet Town", "type": "Grass"},
     )
 
 
@@ -264,6 +282,11 @@ def unsuback_packet():
         packet_id=1234,
         reason_codes=[mqtt5.UnsubAckReasonCode.TOPIC_FILTER_INVALID],
         reason_str="The reason string is a human readable string designed for diagnostics.",
+        user_properties=[
+            ("location", "Pallet Town"),
+            ("type", "Grass"),
+            # ("type", "Poison"),  # mqttproto doesn't support duplicate property keys
+        ],
     )
 
 
@@ -274,6 +297,7 @@ def unsuback_packet_mqttproto():
         properties={
             mqttproto.PropertyType.REASON_STRING: "The reason string is a human readable string designed for diagnostics.",
         },
+        user_properties={"location": "Pallet Town", "type": "Grass"},
     )
 
 
@@ -309,6 +333,11 @@ def disconnect_packet_full():
         session_expiry_interval=9999,
         server_reference="example.com:1883",
         reason_str="The reason string is a human readable string designed for diagnostics.",
+        user_properties=[
+            ("location", "Pallet Town"),
+            ("type", "Grass"),
+            # ("type", "Poison"),  # mqttproto doesn't support duplicate property keys
+        ],
     )
 
 
@@ -320,6 +349,7 @@ def disconnect_packet_full_mqttproto():
             mqttproto.PropertyType.SERVER_REFERENCE: "example.com:1883",
             mqttproto.PropertyType.REASON_STRING: "The reason string is a human readable string designed for diagnostics.",
         },
+        user_properties={"location": "Pallet Town", "type": "Grass"},
     )
 
 
@@ -347,4 +377,4 @@ PACKETS_MQTTPROTO = [f() for f in PACKET_INITS_MQTTPROTO]
 @pytest.fixture(scope="session")
 def buffer():
     """Pre-allocated buffer for packet de/serialization."""
-    return bytearray(1024)
+    return bytearray(2048)

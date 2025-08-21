@@ -2,12 +2,18 @@ use crate::io::{Cursor, Readable, Writable};
 use num_enum::TryFromPrimitive;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
-use pyo3::types::{PyBytes, PyString};
+use pyo3::types::{PyBytes, PyList, PyString};
 use pyo3::PyResult;
 use std::fmt;
 
 pub trait PyEq {
     fn py_eq(&self, other: &Self) -> bool;
+}
+
+impl PyEq for Py<PyString> {
+    fn py_eq(&self, other: &Self) -> bool {
+        Python::with_gil(|py| self.bind(py).as_any().eq(other.bind(py)).unwrap_or(false))
+    }
 }
 
 impl PyEq for Py<PyBytes> {
@@ -16,7 +22,7 @@ impl PyEq for Py<PyBytes> {
     }
 }
 
-impl PyEq for Py<PyString> {
+impl PyEq for Py<PyList> {
     fn py_eq(&self, other: &Self) -> bool {
         Python::with_gil(|py| self.bind(py).as_any().eq(other.bind(py)).unwrap_or(false))
     }

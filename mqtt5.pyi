@@ -126,6 +126,7 @@ class Will:
     response_topic: str | None
     correlation_data: bytes | None
     will_delay_interval: int
+    user_properties: list[tuple[str, str]]
 
     def __init__(
         self,
@@ -140,6 +141,7 @@ class Will:
         response_topic: str | None = None,
         correlation_data: bytes | None = None,
         will_delay_interval: int = 0,
+        user_properties: list[tuple[str, str]] | None = None
     ) -> None: ...
 
 class Subscription:
@@ -182,6 +184,7 @@ class ConnectPacket:
     receive_max: int
     topic_alias_max: int
     max_packet_size: int | None
+    user_properties: list[tuple[str, str]]
 
     def __init__(
         self,
@@ -200,6 +203,7 @@ class ConnectPacket:
         receive_max: int = 65535,
         topic_alias_max: int = 0,
         max_packet_size: int | None = None,
+        user_properties: list[tuple[str, str]] | None = None,
     ) -> None: ...
     def write(self, buffer: bytearray, /, *, index: int = 0) -> int:
         """
@@ -227,6 +231,7 @@ class ConnAckPacket:
     wildcard_subscription_available: bool
     subscription_id_available: bool
     shared_subscription_available: bool
+    user_properties: list[tuple[str, str]]
 
     def __init__(
         self,
@@ -249,6 +254,7 @@ class ConnAckPacket:
         wildcard_subscription_available: bool = True,
         subscription_id_available: bool = True,
         shared_subscription_available: bool = True,
+        user_properties: list[tuple[str, str]] | None = None,
     ): ...
     def write(self, buffer: bytearray, /, *, index: int = 0) -> int:
         """
@@ -271,6 +277,7 @@ class PublishPacket:
     correlation_data: bytes | None
     subscription_ids: list[int]
     topic_alias: int | None
+    user_properties: list[tuple[str, str]]
 
     def __init__(
         self,
@@ -288,6 +295,7 @@ class PublishPacket:
         correlation_data: bytes | None = None,
         subscription_ids: list[int] | None = None,
         topic_alias: int | None = None,
+        user_properties: list[tuple[str, str]] | None = None,
     ) -> None: ...
     def write(self, buffer: bytearray, /, *, index: int = 0) -> int:
         """
@@ -300,6 +308,7 @@ class PubAckPacket:
     packet_id: int
     reason_code: PubAckReasonCode
     reason_str: str | None
+    user_properties: list[tuple[str, str]]
 
     def __init__(
         self,
@@ -307,6 +316,7 @@ class PubAckPacket:
         *,
         reason_code: PubAckReasonCode = PubAckReasonCode.SUCCESS,
         reason_str: str | None = None,
+        user_properties: list[tuple[str, str]] | None = None,
     ) -> None: ...
     def write(self, buffer: bytearray, /, *, index: int = 0) -> int:
         """
@@ -319,6 +329,7 @@ class SubscribePacket:
     packet_id: int
     subscriptions: list[Subscription]
     subscription_id: int | None
+    user_properties: list[tuple[str, str]]
 
     def __init__(
         self,
@@ -326,6 +337,7 @@ class SubscribePacket:
         subscriptions: list[Subscription],
         *,
         subscription_id: int | None = None,
+        user_properties: list[tuple[str, str]] | None = None,
     ) -> None: ...
     def write(self, buffer: bytearray, /, *, index: int = 0) -> int:
         """
@@ -338,6 +350,7 @@ class SubAckPacket:
     packet_id: int
     reason_codes: list[SubAckReasonCode]
     reason_str: str | None
+    user_properties: list[tuple[str, str]]
 
     def __init__(
         self,
@@ -345,6 +358,7 @@ class SubAckPacket:
         reason_codes: list[SubAckReasonCode],
         *,
         reason_str: str | None = None,
+        user_properties: list[tuple[str, str]] | None = None,
     ) -> None: ...
     def write(self, buffer: bytearray, /, *, index: int = 0) -> int:
         """
@@ -356,11 +370,14 @@ class SubAckPacket:
 class UnsubscribePacket:
     packet_id: int
     patterns: list[str]
+    user_properties: list[tuple[str, str]]
 
     def __init__(
         self,
         packet_id: int,
         patterns: list[str],
+        *,
+        user_properties: list[tuple[str, str]] | None = None,
     ) -> None: ...
     def write(self, buffer: bytearray, /, *, index: int = 0) -> int:
         """
@@ -373,6 +390,7 @@ class UnsubAckPacket:
     packet_id: int
     reason_codes: list[UnsubAckReasonCode]
     reason_str: str | None
+    user_properties: list[tuple[str, str]]
 
     def __init__(
         self,
@@ -380,6 +398,7 @@ class UnsubAckPacket:
         reason_codes: list[UnsubAckReasonCode],
         *,
         reason_str: str | None = None,
+        user_properties: list[tuple[str, str]] | None = None,
     ) -> None: ...
     def write(self, buffer: bytearray, /, *, index: int = 0) -> int:
         """
@@ -411,6 +430,7 @@ class DisconnectPacket:
     session_expiry_interval: int | None
     server_reference: str | None
     reason_str: str | None
+    user_properties: list[tuple[str, str]]
 
     def __init__(
         self,
@@ -419,6 +439,7 @@ class DisconnectPacket:
         session_expiry_interval: int | None = None,
         server_reference: str | None = None,
         reason_str: str | None = None,
+        user_properties: list[tuple[str, str]] | None = None,
     ) -> None: ...
     def write(self, buffer: bytearray, /, *, index: int = 0) -> int:
         """

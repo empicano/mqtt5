@@ -1,11 +1,9 @@
 use core::str;
 use pyo3::exceptions::{PyIndexError, PyValueError};
 use pyo3::prelude::*;
-use pyo3::types::{PyByteArray, PyBytes, PyList, PyString, PyStringMethods};
+use pyo3::types::{PyByteArray, PyBytes, PyString, PyStringMethods, PyTuple};
 use pyo3::PyResult;
 use std::fmt;
-
-use crate::types::PropertyType;
 
 pub struct Cursor<'a> {
     pub buffer: &'a mut [u8],
@@ -25,7 +23,7 @@ impl<'a> Cursor<'a> {
         let available = self.buffer.len() - self.index;
         if available < length {
             return Err(PyIndexError::new_err(format!(
-                "Insufficient bytes: {available} < {length}"
+                "Not enough bytes available: {available} < {length}"
             )));
         }
         Ok(())
@@ -51,6 +49,9 @@ impl fmt::Display for VariableByteInteger {
         write!(f, "{}", self.0)
     }
 }
+
+#[derive(FromPyObject, IntoPyObject)]
+pub struct UserProperty(Py<PyTuple>);
 
 pub trait Readable {
     fn read(cursor: &mut Cursor<'_>) -> PyResult<Self>
@@ -166,6 +167,17 @@ impl Readable for Py<PyString> {
         });
         cursor.index += length;
         Ok(result)
+    }
+}
+
+impl Readable for UserProperty {
+    fn read(cursor: &mut Cursor<'_>) -> PyResult<Self> {
+        let key = Py::<PyString>::read(cursor)?;
+        let value = Py::<PyString>::read(cursor)?;
+        Ok(Python::with_gil(|py| {
+            let tuple = PyTuple::new(py, &[key.bind(py), value.bind(py)]).unwrap();
+            UserProperty(tuple.unbind())
+        }))
     }
 }
 
@@ -312,26 +324,24 @@ impl Writable for &Bound<'_, PyString> {
     }
 }
 
-impl Writable for Py<PyList> {
+impl Writable for UserProperty {
     fn write(&self, cursor: &mut Cursor<'_>) {
         Python::with_gil(|py| {
-            for item in self.bind(py).iter() {
-                (PropertyType::SubscriptionId as u8).write(cursor);
-                let val: u32 = item.extract().unwrap();
-                VariableByteInteger::new(val).write(cursor);
-            }
+            let tuple = self.0.bind(py);
+            let key: Py<PyString> = tuple.get_item(0).unwrap().extract().unwrap();
+            let value: Py<PyString> = tuple.get_item(1).unwrap().extract().unwrap();
+            key.write(cursor);
+            value.write(cursor);
         })
     }
 
     fn nbytes(&self) -> usize {
-        let mut accumulator: usize = 0;
         Python::with_gil(|py| {
-            for item in self.bind(py).iter() {
-                let value: u32 = item.extract().unwrap();
-                accumulator += 0u8.nbytes() + VariableByteInteger::new(value).nbytes();
-            }
-        });
-        accumulator
+            let tuple = self.0.bind(py);
+            let key: Py<PyString> = tuple.get_item(0).unwrap().extract().unwrap();
+            let value: Py<PyString> = tuple.get_item(1).unwrap().extract().unwrap();
+            key.nbytes() + value.nbytes()
+        })
     }
 }
 

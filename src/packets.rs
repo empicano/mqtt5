@@ -1,4 +1,4 @@
-use crate::io::{Cursor, Readable, VariableByteInteger, Writable};
+use crate::io::{Cursor, Readable, UserProperty, VariableByteInteger, Writable};
 use crate::reason_codes::*;
 use crate::types::{PacketType, PropertyType, PyEq, QoS, RetainHandling};
 use pyo3::exceptions::PyValueError;
@@ -31,7 +31,7 @@ macro_rules! read_properties {
                     let bit = 1u64 << (property_type as u8);
                     if seen & bit != 0 {
                         return Err(PyValueError::new_err(format!(
-                            "Duplicate property type: {:?}", property_type
+                            "Duplicate value for unique property type: {:?}", property_type
                         )));
                     }
                     seen |= bit;
@@ -53,7 +53,7 @@ macro_rules! read_properties {
     };
 
     (@read, $cursor:expr, $field:ident, (Py<PyList<$inner:ty>>)) => {
-        $field.append(<$inner>::read($cursor)?.value())?
+        $field.append(<$inner>::read($cursor)?)?
     };
     (@read, $cursor:expr, $field:ident, (Option<$inner:ty>)) => {
         $field = Some(<$inner>::read($cursor)?)
@@ -68,22 +68,32 @@ macro_rules! write_properties {
         $($property_type:path => $field:ident: $field_type:tt = $default:expr),* $(,)?
     }) => {
         $(
-            if write_properties!(@condition, $context, $field, $field_type, $default) {
-                ($property_type as u8).write($cursor);
-                $context.$field.write($cursor);
-            }
+            write_properties!(@write, $cursor, $context, $property_type, $field, $field_type, $default);
         )*
     };
 
-    (@condition, $context:expr, $field:ident, (Py<PyList<$inner:ty>>), $default:expr) => {
-        Python::with_gil(|py| !$context.$field.bind(py).is_empty())
+    (@write, $cursor:expr, $context:expr, $property_type:path, $field:ident, (Py<PyList<$inner:ty>>), $default:expr) => {
+        Python::with_gil(|py| {
+            if !$context.$field.bind(py).is_empty() {
+                for item in $context.$field.bind(py).iter() {
+                    ($property_type as u8).write($cursor);
+                    let value: $inner = item.extract().unwrap();
+                    value.write($cursor);
+                }
+            }
+        });
     };
-    (@condition, $context:expr, $field:ident, (Option<$inner:ty>), $default:expr) => {
-        $context.$field.is_some()
+    (@write, $cursor:expr, $context:expr, $property_type:path, $field:ident, (Option<$inner:ty>), $default:expr) => {
+        if $context.$field.is_some() {
+            ($property_type as u8).write($cursor);
+            $context.$field.write($cursor);
+        }
     };
-    (@condition, $context:expr, $field:ident, $field_type:ty, $default:expr) => {
-        // Write properties only if not equal to their default value to minimize packet size
-        $context.$field != $default
+    (@write, $cursor:expr, $context:expr, $property_type:path, $field:ident, $field_type:tt, $default:expr) => {
+        if $context.$field != $default {
+            ($property_type as u8).write($cursor);
+            $context.$field.write($cursor);
+        }
     };
 }
 
@@ -94,11 +104,30 @@ macro_rules! nbytes_properties {
         {
             let mut accumulator: usize = 0;
             $(
-                if write_properties!(@condition, $context, $field, $field_type, $default) {
-                    accumulator += 0u8.nbytes() + $context.$field.nbytes()
-                }
+                nbytes_properties!(@nbytes, $context, accumulator, $property_type, $field, $field_type, $default);
             )*
             accumulator
+        }
+    };
+
+    (@nbytes, $context:expr, $accumulator:expr, $property_type:path, $field:ident, (Py<PyList<$inner:ty>>), $default:expr) => {
+        Python::with_gil(|py| {
+            if !$context.$field.bind(py).is_empty() {
+                for item in $context.$field.bind(py).iter() {
+                    let value: $inner = item.extract().unwrap();
+                    $accumulator += 0u8.nbytes() + value.nbytes();
+                }
+            }
+        });
+    };
+    (@nbytes, $context:expr, $accumulator:expr, $property_type:path, $field:ident, (Option<$inner:ty>), $default:expr) => {
+        if $context.$field.is_some() {
+            $accumulator += 0u8.nbytes() + $context.$field.nbytes()
+        }
+    };
+    (@nbytes, $context:expr, $accumulator:expr, $property_type:path, $field:ident, $field_type:tt, $default:expr) => {
+        if $context.$field != $default {
+            $accumulator += 0u8.nbytes() + $context.$field.nbytes()
         }
     };
 }
@@ -115,6 +144,7 @@ pub struct Will {
     pub response_topic: Option<Py<PyString>>,
     pub correlation_data: Option<Py<PyBytes>>,
     pub will_delay_interval: u32,
+    pub user_properties: Py<PyList>,
 }
 
 #[pymethods]
@@ -132,6 +162,7 @@ impl Will {
         response_topic=None,
         correlation_data=None,
         will_delay_interval=0,
+        user_properties=None,
     ))]
     pub fn new(
         topic: &Bound<'_, PyString>,
@@ -144,6 +175,7 @@ impl Will {
         response_topic: Option<Py<PyString>>,
         correlation_data: Option<Py<PyBytes>>,
         will_delay_interval: u32,
+        user_properties: Option<Py<PyList>>,
     ) -> Self {
         Self {
             topic: topic.clone().unbind(),
@@ -156,6 +188,8 @@ impl Will {
             response_topic,
             correlation_data,
             will_delay_interval,
+            user_properties: user_properties
+                .unwrap_or_else(|| Python::with_gil(|py| PyList::empty(py).unbind())),
         }
     }
 }
@@ -173,6 +207,7 @@ impl Clone for Will {
             response_topic: self.response_topic.as_ref().map(|x| x.clone_ref(py)),
             correlation_data: self.correlation_data.as_ref().map(|x| x.clone_ref(py)),
             will_delay_interval: self.will_delay_interval,
+            user_properties: self.user_properties.clone_ref(py),
         })
     }
 }
@@ -189,6 +224,7 @@ impl PartialEq for Will {
             && self.response_topic.py_eq(&other.response_topic)
             && self.correlation_data.py_eq(&other.correlation_data)
             && self.will_delay_interval == other.will_delay_interval
+            && self.user_properties.py_eq(&other.user_properties)
     }
 }
 
@@ -255,6 +291,7 @@ pub struct ConnectPacket {
     pub receive_max: u16,
     pub topic_alias_max: u16,
     pub max_packet_size: Option<u32>,
+    pub user_properties: Py<PyList>,
 }
 
 #[pymethods]
@@ -276,6 +313,7 @@ impl ConnectPacket {
         receive_max=65535,
         topic_alias_max=0,
         max_packet_size=None,
+        user_properties=None,
     ))]
     pub fn new(
         client_id: &Bound<'_, PyString>,
@@ -292,6 +330,7 @@ impl ConnectPacket {
         receive_max: u16,
         topic_alias_max: u16,
         max_packet_size: Option<u32>,
+        user_properties: Option<Py<PyList>>,
     ) -> PyResult<Self> {
         Ok(Self {
             client_id: client_id.clone().unbind(),
@@ -308,6 +347,8 @@ impl ConnectPacket {
             receive_max,
             topic_alias_max,
             max_packet_size,
+            user_properties: user_properties
+                .unwrap_or_else(|| Python::with_gil(|py| PyList::empty(py).unbind())),
         })
     }
 
@@ -322,6 +363,7 @@ impl ConnectPacket {
             PropertyType::ReceiveMax => receive_max: u16 = 65535,
             PropertyType::TopicAliasMax => topic_alias_max: u16 = 0,
             PropertyType::MaxPacketSize => max_packet_size: (Option<u32>) = None,
+            PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = pyo3::types::PyList::empty(py),
         });
         let properties_remaining_length = VariableByteInteger::new(properties_nbytes as u32);
         let will_properties_nbytes = self
@@ -334,6 +376,7 @@ impl ConnectPacket {
                 PropertyType::ResponseTopic => response_topic: (Option<Py<PyString>>) = None,
                 PropertyType::CorrelationData => correlation_data: (Option<Py<PyBytes>>) = None,
                 PropertyType::WillDelayInterval => will_delay_interval: u32 = 0,
+                PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = pyo3::types::PyList::empty(py),
             }));
         let will_properties_remaining_length =
             VariableByteInteger::new(will_properties_nbytes as u32);
@@ -388,6 +431,7 @@ impl ConnectPacket {
             PropertyType::ReceiveMax => receive_max: u16 = 65535,
             PropertyType::TopicAliasMax => topic_alias_max: u16 = 0,
             PropertyType::MaxPacketSize => max_packet_size: (Option<u32>) = None,
+            PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = pyo3::types::PyList::empty(py),
         });
 
         // [3.1.3] Payload
@@ -401,6 +445,7 @@ impl ConnectPacket {
                 PropertyType::ResponseTopic => response_topic: (Option<Py<PyString>>) = None,
                 PropertyType::CorrelationData => correlation_data: (Option<Py<PyBytes>>) = None,
                 PropertyType::WillDelayInterval => will_delay_interval: u32 = 0,
+                PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = pyo3::types::PyList::empty(py),
             });
             will.topic.write(&mut cursor);
             if let Some(ref payload) = will.payload {
@@ -447,6 +492,7 @@ impl ConnectPacket {
             PropertyType::ReceiveMax => receive_max: u16 = 65535,
             PropertyType::TopicAliasMax => topic_alias_max: u16 = 0,
             PropertyType::MaxPacketSize => max_packet_size: (Option<u32>) = None,
+            PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = pyo3::types::PyList::empty(py),
         });
 
         // [3.1.3] Payload
@@ -459,6 +505,7 @@ impl ConnectPacket {
                 PropertyType::ResponseTopic => response_topic: (Option<Py<PyString>>) = None,
                 PropertyType::CorrelationData => correlation_data: (Option<Py<PyBytes>>) = None,
                 PropertyType::WillDelayInterval => will_delay_interval: u32 = 0,
+                PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = pyo3::types::PyList::empty(py),
             });
             let topic = Py::<PyString>::read(cursor)?;
             let payload = Py::<PyBytes>::read(cursor)?;
@@ -473,6 +520,7 @@ impl ConnectPacket {
                 response_topic,
                 correlation_data,
                 will_delay_interval,
+                user_properties: user_properties.unbind(),
             })
         } else {
             None
@@ -504,6 +552,7 @@ impl ConnectPacket {
             receive_max,
             topic_alias_max,
             max_packet_size,
+            user_properties: user_properties.unbind(),
         };
         Py::new(py, packet)
     }
@@ -525,6 +574,7 @@ impl PartialEq for ConnectPacket {
             && self.receive_max == other.receive_max
             && self.topic_alias_max == other.topic_alias_max
             && self.max_packet_size == other.max_packet_size
+            && self.user_properties.py_eq(&other.user_properties)
     }
 }
 
@@ -548,6 +598,7 @@ pub struct ConnAckPacket {
     pub wildcard_subscription_available: bool,
     pub subscription_id_available: bool,
     pub shared_subscription_available: bool,
+    pub user_properties: Py<PyList>,
 }
 
 #[pymethods]
@@ -573,6 +624,7 @@ impl ConnAckPacket {
         wildcard_subscription_available=true,
         subscription_id_available=true,
         shared_subscription_available=true,
+        user_properties=None,
     ))]
     pub fn new(
         session_present: bool,
@@ -593,6 +645,7 @@ impl ConnAckPacket {
         wildcard_subscription_available: bool,
         subscription_id_available: bool,
         shared_subscription_available: bool,
+        user_properties: Option<Py<PyList>>,
     ) -> PyResult<Self> {
         Ok(Self {
             session_present,
@@ -613,6 +666,8 @@ impl ConnAckPacket {
             wildcard_subscription_available,
             subscription_id_available,
             shared_subscription_available,
+            user_properties: user_properties
+                .unwrap_or_else(|| Python::with_gil(|py| PyList::empty(py).unbind())),
         })
     }
 
@@ -635,6 +690,7 @@ impl ConnAckPacket {
             PropertyType::WildcardSubscriptionAvailable => wildcard_subscription_available: bool = true,
             PropertyType::SubscriptionIdAvailable => subscription_id_available: bool = true,
             PropertyType::SharedSubscriptionAvailable => shared_subscription_available: bool = true,
+            PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = pyo3::types::PyList::empty(py),
         });
         let properties_remaining_length = VariableByteInteger::new(properties_nbytes as u32);
         let nbytes = 0u8.nbytes()
@@ -672,6 +728,7 @@ impl ConnAckPacket {
             PropertyType::WildcardSubscriptionAvailable => wildcard_subscription_available: bool = true,
             PropertyType::SubscriptionIdAvailable => subscription_id_available: bool = true,
             PropertyType::SharedSubscriptionAvailable => shared_subscription_available: bool = true,
+            PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = pyo3::types::PyList::empty(py),
         });
 
         Ok(cursor.index - index)
@@ -714,6 +771,7 @@ impl ConnAckPacket {
             PropertyType::WildcardSubscriptionAvailable => wildcard_subscription_available: bool = true,
             PropertyType::SubscriptionIdAvailable => subscription_id_available: bool = true,
             PropertyType::SharedSubscriptionAvailable => shared_subscription_available: bool = true,
+            PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = pyo3::types::PyList::empty(py),
         });
 
         // Return the Python object
@@ -736,6 +794,7 @@ impl ConnAckPacket {
             wildcard_subscription_available,
             subscription_id_available,
             shared_subscription_available,
+            user_properties: user_properties.unbind(),
         };
         Py::new(py, packet)
     }
@@ -759,6 +818,7 @@ impl PartialEq for ConnAckPacket {
             && self.wildcard_subscription_available == other.wildcard_subscription_available
             && self.subscription_id_available == other.subscription_id_available
             && self.shared_subscription_available == other.shared_subscription_available
+            && self.user_properties.py_eq(&other.user_properties)
     }
 }
 
@@ -777,6 +837,7 @@ pub struct PublishPacket {
     pub correlation_data: Option<Py<PyBytes>>,
     pub subscription_ids: Py<PyList>,
     pub topic_alias: Option<u16>,
+    pub user_properties: Py<PyList>,
 }
 
 #[pymethods]
@@ -797,6 +858,7 @@ impl PublishPacket {
         correlation_data=None,
         subscription_ids=None,
         topic_alias=None,
+        user_properties=None,
     ))]
     pub fn new(
         topic: Py<PyString>,
@@ -812,6 +874,7 @@ impl PublishPacket {
         correlation_data: Option<Py<PyBytes>>,
         subscription_ids: Option<&Bound<'_, PyList>>,
         topic_alias: Option<u16>,
+        user_properties: Option<Py<PyList>>,
     ) -> PyResult<Self> {
         if packet_id.is_some() && qos == QoS::AtMostOnce {
             return Err(PyValueError::new_err(
@@ -839,6 +902,8 @@ impl PublishPacket {
                 .unwrap_or_else(|| Python::with_gil(|py| PyList::empty(py).unbind())),
             topic_alias,
             payload: payload.map(|x| x.clone().unbind()),
+            user_properties: user_properties
+                .unwrap_or_else(|| Python::with_gil(|py| PyList::empty(py).unbind())),
         })
     }
 
@@ -858,6 +923,7 @@ impl PublishPacket {
             PropertyType::CorrelationData => correlation_data: (Option<Py<PyBytes>>) = None,
             PropertyType::SubscriptionId => subscription_ids: (Py<PyList<VariableByteInteger>>) = pyo3::types::PyList::empty(py),
             PropertyType::TopicAlias => topic_alias: (Option<u16>) = None,
+            PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = pyo3::types::PyList::empty(py),
         });
         let properties_remaining_length = VariableByteInteger::new(properties_nbytes as u32);
         let nbytes = self.topic.nbytes()
@@ -889,6 +955,7 @@ impl PublishPacket {
             PropertyType::CorrelationData => correlation_data: (Option<Py<PyBytes>>) = None,
             PropertyType::SubscriptionId => subscription_ids: (Py<PyList<VariableByteInteger>>) = pyo3::types::PyList::empty(py),
             PropertyType::TopicAlias => topic_alias: (Option<u16>) = None,
+            PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = pyo3::types::PyList::empty(py),
         });
 
         // [3.3.3] Payload
@@ -930,6 +997,7 @@ impl PublishPacket {
             PropertyType::CorrelationData => correlation_data: (Option<Py<PyBytes>>) = None,
             PropertyType::SubscriptionId => subscription_ids: (Py<PyList<VariableByteInteger>>) = pyo3::types::PyList::empty(py),
             PropertyType::TopicAlias => topic_alias: (Option<u16>) = None,
+            PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = pyo3::types::PyList::empty(py),
         });
 
         // [3.3.3] Payload
@@ -956,6 +1024,7 @@ impl PublishPacket {
             correlation_data,
             subscription_ids: subscription_ids.unbind(),
             topic_alias,
+            user_properties: user_properties.unbind(),
         };
         Py::new(py, packet)
     }
@@ -974,21 +1043,9 @@ impl PartialEq for PublishPacket {
             && self.content_type.py_eq(&other.content_type)
             && self.response_topic.py_eq(&other.response_topic)
             && self.correlation_data.py_eq(&other.correlation_data)
-            && Python::with_gil(|py| -> PyResult<bool> {
-                let list1 = self.subscription_ids.bind(py);
-                let list2 = other.subscription_ids.bind(py);
-                Ok(list1.len() == list2.len()
-                    && list1.iter().zip(list2.iter()).try_fold(
-                        true,
-                        |acc, (a, b)| -> PyResult<bool> {
-                            let val1: u32 = a.extract()?;
-                            let val2: u32 = b.extract()?;
-                            Ok(acc && val1 == val2)
-                        },
-                    )?)
-            })
-            .unwrap_or(false)
+            && self.subscription_ids.py_eq(&other.subscription_ids)
             && self.topic_alias == other.topic_alias
+            && self.user_properties.py_eq(&other.user_properties)
     }
 }
 
@@ -997,6 +1054,7 @@ pub struct PubAckPacket {
     pub packet_id: u16,
     pub reason_code: PubAckReasonCode,
     pub reason_str: Option<Py<PyString>>,
+    pub user_properties: Py<PyList>,
 }
 
 #[pymethods]
@@ -1007,16 +1065,20 @@ impl PubAckPacket {
         *,
         reason_code=PubAckReasonCode::Success,
         reason_str=None,
+        user_properties=None,
     ))]
     pub fn new(
         packet_id: u16,
         reason_code: PubAckReasonCode,
         reason_str: Option<Py<PyString>>,
+        user_properties: Option<Py<PyList>>,
     ) -> PyResult<Self> {
         Ok(Self {
             packet_id,
             reason_code,
             reason_str,
+            user_properties: user_properties
+                .unwrap_or_else(|| Python::with_gil(|py| PyList::empty(py).unbind())),
         })
     }
 
@@ -1024,6 +1086,7 @@ impl PubAckPacket {
     pub fn write(&self, buffer: &Bound<'_, PyByteArray>, index: usize) -> PyResult<usize> {
         let properties_nbytes = nbytes_properties!(self, {
             PropertyType::ReasonStr => reason_str: (Option<Py<PyString>>) = None,
+            PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = pyo3::types::PyList::empty(py),
         });
         let properties_remaining_length = VariableByteInteger::new(properties_nbytes as u32);
         let nbytes = self.packet_id.nbytes()
@@ -1045,6 +1108,7 @@ impl PubAckPacket {
         properties_remaining_length.write(&mut cursor);
         write_properties!(&mut cursor, self, {
             PropertyType::ReasonStr => reason_str: (Option<Py<PyString>>) = None,
+            PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = pyo3::types::PyList::empty(py),
         });
 
         Ok(cursor.index - index)
@@ -1072,6 +1136,7 @@ impl PubAckPacket {
         };
         read_properties!("PubAckPacket", cursor, start_index, remaining_length, {
             PropertyType::ReasonStr => reason_str: (Option<Py<PyString>>) = None,
+            PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = pyo3::types::PyList::empty(py),
         });
 
         // Return the Python object
@@ -1079,6 +1144,7 @@ impl PubAckPacket {
             packet_id,
             reason_code,
             reason_str,
+            user_properties: user_properties.unbind(),
         };
         Py::new(py, packet)
     }
@@ -1089,6 +1155,7 @@ impl PartialEq for PubAckPacket {
         self.packet_id == other.packet_id
             && self.reason_code == other.reason_code
             && self.reason_str.py_eq(&other.reason_str)
+            && self.user_properties.py_eq(&other.user_properties)
     }
 }
 
@@ -1218,20 +1285,7 @@ impl PartialEq for SubscribePacket {
     fn eq(&self, other: &Self) -> bool {
         self.packet_id == other.packet_id
             && self.subscription_id == other.subscription_id
-            && Python::with_gil(|py| -> PyResult<bool> {
-                let seq1 = self.subscriptions.bind(py);
-                let seq2 = other.subscriptions.bind(py);
-                Ok(seq1.len() == seq2.len()
-                    && seq1.try_iter()?.zip(seq2.try_iter()?).try_fold(
-                        true,
-                        |acc, (a, b)| -> PyResult<bool> {
-                            let sub1: PyRef<Subscription> = a?.extract()?;
-                            let sub2: PyRef<Subscription> = b?.extract()?;
-                            Ok(acc && *sub1 == *sub2)
-                        },
-                    )?)
-            })
-            .unwrap_or(false)
+            && self.subscriptions.py_eq(&other.subscriptions)
     }
 }
 
@@ -1240,6 +1294,7 @@ pub struct SubAckPacket {
     pub packet_id: u16,
     pub reason_codes: Py<PyList>,
     pub reason_str: Option<Py<PyString>>,
+    pub user_properties: Py<PyList>,
 }
 
 #[pymethods]
@@ -1250,16 +1305,20 @@ impl SubAckPacket {
         reason_codes,
         *,
         reason_str=None,
+        user_properties=None,
     ))]
     pub fn new(
         packet_id: u16,
         reason_codes: &Bound<'_, PyList>,
         reason_str: Option<Py<PyString>>,
+        user_properties: Option<Py<PyList>>,
     ) -> PyResult<Self> {
         Ok(Self {
             packet_id,
             reason_codes: reason_codes.clone().unbind(),
             reason_str,
+            user_properties: user_properties
+                .unwrap_or_else(|| Python::with_gil(|py| PyList::empty(py).unbind())),
         })
     }
 
@@ -1272,6 +1331,7 @@ impl SubAckPacket {
     ) -> PyResult<usize> {
         let properties_nbytes = nbytes_properties!(self, {
             PropertyType::ReasonStr => reason_str: (Option<Py<PyString>>) = None,
+            PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = pyo3::types::PyList::empty(py),
         });
         let properties_remaining_length = VariableByteInteger::new(properties_nbytes as u32);
         let reason_codes = self.reason_codes.bind(py);
@@ -1297,6 +1357,7 @@ impl SubAckPacket {
         properties_remaining_length.write(&mut cursor);
         write_properties!(&mut cursor, self, {
             PropertyType::ReasonStr => reason_str: (Option<Py<PyString>>) = None,
+            PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = pyo3::types::PyList::empty(py),
         });
 
         // [3.9.3] Payload
@@ -1325,6 +1386,7 @@ impl SubAckPacket {
         let packet_id = u16::read(cursor)?;
         read_properties!("SubAckPacket", cursor, start_index, remaining_length, {
             PropertyType::ReasonStr => reason_str: (Option<Py<PyString>>) = None,
+            PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = pyo3::types::PyList::empty(py),
         });
 
         // [3.9.3] Payload
@@ -1339,6 +1401,7 @@ impl SubAckPacket {
             packet_id,
             reason_codes: reason_codes.unbind(),
             reason_str,
+            user_properties: user_properties.unbind(),
         };
         Py::new(py, packet)
     }
@@ -1348,20 +1411,8 @@ impl PartialEq for SubAckPacket {
     fn eq(&self, other: &Self) -> bool {
         self.packet_id == other.packet_id
             && self.reason_str.py_eq(&other.reason_str)
-            && Python::with_gil(|py| -> PyResult<bool> {
-                let seq1 = self.reason_codes.bind(py);
-                let seq2 = other.reason_codes.bind(py);
-                Ok(seq1.len() == seq2.len()
-                    && seq1.try_iter()?.zip(seq2.try_iter()?).try_fold(
-                        true,
-                        |acc, (a, b)| -> PyResult<bool> {
-                            let sub1: PyRef<SubAckReasonCode> = a?.extract()?;
-                            let sub2: PyRef<SubAckReasonCode> = b?.extract()?;
-                            Ok(acc && *sub1 == *sub2)
-                        },
-                    )?)
-            })
-            .unwrap_or(false)
+            && self.reason_codes.py_eq(&other.reason_codes)
+            && self.user_properties.py_eq(&other.user_properties)
     }
 }
 
@@ -1369,6 +1420,7 @@ impl PartialEq for SubAckPacket {
 pub struct UnsubscribePacket {
     pub packet_id: u16,
     pub patterns: Py<PyList>,
+    pub user_properties: Py<PyList>,
 }
 
 #[pymethods]
@@ -1377,11 +1429,19 @@ impl UnsubscribePacket {
     #[pyo3(signature = (
         packet_id,
         patterns,
+        *,
+        user_properties=None,
     ))]
-    pub fn new(packet_id: u16, patterns: &Bound<'_, PyList>) -> PyResult<Self> {
+    pub fn new(
+        packet_id: u16,
+        patterns: &Bound<'_, PyList>,
+        user_properties: Option<Py<PyList>>,
+    ) -> PyResult<Self> {
         Ok(Self {
             packet_id,
             patterns: patterns.clone().unbind(),
+            user_properties: user_properties
+                .unwrap_or_else(|| Python::with_gil(|py| PyList::empty(py).unbind())),
         })
     }
 
@@ -1392,7 +1452,9 @@ impl UnsubscribePacket {
         buffer: &Bound<'_, PyByteArray>,
         index: usize,
     ) -> PyResult<usize> {
-        let properties_nbytes = nbytes_properties!(self, {});
+        let properties_nbytes = nbytes_properties!(self, {
+            PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = pyo3::types::PyList::empty(py),
+        });
         let properties_remaining_length = VariableByteInteger::new(properties_nbytes as u32);
         let patterns = self.patterns.bind(py);
         let nbytes = self.packet_id.nbytes()
@@ -1415,7 +1477,9 @@ impl UnsubscribePacket {
         // [3.9.2] Variable header
         self.packet_id.write(&mut cursor);
         properties_remaining_length.write(&mut cursor);
-        write_properties!(&mut cursor, self, {});
+        write_properties!(&mut cursor, self, {
+            PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = pyo3::types::PyList::empty(py),
+        });
 
         // [3.9.3] Payload
         for item in patterns.iter() {
@@ -1441,13 +1505,9 @@ impl UnsubscribePacket {
 
         // [3.10.2] Variable header
         let packet_id = u16::read(cursor)?;
-        read_properties!(
-            "UnsubscribePacket",
-            cursor,
-            start_index,
-            remaining_length,
-            {}
-        );
+        read_properties!("UnsubscribePacket", cursor, start_index, remaining_length, {
+            PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = pyo3::types::PyList::empty(py),
+        });
 
         // [3.9.3] Payload
         let patterns = PyList::empty(py);
@@ -1460,6 +1520,7 @@ impl UnsubscribePacket {
         let packet = Self {
             packet_id,
             patterns: patterns.unbind(),
+            user_properties: user_properties.unbind(),
         };
         Py::new(py, packet)
     }
@@ -1468,20 +1529,8 @@ impl UnsubscribePacket {
 impl PartialEq for UnsubscribePacket {
     fn eq(&self, other: &Self) -> bool {
         self.packet_id == other.packet_id
-            && Python::with_gil(|py| -> PyResult<bool> {
-                let seq1 = self.patterns.bind(py);
-                let seq2 = other.patterns.bind(py);
-                Ok(seq1.len() == seq2.len()
-                    && seq1.iter().zip(seq2.iter()).try_fold(
-                        true,
-                        |acc, (a, b)| -> PyResult<bool> {
-                            let a: Py<PyString> = a.extract()?;
-                            let b: Py<PyString> = b.extract()?;
-                            Ok(acc && a.py_eq(&b))
-                        },
-                    )?)
-            })
-            .unwrap_or(false)
+            && self.patterns.py_eq(&other.patterns)
+            && self.user_properties.py_eq(&other.user_properties)
     }
 }
 
@@ -1490,6 +1539,7 @@ pub struct UnsubAckPacket {
     pub packet_id: u16,
     pub reason_codes: Py<PyList>,
     pub reason_str: Option<Py<PyString>>,
+    pub user_properties: Py<PyList>,
 }
 
 #[pymethods]
@@ -1500,16 +1550,20 @@ impl UnsubAckPacket {
         reason_codes,
         *,
         reason_str=None,
+        user_properties=None,
     ))]
     pub fn new(
         packet_id: u16,
         reason_codes: &Bound<'_, PyList>,
         reason_str: Option<Py<PyString>>,
+        user_properties: Option<Py<PyList>>,
     ) -> PyResult<Self> {
         Ok(Self {
             packet_id,
             reason_codes: reason_codes.clone().unbind(),
             reason_str,
+            user_properties: user_properties
+                .unwrap_or_else(|| Python::with_gil(|py| PyList::empty(py).unbind())),
         })
     }
 
@@ -1522,6 +1576,7 @@ impl UnsubAckPacket {
     ) -> PyResult<usize> {
         let properties_nbytes = nbytes_properties!(self, {
             PropertyType::ReasonStr => reason_str: (Option<Py<PyString>>) = None,
+            PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = pyo3::types::PyList::empty(py),
         });
         let properties_remaining_length = VariableByteInteger::new(properties_nbytes as u32);
         let reason_codes = self.reason_codes.bind(py);
@@ -1547,6 +1602,7 @@ impl UnsubAckPacket {
         properties_remaining_length.write(&mut cursor);
         write_properties!(&mut cursor, self, {
             PropertyType::ReasonStr => reason_str: (Option<Py<PyString>>) = None,
+            PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = pyo3::types::PyList::empty(py),
         });
 
         // [3.11.3] Payload
@@ -1575,6 +1631,7 @@ impl UnsubAckPacket {
         let packet_id = u16::read(cursor)?;
         read_properties!("UnsubAckPacket", cursor, start_index, remaining_length, {
             PropertyType::ReasonStr => reason_str: (Option<Py<PyString>>) = None,
+            PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = pyo3::types::PyList::empty(py),
         });
 
         // [3.11.3] Payload
@@ -1589,6 +1646,7 @@ impl UnsubAckPacket {
             packet_id,
             reason_codes: reason_codes.unbind(),
             reason_str,
+            user_properties: user_properties.unbind(),
         };
         Py::new(py, packet)
     }
@@ -1598,20 +1656,8 @@ impl PartialEq for UnsubAckPacket {
     fn eq(&self, other: &Self) -> bool {
         self.packet_id == other.packet_id
             && self.reason_str.py_eq(&other.reason_str)
-            && Python::with_gil(|py| -> PyResult<bool> {
-                let seq1 = self.reason_codes.bind(py);
-                let seq2 = other.reason_codes.bind(py);
-                Ok(seq1.len() == seq2.len()
-                    && seq1.try_iter()?.zip(seq2.try_iter()?).try_fold(
-                        true,
-                        |acc, (a, b)| -> PyResult<bool> {
-                            let sub1: PyRef<UnsubAckReasonCode> = a?.extract()?;
-                            let sub2: PyRef<UnsubAckReasonCode> = b?.extract()?;
-                            Ok(acc && *sub1 == *sub2)
-                        },
-                    )?)
-            })
-            .unwrap_or(false)
+            && self.reason_codes.py_eq(&other.reason_codes)
+            && self.user_properties.py_eq(&other.user_properties)
     }
 }
 
@@ -1719,6 +1765,7 @@ pub struct DisconnectPacket {
     pub session_expiry_interval: Option<u32>,
     pub server_reference: Option<Py<PyString>>,
     pub reason_str: Option<Py<PyString>>,
+    pub user_properties: Py<PyList>,
 }
 
 #[pymethods]
@@ -1730,18 +1777,22 @@ impl DisconnectPacket {
         session_expiry_interval=None,
         server_reference=None,
         reason_str=None,
+        user_properties=None,
     ))]
     pub fn new(
         reason_code: DisconnectReasonCode,
         session_expiry_interval: Option<u32>,
         server_reference: Option<Py<PyString>>,
         reason_str: Option<Py<PyString>>,
+        user_properties: Option<Py<PyList>>,
     ) -> PyResult<Self> {
         Ok(Self {
             reason_code,
             session_expiry_interval,
             server_reference,
             reason_str,
+            user_properties: user_properties
+                .unwrap_or_else(|| Python::with_gil(|py| PyList::empty(py).unbind())),
         })
     }
 
@@ -1751,6 +1802,7 @@ impl DisconnectPacket {
             PropertyType::SessionExpiryInterval => session_expiry_interval: (Option<u32>) = None,
             PropertyType::ServerReference => server_reference: (Option<Py<PyString>>) = None,
             PropertyType::ReasonStr => reason_str: (Option<Py<PyString>>) = None,
+            PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = pyo3::types::PyList::empty(py),
         });
         let properties_remaining_length = VariableByteInteger::new(properties_nbytes as u32);
         let nbytes =
@@ -1771,6 +1823,7 @@ impl DisconnectPacket {
             PropertyType::SessionExpiryInterval => session_expiry_interval: (Option<u32>) = None,
             PropertyType::ServerReference => server_reference: (Option<Py<PyString>>) = None,
             PropertyType::ReasonStr => reason_str: (Option<Py<PyString>>) = None,
+            PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = pyo3::types::PyList::empty(py),
         });
 
         Ok(cursor.index - index)
@@ -1799,6 +1852,7 @@ impl DisconnectPacket {
             PropertyType::SessionExpiryInterval => session_expiry_interval: (Option<u32>) = None,
             PropertyType::ServerReference => server_reference: (Option<Py<PyString>>) = None,
             PropertyType::ReasonStr => reason_str: (Option<Py<PyString>>) = None,
+            PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = pyo3::types::PyList::empty(py),
         });
 
         // Return the Python object
@@ -1807,6 +1861,7 @@ impl DisconnectPacket {
             session_expiry_interval,
             server_reference,
             reason_str,
+            user_properties: user_properties.unbind(),
         };
         Py::new(py, packet)
     }
@@ -1818,5 +1873,6 @@ impl PartialEq for DisconnectPacket {
             && self.session_expiry_interval == other.session_expiry_interval
             && self.server_reference.py_eq(&other.server_reference)
             && self.reason_str.py_eq(&other.reason_str)
+            && self.user_properties.py_eq(&other.user_properties)
     }
 }
