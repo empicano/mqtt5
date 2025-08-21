@@ -24,10 +24,8 @@ macro_rules! read_properties {
             while $cursor.index - properties_start_index < properties_remaining_length.value() as usize {
                 let property_type = PropertyType::new(u8::read($cursor)?)?;
                 // Check for duplicates
-                if !matches!(
-                    property_type,
-                    PropertyType::UserProperty | PropertyType::SubscriptionId
-                ) {
+                if property_type != PropertyType::UserProperty
+                    && !(property_type == PropertyType::SubscriptionId && $packet_name == "PublishPacket") {
                     let bit = 1u64 << (property_type as u8);
                     if seen & bit != 0 {
                         return Err(PyValueError::new_err(format!(
