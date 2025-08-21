@@ -311,6 +311,40 @@ def pubrel_packet_full_mqttproto():
     )
 
 
+def pubcomp_packet():
+    return mqtt5.PubCompPacket(packet_id=1234)
+
+
+def pubcomp_packet_mqttproto():
+    return mqttproto.MQTTPublishCompletePacket(
+        packet_id=1234, reason_code=mqttproto.ReasonCode.SUCCESS
+    )
+
+
+def pubcomp_packet_full():
+    return mqtt5.PubCompPacket(
+        packet_id=1234,
+        reason_code=mqtt5.PubCompReasonCode.PACKET_ID_NOT_FOUND,
+        reason_str="The reason string is a human readable string designed for diagnostics.",
+        user_properties=[
+            ("location", "Pallet Town"),
+            ("type", "Grass"),
+            # ("type", "Poison"),  # TODO: mqttproto doesn't support duplicate property keys
+        ],
+    )
+
+
+def pubcomp_packet_full_mqttproto():
+    return mqttproto.MQTTPublishCompletePacket(
+        packet_id=1234,
+        reason_code=mqttproto.ReasonCode.PACKET_IDENTIFIER_NOT_FOUND,
+        properties={
+            mqttproto.PropertyType.REASON_STRING: "The reason string is a human readable string designed for diagnostics.",
+        },
+        user_properties={"location": "Pallet Town", "type": "Grass"},
+    )
+
+
 def subscribe_packet():
     return mqtt5.SubscribePacket(
         packet_id=1234, subscriptions=[mqtt5.Subscription(pattern="foo/bar/+")]

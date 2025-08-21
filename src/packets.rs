@@ -1375,6 +1375,116 @@ impl PartialEq for PubRelPacket {
 }
 
 #[pyclass(frozen, eq, get_all, module = "mqtt5")]
+pub struct PubCompPacket {
+    pub packet_id: u16,
+    pub reason_code: PubCompReasonCode,
+    pub reason_str: Option<Py<PyString>>,
+    pub user_properties: Py<PyList>,
+}
+
+#[pymethods]
+impl PubCompPacket {
+    #[new]
+    #[pyo3(signature = (
+        packet_id,
+        *,
+        reason_code=PubCompReasonCode::Success,
+        reason_str=None,
+        user_properties=None,
+    ))]
+    pub fn new(
+        packet_id: u16,
+        reason_code: PubCompReasonCode,
+        reason_str: Option<Py<PyString>>,
+        user_properties: Option<Py<PyList>>,
+    ) -> PyResult<Self> {
+        Ok(Self {
+            packet_id,
+            reason_code,
+            reason_str,
+            user_properties: user_properties
+                .unwrap_or_else(|| Python::with_gil(|py| PyList::empty(py).unbind())),
+        })
+    }
+
+    #[pyo3(signature = (buffer, /, *, index=0))]
+    pub fn write(&self, buffer: &Bound<'_, PyByteArray>, index: usize) -> PyResult<usize> {
+        let properties_nbytes = nbytes_properties!(self, {
+            PropertyType::ReasonStr => reason_str: (Option<Py<PyString>>) = None,
+            PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = PyList::empty(py),
+        });
+        let properties_remaining_length = VariableByteInteger::new(properties_nbytes as u32);
+        let nbytes = self.packet_id.nbytes()
+            + self.reason_code.nbytes()
+            + properties_remaining_length.nbytes()
+            + properties_nbytes;
+        let remaining_length = VariableByteInteger::new(nbytes as u32);
+        let mut cursor = Cursor::new(buffer, index);
+        cursor.require(1 + remaining_length.nbytes() + nbytes)?;
+
+        // [3.7.1] Fixed header
+        let first_byte = (PacketType::PubComp as u8) << 4;
+        first_byte.write(&mut cursor);
+        remaining_length.write(&mut cursor);
+
+        // [3.7.2] Variable header
+        self.packet_id.write(&mut cursor);
+        self.reason_code.write(&mut cursor);
+        properties_remaining_length.write(&mut cursor);
+        write_properties!(&mut cursor, self, {
+            PropertyType::ReasonStr => reason_str: (Option<Py<PyString>>) = None,
+            PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = PyList::empty(py),
+        });
+
+        Ok(cursor.index - index)
+    }
+}
+
+impl PubCompPacket {
+    pub fn read(
+        py: Python,
+        cursor: &mut Cursor,
+        flags: u8,
+        remaining_length: VariableByteInteger,
+    ) -> PyResult<Py<Self>> {
+        if flags != 0x00 {
+            return Err(PyValueError::new_err("Malformed bytes"));
+        }
+        let start_index = cursor.index;
+
+        // [3.7.2] Variable header
+        let packet_id = u16::read(cursor)?;
+        let reason_code = if remaining_length.value() > 2 {
+            PubCompReasonCode::read(cursor)?
+        } else {
+            PubCompReasonCode::Success
+        };
+        read_properties!("PubCompPacket", cursor, start_index, remaining_length, {
+            PropertyType::ReasonStr => reason_str: (Option<Py<PyString>>) = None,
+            PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = PyList::empty(py),
+        });
+
+        // Return the Python object
+        let packet = Self {
+            packet_id,
+            reason_code,
+            reason_str,
+            user_properties: user_properties.unbind(),
+        };
+        Py::new(py, packet)
+    }
+}
+
+impl PartialEq for PubCompPacket {
+    fn eq(&self, other: &Self) -> bool {
+        self.packet_id == other.packet_id
+            && self.reason_code == other.reason_code
+            && self.reason_str.py_eq(&other.reason_str)
+            && self.user_properties.py_eq(&other.user_properties)
+    }
+}
+
+#[pyclass(frozen, eq, get_all, module = "mqtt5")]
 pub struct SubscribePacket {
     pub packet_id: u16,
     pub subscriptions: Py<PyList>,
