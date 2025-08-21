@@ -69,7 +69,7 @@ def connect_packet_full():
             user_properties=[
                 ("location", "Pallet Town"),
                 ("type", "Grass"),
-                # ("type", "Poison"),  # mqttproto doesn't support duplicate property keys
+                # ("type", "Poison"),  # TODO: mqttproto doesn't support duplicate property keys
             ],
         ),
         keep_alive=6789,
@@ -84,7 +84,7 @@ def connect_packet_full():
         user_properties=[
             ("location", "Pallet Town"),
             ("type", "Grass"),
-            # ("type", "Poison"),  # mqttproto doesn't support duplicate property keys
+            # ("type", "Poison"),  # TODO: mqttproto doesn't support duplicate property keys
         ],
     )
 
@@ -158,7 +158,7 @@ def connack_packet_full():
         user_properties=[
             ("location", "Pallet Town"),
             ("type", "Grass"),
-            # ("type", "Poison"),  # mqttproto doesn't support duplicate property keys
+            # ("type", "Poison"),  # TODO: mqttproto doesn't support duplicate property keys
         ],
     )
 
@@ -261,7 +261,7 @@ def pubrec_packet_full():
         user_properties=[
             ("location", "Pallet Town"),
             ("type", "Grass"),
-            # ("type", "Poison"),  # mqttproto doesn't support duplicate property keys
+            # ("type", "Poison"),  # TODO: mqttproto doesn't support duplicate property keys
         ],
     )
 
@@ -270,6 +270,40 @@ def pubrec_packet_full_mqttproto():
     return mqttproto.MQTTPublishReceivePacket(
         packet_id=1234,
         reason_code=mqttproto.ReasonCode.NO_MATCHING_SUBSCRIBERS,
+        properties={
+            mqttproto.PropertyType.REASON_STRING: "The reason string is a human readable string designed for diagnostics.",
+        },
+        user_properties={"location": "Pallet Town", "type": "Grass"},
+    )
+
+
+def pubrel_packet():
+    return mqtt5.PubRelPacket(packet_id=1234)
+
+
+def pubrel_packet_mqttproto():
+    return mqttproto.MQTTPublishReleasePacket(
+        packet_id=1234, reason_code=mqttproto.ReasonCode.SUCCESS
+    )
+
+
+def pubrel_packet_full():
+    return mqtt5.PubRelPacket(
+        packet_id=1234,
+        reason_code=mqtt5.PubRelReasonCode.PACKET_ID_NOT_FOUND,
+        reason_str="The reason string is a human readable string designed for diagnostics.",
+        user_properties=[
+            ("location", "Pallet Town"),
+            ("type", "Grass"),
+            # ("type", "Poison"),  # TODO: mqttproto doesn't support duplicate property keys
+        ],
+    )
+
+
+def pubrel_packet_full_mqttproto():
+    return mqttproto.MQTTPublishReleasePacket(
+        packet_id=1234,
+        reason_code=mqttproto.ReasonCode.PACKET_IDENTIFIER_NOT_FOUND,
         properties={
             mqttproto.PropertyType.REASON_STRING: "The reason string is a human readable string designed for diagnostics.",
         },
@@ -319,7 +353,7 @@ def unsuback_packet():
         user_properties=[
             ("location", "Pallet Town"),
             ("type", "Grass"),
-            # ("type", "Poison"),  # mqttproto doesn't support duplicate property keys
+            # ("type", "Poison"),  # TODO: mqttproto doesn't support duplicate property keys
         ],
     )
 
@@ -370,7 +404,7 @@ def disconnect_packet_full():
         user_properties=[
             ("location", "Pallet Town"),
             ("type", "Grass"),
-            # ("type", "Poison"),  # mqttproto doesn't support duplicate property keys
+            # ("type", "Poison"),  # TODO: mqttproto doesn't support duplicate property keys
         ],
     )
 

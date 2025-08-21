@@ -57,6 +57,10 @@ class PubRecReasonCode(enum.IntEnum):
     QUOTA_EXCEEDED = 151
     PAYLOAD_FORMAT_INVALID = 153
 
+class PubRelReasonCode(enum.IntEnum):
+    SUCCESS = 0
+    PACKET_ID_NOT_FOUND = 146
+
 class PubCompReasonCode(enum.IntEnum):
     SUCCESS = 0
     PACKET_ID_NOT_FOUND = 146
@@ -336,6 +340,27 @@ class PubRecPacket:
         packet_id: int,
         *,
         reason_code: PubRecReasonCode = PubRecReasonCode.SUCCESS,
+        reason_str: str | None = None,
+        user_properties: list[tuple[str, str]] | None = None,
+    ) -> None: ...
+    def write(self, buffer: bytearray, /, *, index: int = 0) -> int:
+        """
+        Writes the packet to the buffer.
+
+        :return: The number of bytes written
+        """
+
+class PubRelPacket:
+    packet_id: int
+    reason_code: PubRelReasonCode
+    reason_str: str | None
+    user_properties: list[tuple[str, str]]
+
+    def __init__(
+        self,
+        packet_id: int,
+        *,
+        reason_code: PubRelReasonCode = PubRelReasonCode.SUCCESS,
         reason_str: str | None = None,
         user_properties: list[tuple[str, str]] | None = None,
     ) -> None: ...

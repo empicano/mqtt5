@@ -62,6 +62,13 @@ py_int_enum! {
 }
 
 py_int_enum! {
+    PubRelReasonCode {
+        Success = 0,
+        PacketIdNotFound = 146,
+    }
+}
+
+py_int_enum! {
     PubCompReasonCode {
         Success = 0,
         PacketIdNotFound = 146,
