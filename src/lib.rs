@@ -38,7 +38,10 @@ fn read(py: Python, buffer: &Bound<'_, PyByteArray>, index: usize) -> PyResult<(
             let packet = PubAckPacket::read(py, &mut cursor, flags, remaining_length)?;
             Ok((packet.into(), cursor.index))
         }
-        PacketType::PubRec => Err(PyValueError::new_err("Not implemented")),
+        PacketType::PubRec => {
+            let packet = PubRecPacket::read(py, &mut cursor, flags, remaining_length)?;
+            Ok((packet.into(), cursor.index))
+        }
         PacketType::PubRel => Err(PyValueError::new_err("Not implemented")),
         PacketType::PubComp => Err(PyValueError::new_err("Not implemented")),
         PacketType::Subscribe => {
@@ -80,6 +83,7 @@ fn mqtt5(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<ConnAckPacket>()?;
     m.add_class::<PublishPacket>()?;
     m.add_class::<PubAckPacket>()?;
+    m.add_class::<PubRecPacket>()?;
     m.add_class::<SubscribePacket>()?;
     m.add_class::<SubAckPacket>()?;
     m.add_class::<UnsubscribePacket>()?;
@@ -90,6 +94,7 @@ fn mqtt5(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // Reason codes
     m.add_class::<ConnAckReasonCode>()?;
     m.add_class::<PubAckReasonCode>()?;
+    m.add_class::<PubRecReasonCode>()?;
     m.add_class::<SubAckReasonCode>()?;
     m.add_class::<UnsubAckReasonCode>()?;
     m.add_class::<DisconnectReasonCode>()?;

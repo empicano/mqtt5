@@ -325,6 +325,27 @@ class PubAckPacket:
         :return: The number of bytes written
         """
 
+class PubRecPacket:
+    packet_id: int
+    reason_code: PubRecReasonCode
+    reason_str: str | None
+    user_properties: list[tuple[str, str]]
+
+    def __init__(
+        self,
+        packet_id: int,
+        *,
+        reason_code: PubRecReasonCode = PubRecReasonCode.SUCCESS,
+        reason_str: str | None = None,
+        user_properties: list[tuple[str, str]] | None = None,
+    ) -> None: ...
+    def write(self, buffer: bytearray, /, *, index: int = 0) -> int:
+        """
+        Writes the packet to the buffer.
+
+        :return: The number of bytes written
+        """
+
 class SubscribePacket:
     packet_id: int
     subscriptions: list[Subscription]
