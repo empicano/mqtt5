@@ -1,73 +1,12 @@
 use crate::io::{Cursor, Readable, Writable};
+use crate::types::py_int_enum;
 use num_enum::TryFromPrimitive;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::PyResult;
 use std::fmt;
 
-macro_rules! reason_code {
-    ( $name:ident { $($field:ident = $value:expr),* $(,)? } ) => {
-        #[pyclass(eq, str, rename_all = "SCREAMING_SNAKE_CASE", module = "mqtt5")]
-        #[derive(Copy, Clone, PartialEq, Eq, TryFromPrimitive)]
-        #[repr(u8)]
-        pub enum $name {
-            $($field = $value,)*
-        }
-
-        #[pymethods]
-        impl $name {
-            #[new]
-            pub fn new(value: u8) -> PyResult<Self> {
-                Self::try_from(value).map_err(|e| PyValueError::new_err(e.to_string()))
-            }
-
-            pub fn __repr__(&self) -> String {
-                let member_name = match self {
-                    $(Self::$field => stringify!($field).to_string(),)*
-                }
-                .chars()
-                .enumerate()
-                .flat_map(|(i, c)| {
-                    if i > 0 && c.is_uppercase() {
-                        vec!['_', c]
-                    } else {
-                        vec![c.to_ascii_uppercase()]
-                    }
-                })
-                .collect::<String>();
-                format!("<{}.{}: {}>", stringify!($name), member_name, *self as u8)
-            }
-        }
-
-        impl Readable for $name {
-            fn read(cursor: &mut Cursor<'_>) -> PyResult<Self> {
-                cursor.require(1)?;
-                let result = cursor.buffer[cursor.index];
-                cursor.index += 1;
-                Self::new(result)
-            }
-        }
-
-        impl Writable for $name {
-            fn write(&self, cursor: &mut Cursor<'_>) {
-                cursor.buffer[cursor.index] = *self as u8;
-                cursor.index += 1;
-            }
-
-            fn nbytes(&self) -> usize {
-                1
-            }
-        }
-
-        impl fmt::Display for $name {
-            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-                write!(f, "{}", *self as u8)
-            }
-        }
-    };
-}
-
-reason_code! {
+py_int_enum! {
     ConnAckReasonCode {
         Success = 0,
         UnspecifiedError = 128,
@@ -94,7 +33,7 @@ reason_code! {
     }
 }
 
-reason_code! {
+py_int_enum! {
     PubAckReasonCode {
         Success = 0,
         NoMatchingSubscribers = 16,
@@ -108,7 +47,7 @@ reason_code! {
     }
 }
 
-reason_code! {
+py_int_enum! {
     PubRecReasonCode {
         Success = 0,
         NoMatchingSubscribers = 16,
@@ -122,14 +61,14 @@ reason_code! {
     }
 }
 
-reason_code! {
+py_int_enum! {
     PubCompReasonCode {
         Success = 0,
         PacketIdNotFound = 146,
     }
 }
 
-reason_code! {
+py_int_enum! {
     SubAckReasonCode {
         GrantedQosAtMostOnce = 0,
         GrantedQosAtLeastOnce = 1,
@@ -146,7 +85,7 @@ reason_code! {
     }
 }
 
-reason_code! {
+py_int_enum! {
     UnsubAckReasonCode {
         Success = 0,
         NoSubscriptionExisted = 17,
@@ -158,7 +97,7 @@ reason_code! {
     }
 }
 
-reason_code! {
+py_int_enum! {
     DisconnectReasonCode {
         NormalDisconnection = 0,
         DisconnectWithWillMessage = 4,

@@ -98,8 +98,8 @@ impl PropertyType {
 
 macro_rules! py_int_enum {
     ( $name:ident { $($field:ident = $value:expr),* $(,)? } ) => {
-        #[pyclass(eq, str, rename_all = "SCREAMING_SNAKE_CASE", module = "mqtt5")]
-        #[derive(Clone, Copy, PartialEq, Eq, TryFromPrimitive)]
+        #[pyclass(eq, eq_int, str, rename_all = "SCREAMING_SNAKE_CASE", module = "mqtt5")]
+        #[derive(Copy, Clone, PartialEq, Eq, TryFromPrimitive)]
         #[repr(u8)]
         pub enum $name {
             $($field = $value,)*
@@ -157,6 +157,8 @@ macro_rules! py_int_enum {
         }
     };
 }
+
+pub(crate) use py_int_enum;
 
 py_int_enum! {
     QoS {
