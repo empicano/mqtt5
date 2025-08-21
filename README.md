@@ -2,7 +2,7 @@
 
 <a href="https://pypi.org/project/mqtt5"><img alt="PyPI downloads" src="https://img.shields.io/pypi/dm/mqtt5"></a> <a href="https://pypi.org/project/mqtt5"><img alt="PyPI version" src="https://img.shields.io/pypi/v/mqtt5"></a> <a href="https://pypi.org/project/mqtt5"><img alt="Supported Python versions" src="https://img.shields.io/pypi/pyversions/mqtt5"></a>
 
-An extremely fast sans-I/O implementation of the MQTTv5 protocol for Python, written in Rust. Serialization is ~5x faster and deserialization ~20x faster than comparable Python code (benchmarked against [mqttproto](https://github.com/agronholm/mqttproto)).
+A high-performance sans-I/O implementation of the MQTTv5 protocol for Python, written in Rust. Serialization is ~5x faster and deserialization ~20x faster than comparable Python code (benchmarked against [mqttproto](https://github.com/agronholm/mqttproto)).
 
 <p align="center">
     <img src="https://github.com/empicano/mqtt5/blob/main/chart.svg" width="650px" />
@@ -30,13 +30,13 @@ buffer = bytearray(b"\x20\x03\x00\x00\x00")
 packet, n = mqtt5.read(buffer)
 ```
 
-Note that mqtt5 only implements the low-level packet de/serialization. If you're looking for a complete MQTT client, check out [aiomqtt](https://github.com/empicano/aiomqtt).
-
 ## Installation
 
 ```bash
 pip install mqtt5
 ```
+
+Note that mqtt5 implements only the low-level packet de/serialization. If you're looking for a complete MQTT client, check out [aiomqtt](https://github.com/empicano/aiomqtt).
 
 ## Documentation
 
