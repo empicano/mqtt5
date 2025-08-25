@@ -61,11 +61,8 @@ for packet_name, packet_init, packet_init_mqttproto in benchmarks:
         )
     runner.timeit(
         name=f"mqtt5: Write {packet_name}",
-        setup="import mqtt5",
+        setup=f"import mqtt5; buffer = bytearray({len(buffer)})",
         stmt=source(packet_init) + ".write(buffer)",
-        # Packets are written to a pre-allocated buffer. Re-use a global variable
-        # instead of pre-allocating the buffer again and again between runs.
-        globals={"buffer": buffer},
     )
     if args.compare:
         runner.timeit(

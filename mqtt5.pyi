@@ -183,7 +183,7 @@ class ConnectPacket:
     username: str | None
     password: str | None
     clean_start: bool
-    will: Will
+    will: Will | None
     keep_alive: int
     session_expiry_interval: int
     authentication_method: str | None
