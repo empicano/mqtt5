@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2025-08-26
+
+- Implement `UnsubscribePacket` and `UnsubAckPacket`
+- Make integer enums comparable to `int`
+- Implement user properties
+- Deviate from the spec's variable names for common abbreviations
+- Implement `PubRecPacket`, `PubRelPacket`, and `PubCompPacket`
+- Implement `AuthPacket`
+
 ## [0.2.0] - 2025-08-17
 
 - Move properties from nested classes to top-level attributes
