@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Implement `.value` and `.name` for IntEnum classes
+
 ## [0.3.0] - 2025-08-26
 
 - Implement `UnsubscribePacket` and `UnsubAckPacket`

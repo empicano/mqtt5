@@ -118,6 +118,29 @@ macro_rules! py_int_enum {
                 Self::try_from(value).map_err(|e| PyValueError::new_err(e.to_string()))
             }
 
+            #[getter]
+            fn value(&self) -> PyResult<u8> {
+                Ok(*self as u8)
+            }
+
+            #[getter]
+            pub fn name(&self) -> PyResult<String> {
+                let member_name = match self {
+                    $(Self::$field => stringify!($field).to_string(),)*
+                }
+                .chars()
+                .enumerate()
+                .flat_map(|(i, c)| {
+                    if i > 0 && c.is_uppercase() {
+                        vec!['_', c]
+                    } else {
+                        vec![c.to_ascii_uppercase()]
+                    }
+                })
+                .collect::<String>();
+                Ok(member_name)
+            }
+
             pub fn __repr__(&self) -> String {
                 let member_name = match self {
                     $(Self::$field => stringify!($field).to_string(),)*
