@@ -164,7 +164,7 @@ class Subscription:
         self,
         pattern: str,
         *,
-        max_qos: QoS = QoS.AT_MOST_ONCE,
+        max_qos: QoS = QoS.EXACTLY_ONCE,
         no_local: bool = False,
         retain_as_published: bool = True,
         retain_handling: RetainHandling = RetainHandling.SEND_ALWAYS,
