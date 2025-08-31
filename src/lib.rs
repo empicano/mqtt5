@@ -38,7 +38,7 @@ fn read(py: Python, buffer: &Bound<'_, PyByteArray>, index: usize) -> PyResult<(
         PacketType::Disconnect => DisconnectPacket::read(py, &mut cursor, flags, remaining_length)?.into(),
         PacketType::Auth => AuthPacket::read(py, &mut cursor, flags, remaining_length)?.into(),
     };
-    Ok((packet, cursor.index))
+    Ok((packet, cursor.index - index))
 }
 
 #[pymodule]
