@@ -3,7 +3,7 @@ mod packets;
 mod reason_codes;
 mod types;
 
-use io::{Cursor, Readable, VariableByteInteger};
+use io::{ReadCursor, Readable, VariableByteInteger};
 use packets::*;
 use pyo3::prelude::*;
 use pyo3::types::PyByteArray;
@@ -15,7 +15,7 @@ use types::*;
 #[pyo3(signature = (buffer, /, *, index=0))]
 fn read(py: Python, buffer: &Bound<'_, PyByteArray>, index: usize) -> PyResult<(PyObject, usize)> {
     // Parse the fixed header
-    let mut cursor = Cursor::new(unsafe { buffer.as_bytes_mut() }, index);
+    let mut cursor = ReadCursor::new(unsafe { buffer.as_bytes() }, index);
     let first_byte = u8::read(&mut cursor)?;
     let flags = first_byte & 0x0F;
     let remaining_length = VariableByteInteger::read(&mut cursor)?;

@@ -1,4 +1,4 @@
-use crate::io::{Cursor, Readable, Writable};
+use crate::io::{ReadCursor, Readable, Writable, WriteCursor};
 use crate::types::py_int_enum;
 use num_enum::TryFromPrimitive;
 use pyo3::exceptions::PyValueError;

@@ -5,13 +5,24 @@ use pyo3::types::{PyBytes, PyString, PyStringMethods, PyTuple};
 use pyo3::PyResult;
 use std::fmt;
 
-pub struct Cursor<'a> {
+pub struct WriteCursor<'a> {
     pub buffer: &'a mut [u8],
     pub index: usize,
 }
 
-impl<'a> Cursor<'a> {
+impl<'a> WriteCursor<'a> {
     pub fn new(buffer: &'a mut [u8], index: usize) -> Self {
+        Self { buffer, index }
+    }
+}
+
+pub struct ReadCursor<'a> {
+    pub buffer: &'a [u8],
+    pub index: usize,
+}
+
+impl<'a> ReadCursor<'a> {
+    pub fn new(buffer: &'a [u8], index: usize) -> Self {
         Self { buffer, index }
     }
 
@@ -51,13 +62,13 @@ impl fmt::Display for VariableByteInteger {
 pub struct UserProperty(Py<PyTuple>);
 
 pub trait Readable {
-    fn read(cursor: &mut Cursor<'_>) -> PyResult<Self>
+    fn read(cursor: &mut ReadCursor<'_>) -> PyResult<Self>
     where
         Self: Sized;
 }
 
 impl Readable for u8 {
-    fn read(cursor: &mut Cursor<'_>) -> PyResult<Self> {
+    fn read(cursor: &mut ReadCursor<'_>) -> PyResult<Self> {
         cursor.require(1)?;
         let result = cursor.buffer[cursor.index];
         cursor.index += 1;
@@ -66,7 +77,7 @@ impl Readable for u8 {
 }
 
 impl Readable for u16 {
-    fn read(cursor: &mut Cursor<'_>) -> PyResult<Self> {
+    fn read(cursor: &mut ReadCursor<'_>) -> PyResult<Self> {
         cursor.require(2)?;
         let result = u16::from_be_bytes(
             cursor.buffer[cursor.index..cursor.index + 2]
@@ -79,7 +90,7 @@ impl Readable for u16 {
 }
 
 impl Readable for u32 {
-    fn read(cursor: &mut Cursor<'_>) -> PyResult<Self> {
+    fn read(cursor: &mut ReadCursor<'_>) -> PyResult<Self> {
         cursor.require(4)?;
         let result = u32::from_be_bytes(
             cursor.buffer[cursor.index..cursor.index + 4]
@@ -92,7 +103,7 @@ impl Readable for u32 {
 }
 
 impl Readable for bool {
-    fn read(cursor: &mut Cursor<'_>) -> PyResult<Self> {
+    fn read(cursor: &mut ReadCursor<'_>) -> PyResult<Self> {
         cursor.require(1)?;
         let byte = cursor.buffer[cursor.index];
         cursor.index += 1;
@@ -105,7 +116,7 @@ impl Readable for bool {
 }
 
 impl Readable for VariableByteInteger {
-    fn read(cursor: &mut Cursor<'_>) -> PyResult<Self> {
+    fn read(cursor: &mut ReadCursor<'_>) -> PyResult<Self> {
         let mut multiplier = 1;
         let mut result = 0;
         for _ in 0..4 {
@@ -123,7 +134,7 @@ impl Readable for VariableByteInteger {
 
 // TODO: Remove, replaced with PyBytes
 impl Readable for Vec<u8> {
-    fn read(cursor: &mut Cursor<'_>) -> PyResult<Self> {
+    fn read(cursor: &mut ReadCursor<'_>) -> PyResult<Self> {
         let length = u16::read(cursor)? as usize;
         cursor.require(length)?;
         let result = cursor.buffer[cursor.index..cursor.index + length].to_vec();
@@ -134,14 +145,14 @@ impl Readable for Vec<u8> {
 
 // TODO: Remove, replaced with PyString
 impl Readable for String {
-    fn read(cursor: &mut Cursor<'_>) -> PyResult<Self> {
+    fn read(cursor: &mut ReadCursor<'_>) -> PyResult<Self> {
         let value = Vec::<u8>::read(cursor)?;
         String::from_utf8(value).map_err(|_| PyValueError::new_err("Malformed bytes"))
     }
 }
 
 impl Readable for Py<PyBytes> {
-    fn read(cursor: &mut Cursor<'_>) -> PyResult<Self> {
+    fn read(cursor: &mut ReadCursor<'_>) -> PyResult<Self> {
         let length = u16::read(cursor)? as usize;
         cursor.require(length)?;
         let result = Python::with_gil(|py| {
@@ -153,7 +164,7 @@ impl Readable for Py<PyBytes> {
 }
 
 impl Readable for Py<PyString> {
-    fn read(cursor: &mut Cursor<'_>) -> PyResult<Self> {
+    fn read(cursor: &mut ReadCursor<'_>) -> PyResult<Self> {
         let length = u16::read(cursor)? as usize;
         cursor.require(length)?;
         let result = Python::with_gil(|py| {
@@ -168,7 +179,7 @@ impl Readable for Py<PyString> {
 }
 
 impl Readable for UserProperty {
-    fn read(cursor: &mut Cursor<'_>) -> PyResult<Self> {
+    fn read(cursor: &mut ReadCursor<'_>) -> PyResult<Self> {
         let key = Py::<PyString>::read(cursor)?;
         let value = Py::<PyString>::read(cursor)?;
         Ok(Python::with_gil(|py| {
@@ -179,12 +190,12 @@ impl Readable for UserProperty {
 }
 
 pub trait Writable {
-    fn write(&self, cursor: &mut Cursor<'_>);
+    fn write(&self, cursor: &mut WriteCursor<'_>);
     fn nbytes(&self) -> usize;
 }
 
 impl Writable for u8 {
-    fn write(&self, cursor: &mut Cursor<'_>) {
+    fn write(&self, cursor: &mut WriteCursor<'_>) {
         cursor.buffer[cursor.index] = *self;
         cursor.index += 1;
     }
@@ -195,7 +206,7 @@ impl Writable for u8 {
 }
 
 impl Writable for u16 {
-    fn write(&self, cursor: &mut Cursor<'_>) {
+    fn write(&self, cursor: &mut WriteCursor<'_>) {
         let bytes = self.to_be_bytes();
         cursor.buffer[cursor.index..cursor.index + 2].copy_from_slice(&bytes);
         cursor.index += 2;
@@ -207,7 +218,7 @@ impl Writable for u16 {
 }
 
 impl Writable for u32 {
-    fn write(&self, cursor: &mut Cursor<'_>) {
+    fn write(&self, cursor: &mut WriteCursor<'_>) {
         let bytes = self.to_be_bytes();
         cursor.buffer[cursor.index..cursor.index + 4].copy_from_slice(&bytes);
         cursor.index += 4;
@@ -219,7 +230,7 @@ impl Writable for u32 {
 }
 
 impl Writable for bool {
-    fn write(&self, cursor: &mut Cursor<'_>) {
+    fn write(&self, cursor: &mut WriteCursor<'_>) {
         cursor.buffer[cursor.index] = if *self { 1 } else { 0 };
         cursor.index += 1;
     }
@@ -230,7 +241,7 @@ impl Writable for bool {
 }
 
 impl Writable for VariableByteInteger {
-    fn write(&self, cursor: &mut Cursor<'_>) {
+    fn write(&self, cursor: &mut WriteCursor<'_>) {
         let mut remainder = self.0;
         for _ in 0..self.nbytes() {
             let mut byte = (remainder & 0x7F) as u8;
@@ -255,7 +266,7 @@ impl Writable for VariableByteInteger {
 }
 
 impl Writable for &[u8] {
-    fn write(&self, cursor: &mut Cursor<'_>) {
+    fn write(&self, cursor: &mut WriteCursor<'_>) {
         let length = self.len();
         (length as u16).write(cursor);
         cursor.buffer[cursor.index..cursor.index + length].copy_from_slice(self);
@@ -268,7 +279,7 @@ impl Writable for &[u8] {
 }
 
 impl Writable for &str {
-    fn write(&self, cursor: &mut Cursor<'_>) {
+    fn write(&self, cursor: &mut WriteCursor<'_>) {
         self.as_bytes().write(cursor);
     }
 
@@ -278,7 +289,7 @@ impl Writable for &str {
 }
 
 impl Writable for Py<PyBytes> {
-    fn write(&self, cursor: &mut Cursor<'_>) {
+    fn write(&self, cursor: &mut WriteCursor<'_>) {
         Python::with_gil(|py| {
             self.bind(py).as_bytes().write(cursor);
         })
@@ -290,7 +301,7 @@ impl Writable for Py<PyBytes> {
 }
 
 impl Writable for &Bound<'_, PyBytes> {
-    fn write(&self, cursor: &mut Cursor<'_>) {
+    fn write(&self, cursor: &mut WriteCursor<'_>) {
         self.as_bytes().write(cursor);
     }
 
@@ -300,7 +311,7 @@ impl Writable for &Bound<'_, PyBytes> {
 }
 
 impl Writable for Py<PyString> {
-    fn write(&self, cursor: &mut Cursor<'_>) {
+    fn write(&self, cursor: &mut WriteCursor<'_>) {
         Python::with_gil(|py| {
             self.bind(py).to_str().unwrap().write(cursor);
         })
@@ -312,7 +323,7 @@ impl Writable for Py<PyString> {
 }
 
 impl Writable for &Bound<'_, PyString> {
-    fn write(&self, cursor: &mut Cursor<'_>) {
+    fn write(&self, cursor: &mut WriteCursor<'_>) {
         self.to_str().unwrap().write(cursor);
     }
 
@@ -322,7 +333,7 @@ impl Writable for &Bound<'_, PyString> {
 }
 
 impl Writable for UserProperty {
-    fn write(&self, cursor: &mut Cursor<'_>) {
+    fn write(&self, cursor: &mut WriteCursor<'_>) {
         Python::with_gil(|py| {
             let tuple = self.0.bind(py);
             let key: Py<PyString> = tuple.get_item(0).unwrap().extract().unwrap();
@@ -343,7 +354,7 @@ impl Writable for UserProperty {
 }
 
 impl<T: Writable> Writable for Option<T> {
-    fn write(&self, cursor: &mut Cursor<'_>) {
+    fn write(&self, cursor: &mut WriteCursor<'_>) {
         if let Some(ref value) = self {
             value.write(cursor);
         }

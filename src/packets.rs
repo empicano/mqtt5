@@ -1,4 +1,4 @@
-use crate::io::{Cursor, Readable, UserProperty, VariableByteInteger, Writable};
+use crate::io::{ReadCursor, Readable, UserProperty, VariableByteInteger, Writable, WriteCursor};
 use crate::reason_codes::*;
 use crate::types::{PacketType, PropertyType, PyEq, QoS, RetainHandling};
 use pyo3::exceptions::PyValueError;
@@ -394,7 +394,7 @@ impl ConnectPacket {
             + self.password.nbytes();
         let remaining_length = VariableByteInteger::new(nbytes as u32);
         PyBytes::new_with(py, 1 + remaining_length.nbytes() + nbytes, |buffer| {
-            let mut cursor = Cursor::new(buffer, 0);
+            let mut cursor = WriteCursor::new(buffer, 0);
 
             // [3.1.1] Fixed header
             let first_byte = (PacketType::Connect as u8) << 4;
@@ -463,7 +463,7 @@ impl ConnectPacket {
 impl ConnectPacket {
     pub fn read(
         py: Python,
-        cursor: &mut Cursor,
+        cursor: &mut ReadCursor,
         flags: u8,
         remaining_length: VariableByteInteger,
     ) -> PyResult<Py<Self>> {
@@ -699,7 +699,7 @@ impl ConnAckPacket {
             + properties_nbytes;
         let remaining_length = VariableByteInteger::new(nbytes as u32);
         PyBytes::new_with(py, 1 + remaining_length.nbytes() + nbytes, |buffer| {
-            let mut cursor = Cursor::new(buffer, 0);
+            let mut cursor = WriteCursor::new(buffer, 0);
 
             // [3.2.1] Fixed header
             let first_byte = (PacketType::ConnAck as u8) << 4;
@@ -740,7 +740,7 @@ impl ConnAckPacket {
 impl ConnAckPacket {
     pub fn read(
         py: Python,
-        cursor: &mut Cursor,
+        cursor: &mut ReadCursor,
         flags: u8,
         remaining_length: VariableByteInteger,
     ) -> PyResult<Py<Self>> {
@@ -929,7 +929,7 @@ impl PublishPacket {
             + payload.map_or(0, |payload| payload.len());
         let remaining_length = VariableByteInteger::new(nbytes as u32);
         PyBytes::new_with(py, 1 + remaining_length.nbytes() + nbytes, |buffer| {
-            let mut cursor = Cursor::new(buffer, 0);
+            let mut cursor = WriteCursor::new(buffer, 0);
 
             // [3.3.1] Fixed header
             let first_byte = (PacketType::Publish as u8) << 4
@@ -971,7 +971,7 @@ impl PublishPacket {
 impl PublishPacket {
     pub fn read(
         py: Python,
-        cursor: &mut Cursor,
+        cursor: &mut ReadCursor,
         flags: u8,
         remaining_length: VariableByteInteger,
     ) -> PyResult<Py<Self>> {
@@ -1092,7 +1092,7 @@ impl PubAckPacket {
             + properties_nbytes;
         let remaining_length = VariableByteInteger::new(nbytes as u32);
         PyBytes::new_with(py, 1 + remaining_length.nbytes() + nbytes, |buffer| {
-            let mut cursor = Cursor::new(buffer, 0);
+            let mut cursor = WriteCursor::new(buffer, 0);
 
             // [3.4.1] Fixed header
             let first_byte = (PacketType::PubAck as u8) << 4;
@@ -1117,7 +1117,7 @@ impl PubAckPacket {
 impl PubAckPacket {
     pub fn read(
         py: Python,
-        cursor: &mut Cursor,
+        cursor: &mut ReadCursor,
         flags: u8,
         remaining_length: VariableByteInteger,
     ) -> PyResult<Py<Self>> {
@@ -1203,7 +1203,7 @@ impl PubRecPacket {
             + properties_nbytes;
         let remaining_length = VariableByteInteger::new(nbytes as u32);
         PyBytes::new_with(py, 1 + remaining_length.nbytes() + nbytes, |buffer| {
-            let mut cursor = Cursor::new(buffer, 0);
+            let mut cursor = WriteCursor::new(buffer, 0);
 
             // [3.5.1] Fixed header
             let first_byte = (PacketType::PubRec as u8) << 4;
@@ -1228,7 +1228,7 @@ impl PubRecPacket {
 impl PubRecPacket {
     pub fn read(
         py: Python,
-        cursor: &mut Cursor,
+        cursor: &mut ReadCursor,
         flags: u8,
         remaining_length: VariableByteInteger,
     ) -> PyResult<Py<Self>> {
@@ -1314,7 +1314,7 @@ impl PubRelPacket {
             + properties_nbytes;
         let remaining_length = VariableByteInteger::new(nbytes as u32);
         PyBytes::new_with(py, 1 + remaining_length.nbytes() + nbytes, |buffer| {
-            let mut cursor = Cursor::new(buffer, 0);
+            let mut cursor = WriteCursor::new(buffer, 0);
 
             // [3.6.1] Fixed header
             let first_byte = (PacketType::PubRel as u8) << 4 | 0x02;
@@ -1339,7 +1339,7 @@ impl PubRelPacket {
 impl PubRelPacket {
     pub fn read(
         py: Python,
-        cursor: &mut Cursor,
+        cursor: &mut ReadCursor,
         flags: u8,
         remaining_length: VariableByteInteger,
     ) -> PyResult<Py<Self>> {
@@ -1425,7 +1425,7 @@ impl PubCompPacket {
             + properties_nbytes;
         let remaining_length = VariableByteInteger::new(nbytes as u32);
         PyBytes::new_with(py, 1 + remaining_length.nbytes() + nbytes, |buffer| {
-            let mut cursor = Cursor::new(buffer, 0);
+            let mut cursor = WriteCursor::new(buffer, 0);
 
             // [3.7.1] Fixed header
             let first_byte = (PacketType::PubComp as u8) << 4;
@@ -1450,7 +1450,7 @@ impl PubCompPacket {
 impl PubCompPacket {
     pub fn read(
         py: Python,
-        cursor: &mut Cursor,
+        cursor: &mut ReadCursor,
         flags: u8,
         remaining_length: VariableByteInteger,
     ) -> PyResult<Py<Self>> {
@@ -1535,7 +1535,7 @@ impl SubscribePacket {
                 })?;
         let remaining_length = VariableByteInteger::new(nbytes as u32);
         PyBytes::new_with(py, 1 + remaining_length.nbytes() + nbytes, |buffer| {
-            let mut cursor = Cursor::new(buffer, 0);
+            let mut cursor = WriteCursor::new(buffer, 0);
 
             // [3.8.1] Fixed header
             let first_byte = (PacketType::Subscribe as u8) << 4 | 0x02;
@@ -1569,7 +1569,7 @@ impl SubscribePacket {
 impl SubscribePacket {
     pub fn read(
         py: Python,
-        cursor: &mut Cursor,
+        cursor: &mut ReadCursor,
         flags: u8,
         remaining_length: VariableByteInteger,
     ) -> PyResult<Py<Self>> {
@@ -1667,7 +1667,7 @@ impl SubAckPacket {
                 })?;
         let remaining_length = VariableByteInteger::new(nbytes as u32);
         PyBytes::new_with(py, 1 + remaining_length.nbytes() + nbytes, |buffer| {
-            let mut cursor = Cursor::new(buffer, 0);
+            let mut cursor = WriteCursor::new(buffer, 0);
 
             // [3.9.1] Fixed header
             let first_byte = (PacketType::SubAck as u8) << 4;
@@ -1697,7 +1697,7 @@ impl SubAckPacket {
 impl SubAckPacket {
     pub fn read(
         py: Python,
-        cursor: &mut Cursor,
+        cursor: &mut ReadCursor,
         flags: u8,
         remaining_length: VariableByteInteger,
     ) -> PyResult<Py<Self>> {
@@ -1785,7 +1785,7 @@ impl UnsubscribePacket {
                 })?;
         let remaining_length = VariableByteInteger::new(nbytes as u32);
         PyBytes::new_with(py, 1 + remaining_length.nbytes() + nbytes, |buffer| {
-            let mut cursor = Cursor::new(buffer, 0);
+            let mut cursor = WriteCursor::new(buffer, 0);
 
             // [3.9.1] Fixed header
             let first_byte = (PacketType::Unsubscribe as u8) << 4 | 0x02;
@@ -1814,7 +1814,7 @@ impl UnsubscribePacket {
 impl UnsubscribePacket {
     pub fn read(
         py: Python,
-        cursor: &mut Cursor,
+        cursor: &mut ReadCursor,
         flags: u8,
         remaining_length: VariableByteInteger,
     ) -> PyResult<Py<Self>> {
@@ -1904,7 +1904,7 @@ impl UnsubAckPacket {
                 })?;
         let remaining_length = VariableByteInteger::new(nbytes as u32);
         PyBytes::new_with(py, 1 + remaining_length.nbytes() + nbytes, |buffer| {
-            let mut cursor = Cursor::new(buffer, 0);
+            let mut cursor = WriteCursor::new(buffer, 0);
 
             // [3.11.1] Fixed header
             let first_byte = (PacketType::UnsubAck as u8) << 4;
@@ -1934,7 +1934,7 @@ impl UnsubAckPacket {
 impl UnsubAckPacket {
     pub fn read(
         py: Python,
-        cursor: &mut Cursor,
+        cursor: &mut ReadCursor,
         flags: u8,
         remaining_length: VariableByteInteger,
     ) -> PyResult<Py<Self>> {
@@ -1991,7 +1991,7 @@ impl PingReqPacket {
     pub fn write(&self, py: Python) -> PyResult<Py<PyBytes>> {
         let remaining_length = VariableByteInteger::new(0);
         PyBytes::new_with(py, 1 + remaining_length.nbytes(), |buffer| {
-            let mut cursor = Cursor::new(buffer, 0);
+            let mut cursor = WriteCursor::new(buffer, 0);
 
             // [3.12.1] Fixed header
             let first_byte = (PacketType::PingReq as u8) << 4;
@@ -2007,7 +2007,7 @@ impl PingReqPacket {
 impl PingReqPacket {
     pub fn read(
         py: Python,
-        _cursor: &mut Cursor,
+        _cursor: &mut ReadCursor,
         flags: u8,
         _remaining_length: VariableByteInteger,
     ) -> PyResult<Py<Self>> {
@@ -2041,7 +2041,7 @@ impl PingRespPacket {
     pub fn write(&self, py: Python) -> PyResult<Py<PyBytes>> {
         let remaining_length = VariableByteInteger::new(0);
         PyBytes::new_with(py, 1 + remaining_length.nbytes(), |buffer| {
-            let mut cursor = Cursor::new(buffer, 0);
+            let mut cursor = WriteCursor::new(buffer, 0);
 
             // [3.13.1] Fixed header
             let first_byte = (PacketType::PingResp as u8) << 4;
@@ -2057,7 +2057,7 @@ impl PingRespPacket {
 impl PingRespPacket {
     pub fn read(
         py: Python,
-        _cursor: &mut Cursor,
+        _cursor: &mut ReadCursor,
         flags: u8,
         _remaining_length: VariableByteInteger,
     ) -> PyResult<Py<Self>> {
@@ -2126,7 +2126,7 @@ impl DisconnectPacket {
             self.reason_code.nbytes() + properties_remaining_length.nbytes() + properties_nbytes;
         let remaining_length = VariableByteInteger::new(nbytes as u32);
         PyBytes::new_with(py, 1 + remaining_length.nbytes() + nbytes, |buffer| {
-            let mut cursor = Cursor::new(buffer, 0);
+            let mut cursor = WriteCursor::new(buffer, 0);
 
             // [3.14.1] Fixed header
             let first_byte = (PacketType::Disconnect as u8) << 4;
@@ -2152,7 +2152,7 @@ impl DisconnectPacket {
 impl DisconnectPacket {
     pub fn read(
         py: Python,
-        cursor: &mut Cursor,
+        cursor: &mut ReadCursor,
         flags: u8,
         remaining_length: VariableByteInteger,
     ) -> PyResult<Py<Self>> {
@@ -2245,7 +2245,7 @@ impl AuthPacket {
             self.reason_code.nbytes() + properties_remaining_length.nbytes() + properties_nbytes;
         let remaining_length = VariableByteInteger::new(nbytes as u32);
         PyBytes::new_with(py, 1 + remaining_length.nbytes() + nbytes, |buffer| {
-            let mut cursor = Cursor::new(buffer, 0);
+            let mut cursor = WriteCursor::new(buffer, 0);
 
             // [3.15.1] Fixed header
             let first_byte = (PacketType::Auth as u8) << 4;
@@ -2271,7 +2271,7 @@ impl AuthPacket {
 impl AuthPacket {
     pub fn read(
         py: Python,
-        cursor: &mut Cursor,
+        cursor: &mut ReadCursor,
         flags: u8,
         remaining_length: VariableByteInteger,
     ) -> PyResult<Py<Self>> {

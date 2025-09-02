@@ -56,7 +56,7 @@ for packet_name, packet_init, packet_init_mqttproto in benchmarks:
     if args.compare:
         runner.timeit(
             name=f"proto: Read {packet_name}",
-            setup=f"import mqttproto; buffer = memoryview(bytearray({bytes(buffer)!r}))",
+            setup=f"import mqttproto; buffer = memoryview({bytes(buffer)!r})",
             stmt="mqttproto._types.decode_packet(buffer)",
         )
     runner.timeit(

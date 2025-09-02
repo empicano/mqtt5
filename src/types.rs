@@ -1,4 +1,4 @@
-use crate::io::{Cursor, Readable, Writable};
+use crate::io::{ReadCursor, Readable, Writable, WriteCursor};
 use num_enum::TryFromPrimitive;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
@@ -166,7 +166,7 @@ macro_rules! py_int_enum {
         }
 
         impl Readable for $name {
-            fn read(cursor: &mut Cursor<'_>) -> PyResult<Self> {
+            fn read(cursor: &mut ReadCursor<'_>) -> PyResult<Self> {
                 cursor.require(1)?;
                 let result = Self::new(cursor.buffer[cursor.index])?;
                 cursor.index += 1;
@@ -175,7 +175,7 @@ macro_rules! py_int_enum {
         }
 
         impl Writable for $name {
-            fn write(&self, cursor: &mut Cursor<'_>) {
+            fn write(&self, cursor: &mut WriteCursor<'_>) {
                 cursor.buffer[cursor.index] = *self as u8;
                 cursor.index += 1;
             }
