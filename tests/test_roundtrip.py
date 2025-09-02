@@ -8,8 +8,8 @@ import conftest
 @pytest.mark.parametrize("packet", conftest.PACKETS, ids=conftest.PACKET_NAMES)
 def test_roundtrip(packet, buffer):
     """Test write/read (roundtrip) consistency for all packet types."""
-    n = packet.write(buffer)
-    packet2, n2 = mqtt5.read(buffer)
-    assert n == n2
+    data = packet.write()
+    packet2, nbytes = mqtt5.read(bytearray(data))
+    assert nbytes == len(data)
     assert isinstance(packet2, type(packet))
     assert packet == packet2

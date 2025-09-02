@@ -171,11 +171,11 @@ class Subscription:
     ) -> None: ...
 
 class Packet(typing.Protocol):
-    def write(self, buffer: bytearray, /, *, index: int = 0) -> int:
-        """
-        Writes the packet to the buffer.
+    def write(self) -> bytes:
+        """Serialize the packet to bytes.
 
-        :return: The number of bytes written
+        Returns:
+            The serialized packet as bytes.
         """
 
 class ConnectPacket:
@@ -214,11 +214,11 @@ class ConnectPacket:
         max_packet_size: int | None = None,
         user_properties: list[tuple[str, str]] | None = None,
     ) -> None: ...
-    def write(self, buffer: bytearray, /, *, index: int = 0) -> int:
-        """
-        Writes the packet to the buffer.
+    def write(self) -> bytes:
+        """Serialize the packet to bytes.
 
-        :return: The number of bytes written
+        Returns:
+            The serialized packet as bytes.
         """
 
 class ConnAckPacket:
@@ -265,11 +265,11 @@ class ConnAckPacket:
         shared_subscription_available: bool = True,
         user_properties: list[tuple[str, str]] | None = None,
     ): ...
-    def write(self, buffer: bytearray, /, *, index: int = 0) -> int:
-        """
-        Writes the packet to the buffer.
+    def write(self) -> bytes:
+        """Serialize the packet to bytes.
 
-        :return: The number of bytes written
+        Returns:
+            The serialized packet as bytes.
         """
 
 class PublishPacket:
@@ -306,11 +306,11 @@ class PublishPacket:
         topic_alias: int | None = None,
         user_properties: list[tuple[str, str]] | None = None,
     ) -> None: ...
-    def write(self, buffer: bytearray, /, *, index: int = 0) -> int:
-        """
-        Writes the packet to the buffer.
+    def write(self) -> bytes:
+        """Serialize the packet to bytes.
 
-        :return: The number of bytes written
+        Returns:
+            The serialized packet as bytes.
         """
 
 class PubAckPacket:
@@ -327,11 +327,11 @@ class PubAckPacket:
         reason_str: str | None = None,
         user_properties: list[tuple[str, str]] | None = None,
     ) -> None: ...
-    def write(self, buffer: bytearray, /, *, index: int = 0) -> int:
-        """
-        Writes the packet to the buffer.
+    def write(self) -> bytes:
+        """Serialize the packet to bytes.
 
-        :return: The number of bytes written
+        Returns:
+            The serialized packet as bytes.
         """
 
 class PubRecPacket:
@@ -348,11 +348,11 @@ class PubRecPacket:
         reason_str: str | None = None,
         user_properties: list[tuple[str, str]] | None = None,
     ) -> None: ...
-    def write(self, buffer: bytearray, /, *, index: int = 0) -> int:
-        """
-        Writes the packet to the buffer.
+    def write(self) -> bytes:
+        """Serialize the packet to bytes.
 
-        :return: The number of bytes written
+        Returns:
+            The serialized packet as bytes.
         """
 
 class PubRelPacket:
@@ -369,11 +369,11 @@ class PubRelPacket:
         reason_str: str | None = None,
         user_properties: list[tuple[str, str]] | None = None,
     ) -> None: ...
-    def write(self, buffer: bytearray, /, *, index: int = 0) -> int:
-        """
-        Writes the packet to the buffer.
+    def write(self) -> bytes:
+        """Serialize the packet to bytes.
 
-        :return: The number of bytes written
+        Returns:
+            The serialized packet as bytes.
         """
 
 class PubCompPacket:
@@ -390,11 +390,11 @@ class PubCompPacket:
         reason_str: str | None = None,
         user_properties: list[tuple[str, str]] | None = None,
     ) -> None: ...
-    def write(self, buffer: bytearray, /, *, index: int = 0) -> int:
-        """
-        Writes the packet to the buffer.
+    def write(self) -> bytes:
+        """Serialize the packet to bytes.
 
-        :return: The number of bytes written
+        Returns:
+            The serialized packet as bytes.
         """
 
 class SubscribePacket:
@@ -411,11 +411,11 @@ class SubscribePacket:
         subscription_id: int | None = None,
         user_properties: list[tuple[str, str]] | None = None,
     ) -> None: ...
-    def write(self, buffer: bytearray, /, *, index: int = 0) -> int:
-        """
-        Writes the packet to the buffer.
+    def write(self) -> bytes:
+        """Serialize the packet to bytes.
 
-        :return: The number of bytes written
+        Returns:
+            The serialized packet as bytes.
         """
 
 class SubAckPacket:
@@ -432,11 +432,11 @@ class SubAckPacket:
         reason_str: str | None = None,
         user_properties: list[tuple[str, str]] | None = None,
     ) -> None: ...
-    def write(self, buffer: bytearray, /, *, index: int = 0) -> int:
-        """
-        Writes the packet to the buffer.
+    def write(self) -> bytes:
+        """Serialize the packet to bytes.
 
-        :return: The number of bytes written
+        Returns:
+            The serialized packet as bytes.
         """
 
 class UnsubscribePacket:
@@ -451,11 +451,11 @@ class UnsubscribePacket:
         *,
         user_properties: list[tuple[str, str]] | None = None,
     ) -> None: ...
-    def write(self, buffer: bytearray, /, *, index: int = 0) -> int:
-        """
-        Writes the packet to the buffer.
+    def write(self) -> bytes:
+        """Serialize the packet to bytes.
 
-        :return: The number of bytes written
+        Returns:
+            The serialized packet as bytes.
         """
 
 class UnsubAckPacket:
@@ -472,29 +472,29 @@ class UnsubAckPacket:
         reason_str: str | None = None,
         user_properties: list[tuple[str, str]] | None = None,
     ) -> None: ...
-    def write(self, buffer: bytearray, /, *, index: int = 0) -> int:
-        """
-        Writes the packet to the buffer.
+    def write(self) -> bytes:
+        """Serialize the packet to bytes.
 
-        :return: The number of bytes written
+        Returns:
+            The serialized packet as bytes.
         """
 
 class PingReqPacket:
     def __init__(self) -> None: ...
-    def write(self, buffer: bytearray, /, *, index: int = 0) -> int:
-        """
-        Writes the packet to the buffer.
+    def write(self) -> bytes:
+        """Serialize the packet to bytes.
 
-        :return: The number of bytes written
+        Returns:
+            The serialized packet as bytes.
         """
 
 class PingRespPacket:
     def __init__(self) -> None: ...
-    def write(self, buffer: bytearray, /, *, index: int = 0) -> int:
-        """
-        Writes the packet to the buffer.
+    def write(self) -> bytes:
+        """Serialize the packet to bytes.
 
-        :return: The number of bytes written
+        Returns:
+            The serialized packet as bytes.
         """
 
 class DisconnectPacket:
@@ -513,11 +513,11 @@ class DisconnectPacket:
         reason_str: str | None = None,
         user_properties: list[tuple[str, str]] | None = None,
     ) -> None: ...
-    def write(self, buffer: bytearray, /, *, index: int = 0) -> int:
-        """
-        Writes the packet to the buffer.
+    def write(self) -> bytes:
+        """Serialize the packet to bytes.
 
-        :return: The number of bytes written
+        Returns:
+            The serialized packet as bytes.
         """
 
 class AuthPacket:
@@ -536,16 +536,20 @@ class AuthPacket:
         reason_str: str | None = None,
         user_properties: list[tuple[str, str]] | None = None,
     ) -> None: ...
-    def write(self, buffer: bytearray, /, *, index: int = 0) -> int:
-        """
-        Writes the packet to the buffer.
+    def write(self) -> bytes:
+        """Serialize the packet to bytes.
 
-        :return: The number of bytes written
+        Returns:
+            The serialized packet as bytes.
         """
 
 def read(buffer: bytearray, /, *, index: int = 0) -> tuple[Packet, int]:
-    """
-    Reads the next packet from the buffer.
+    """Parse the next MQTT packet from the buffer.
 
-    :return: The packet object and the number of bytes read
+    Args:
+        buffer: The buffer containing packet data.
+        index: Offset in the buffer to start reading from.
+
+    Returns:
+        A tuple of (parsed packet, number of bytes consumed).
     """

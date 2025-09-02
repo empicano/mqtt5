@@ -11,8 +11,8 @@ import conftest
 )
 def test_compliance(packet, packet_mqttproto, buffer):
     """Test that mqtt5 writes the same bytes as mqttproto for all packet types."""
-    n = packet.write(buffer)
+    data = packet.write()
     buffer_mqttproto = bytearray()
     packet_mqttproto.encode(buffer_mqttproto)
-    assert n == len(buffer_mqttproto)
-    assert buffer[:n] == buffer_mqttproto
+    assert len(data) == len(buffer_mqttproto)
+    assert data == buffer_mqttproto

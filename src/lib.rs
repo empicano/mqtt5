@@ -15,7 +15,7 @@ use types::*;
 #[pyo3(signature = (buffer, /, *, index=0))]
 fn read(py: Python, buffer: &Bound<'_, PyByteArray>, index: usize) -> PyResult<(PyObject, usize)> {
     // Parse the fixed header
-    let mut cursor = Cursor::new(buffer, index);
+    let mut cursor = Cursor::new(unsafe { buffer.as_bytes_mut() }, index);
     let first_byte = u8::read(&mut cursor)?;
     let flags = first_byte & 0x0F;
     let remaining_length = VariableByteInteger::read(&mut cursor)?;

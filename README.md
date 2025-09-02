@@ -17,8 +17,8 @@ A sans-I/O implementation of the MQTTv5 protocol for Python, written in Rust. Se
 ```py
 import mqtt5
 
-buffer = bytearray(1024)
-n = mqtt5.ConnectPacket(client_id="Bulbasaur").write(buffer)
+packet = mqtt5.ConnectPacket(client_id="Bulbasaur")
+data = packet.write()
 ```
 
 **Read a packet**
@@ -27,7 +27,7 @@ n = mqtt5.ConnectPacket(client_id="Bulbasaur").write(buffer)
 import mqtt5
 
 buffer = bytearray(b"\x20\x03\x00\x00\x00")
-packet, n = mqtt5.read(buffer)
+packet, nbytes = mqtt5.read(buffer)
 ```
 
 ## Installation

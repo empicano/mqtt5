@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Return bytes object on `write()` instead of writing to existing bytearray
 - Implement `.value` and `.name` for IntEnum classes
 - Return number of bytes read from `read()` instead of index
 

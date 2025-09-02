@@ -1,7 +1,7 @@
 use core::str;
 use pyo3::exceptions::{PyIndexError, PyValueError};
 use pyo3::prelude::*;
-use pyo3::types::{PyByteArray, PyBytes, PyString, PyStringMethods, PyTuple};
+use pyo3::types::{PyBytes, PyString, PyStringMethods, PyTuple};
 use pyo3::PyResult;
 use std::fmt;
 
@@ -11,11 +11,8 @@ pub struct Cursor<'a> {
 }
 
 impl<'a> Cursor<'a> {
-    pub fn new(buffer: &'a Bound<'_, PyByteArray>, index: usize) -> Self {
-        Self {
-            buffer: unsafe { buffer.as_bytes_mut() },
-            index,
-        }
+    pub fn new(buffer: &'a mut [u8], index: usize) -> Self {
+        Self { buffer, index }
     }
 
     /// Ensures that the buffer has at least the given number of bytes available.
@@ -175,7 +172,7 @@ impl Readable for UserProperty {
         let key = Py::<PyString>::read(cursor)?;
         let value = Py::<PyString>::read(cursor)?;
         Ok(Python::with_gil(|py| {
-            let tuple = PyTuple::new(py, &[key.bind(py), value.bind(py)]).unwrap();
+            let tuple = PyTuple::new(py, [key.bind(py), value.bind(py)]).unwrap();
             UserProperty(tuple.unbind())
         }))
     }

@@ -3,7 +3,7 @@ use crate::reason_codes::*;
 use crate::types::{PacketType, PropertyType, PyEq, QoS, RetainHandling};
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
-use pyo3::types::{PyByteArray, PyBytes, PyList, PyString};
+use pyo3::types::{PyBytes, PyList, PyString};
 use pyo3::PyResult;
 
 const PROTOCOL_NAME: &str = "MQTT";
@@ -350,8 +350,7 @@ impl ConnectPacket {
         })
     }
 
-    #[pyo3(signature = (buffer, /, *, index=0))]
-    fn write(&self, buffer: &Bound<'_, PyByteArray>, index: usize) -> PyResult<usize> {
+    pub fn write(&self, py: Python) -> PyResult<Py<PyBytes>> {
         let properties_nbytes = nbytes_properties!(self, {
             PropertyType::SessionExpiryInterval => session_expiry_interval: u32 = 0,
             PropertyType::AuthenticationMethod => authentication_method: (Option<Py<PyString>>) = None,
@@ -394,68 +393,70 @@ impl ConnectPacket {
             + self.username.nbytes()
             + self.password.nbytes();
         let remaining_length = VariableByteInteger::new(nbytes as u32);
-        let mut cursor = Cursor::new(buffer, index);
-        cursor.require(1 + remaining_length.nbytes() + nbytes)?;
+        PyBytes::new_with(py, 1 + remaining_length.nbytes() + nbytes, |buffer| {
+            let mut cursor = Cursor::new(buffer, 0);
 
-        // [3.1.1] Fixed header
-        let first_byte = (PacketType::Connect as u8) << 4;
-        first_byte.write(&mut cursor);
-        remaining_length.write(&mut cursor);
+            // [3.1.1] Fixed header
+            let first_byte = (PacketType::Connect as u8) << 4;
+            first_byte.write(&mut cursor);
+            remaining_length.write(&mut cursor);
 
-        // [3.1.2] Variable header
-        PROTOCOL_NAME.write(&mut cursor);
-        PROTOCOL_VERSION.write(&mut cursor);
-        let mut packet_flags = (self.clean_start as u8) << 1;
-        if let Some(ref will) = self.will {
-            packet_flags |= 0x04;
-            packet_flags |= (will.qos as u8) << 3;
-            packet_flags |= (will.retain as u8) << 5;
-        }
-        if self.password.is_some() {
-            packet_flags |= 0x40;
-        }
-        if self.username.is_some() {
-            packet_flags |= 0x80;
-        }
-        packet_flags.write(&mut cursor);
-        self.keep_alive.write(&mut cursor);
-        properties_remaining_length.write(&mut cursor);
-        write_properties!(&mut cursor, self, {
-            PropertyType::SessionExpiryInterval => session_expiry_interval: u32 = 0,
-            PropertyType::AuthenticationMethod => authentication_method: (Option<Py<PyString>>) = None,
-            PropertyType::AuthenticationData => authentication_data: (Option<Py<PyBytes>>) = None,
-            PropertyType::RequestProblemInfo => request_problem_info: bool = true,
-            PropertyType::RequestResponseInfo => request_response_info: bool = false,
-            PropertyType::ReceiveMax => receive_max: u16 = 65535,
-            PropertyType::TopicAliasMax => topic_alias_max: u16 = 0,
-            PropertyType::MaxPacketSize => max_packet_size: (Option<u32>) = None,
-            PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = PyList::empty(py),
-        });
-
-        // [3.1.3] Payload
-        self.client_id.write(&mut cursor);
-        if let Some(ref will) = self.will {
-            will_properties_remaining_length.write(&mut cursor);
-            write_properties!(&mut cursor, will, {
-                PropertyType::PayloadFormatIndicator => payload_format_indicator: u8 = 0,
-                PropertyType::MessageExpiryInterval => message_expiry_interval: (Option<u32>) = None,
-                PropertyType::ContentType => content_type: (Option<Py<PyString>>) = None,
-                PropertyType::ResponseTopic => response_topic: (Option<Py<PyString>>) = None,
-                PropertyType::CorrelationData => correlation_data: (Option<Py<PyBytes>>) = None,
-                PropertyType::WillDelayInterval => will_delay_interval: u32 = 0,
+            // [3.1.2] Variable header
+            PROTOCOL_NAME.write(&mut cursor);
+            PROTOCOL_VERSION.write(&mut cursor);
+            let mut packet_flags = (self.clean_start as u8) << 1;
+            if let Some(ref will) = self.will {
+                packet_flags |= 0x04;
+                packet_flags |= (will.qos as u8) << 3;
+                packet_flags |= (will.retain as u8) << 5;
+            }
+            if self.password.is_some() {
+                packet_flags |= 0x40;
+            }
+            if self.username.is_some() {
+                packet_flags |= 0x80;
+            }
+            packet_flags.write(&mut cursor);
+            self.keep_alive.write(&mut cursor);
+            properties_remaining_length.write(&mut cursor);
+            write_properties!(&mut cursor, self, {
+                PropertyType::SessionExpiryInterval => session_expiry_interval: u32 = 0,
+                PropertyType::AuthenticationMethod => authentication_method: (Option<Py<PyString>>) = None,
+                PropertyType::AuthenticationData => authentication_data: (Option<Py<PyBytes>>) = None,
+                PropertyType::RequestProblemInfo => request_problem_info: bool = true,
+                PropertyType::RequestResponseInfo => request_response_info: bool = false,
+                PropertyType::ReceiveMax => receive_max: u16 = 65535,
+                PropertyType::TopicAliasMax => topic_alias_max: u16 = 0,
+                PropertyType::MaxPacketSize => max_packet_size: (Option<u32>) = None,
                 PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = PyList::empty(py),
             });
-            will.topic.write(&mut cursor);
-            if let Some(ref payload) = will.payload {
-                payload.write(&mut cursor);
-            } else {
-                0u16.write(&mut cursor);
-            }
-        }
-        self.username.write(&mut cursor);
-        self.password.write(&mut cursor);
 
-        Ok(cursor.index - index)
+            // [3.1.3] Payload
+            self.client_id.write(&mut cursor);
+            if let Some(ref will) = self.will {
+                will_properties_remaining_length.write(&mut cursor);
+                write_properties!(&mut cursor, will, {
+                    PropertyType::PayloadFormatIndicator => payload_format_indicator: u8 = 0,
+                    PropertyType::MessageExpiryInterval => message_expiry_interval: (Option<u32>) = None,
+                    PropertyType::ContentType => content_type: (Option<Py<PyString>>) = None,
+                    PropertyType::ResponseTopic => response_topic: (Option<Py<PyString>>) = None,
+                    PropertyType::CorrelationData => correlation_data: (Option<Py<PyBytes>>) = None,
+                    PropertyType::WillDelayInterval => will_delay_interval: u32 = 0,
+                    PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = PyList::empty(py),
+                });
+                will.topic.write(&mut cursor);
+                if let Some(ref payload) = will.payload {
+                    payload.write(&mut cursor);
+                } else {
+                    0u16.write(&mut cursor);
+                }
+            }
+            self.username.write(&mut cursor);
+            self.password.write(&mut cursor);
+
+            Ok(())
+        })
+        .map(|bytes| bytes.unbind())
     }
 }
 
@@ -671,8 +672,7 @@ impl ConnAckPacket {
         })
     }
 
-    #[pyo3(signature = (buffer, /, *, index=0))]
-    pub fn write(&self, buffer: &Bound<'_, PyByteArray>, index: usize) -> PyResult<usize> {
+    pub fn write(&self, py: Python) -> PyResult<Py<PyBytes>> {
         let properties_nbytes = nbytes_properties!(self, {
             PropertyType::SessionExpiryInterval => session_expiry_interval: (Option<u32>) = None,
             PropertyType::AssignedClientId => assigned_client_id: (Option<Py<PyString>>) = None,
@@ -698,40 +698,42 @@ impl ConnAckPacket {
             + properties_remaining_length.nbytes()
             + properties_nbytes;
         let remaining_length = VariableByteInteger::new(nbytes as u32);
-        let mut cursor = Cursor::new(buffer, index);
-        cursor.require(1 + remaining_length.nbytes() + nbytes)?;
+        PyBytes::new_with(py, 1 + remaining_length.nbytes() + nbytes, |buffer| {
+            let mut cursor = Cursor::new(buffer, 0);
 
-        // [3.2.1] Fixed header
-        let first_byte = (PacketType::ConnAck as u8) << 4;
-        first_byte.write(&mut cursor);
-        remaining_length.write(&mut cursor);
+            // [3.2.1] Fixed header
+            let first_byte = (PacketType::ConnAck as u8) << 4;
+            first_byte.write(&mut cursor);
+            remaining_length.write(&mut cursor);
 
-        // [3.2.2] Variable header
-        let packet_flags = self.session_present as u8;
-        packet_flags.write(&mut cursor);
-        self.reason_code.write(&mut cursor);
-        properties_remaining_length.write(&mut cursor);
-        write_properties!(&mut cursor, self, {
-            PropertyType::SessionExpiryInterval => session_expiry_interval: (Option<u32>) = None,
-            PropertyType::AssignedClientId => assigned_client_id: (Option<Py<PyString>>) = None,
-            PropertyType::ServerKeepAlive => server_keep_alive: (Option<u16>) = None,
-            PropertyType::AuthenticationMethod => authentication_method: (Option<Py<PyString>>) = None,
-            PropertyType::AuthenticationData => authentication_data: (Option<Py<PyBytes>>) = None,
-            PropertyType::ResponseInfo => response_info: (Option<Py<PyString>>) = None,
-            PropertyType::ServerReference => server_reference: (Option<Py<PyString>>) = None,
-            PropertyType::ReasonStr => reason_str: (Option<Py<PyString>>) = None,
-            PropertyType::ReceiveMax => receive_max: u16 = 65535,
-            PropertyType::TopicAliasMax => topic_alias_max: u16 = 0,
-            PropertyType::MaxQoS => max_qos: QoS = (QoS::ExactlyOnce),
-            PropertyType::RetainAvailable => retain_available: bool = true,
-            PropertyType::MaxPacketSize => max_packet_size: (Option<u32>) = None,
-            PropertyType::WildcardSubscriptionAvailable => wildcard_subscription_available: bool = true,
-            PropertyType::SubscriptionIdAvailable => subscription_id_available: bool = true,
-            PropertyType::SharedSubscriptionAvailable => shared_subscription_available: bool = true,
-            PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = PyList::empty(py),
-        });
+            // [3.2.2] Variable header
+            let packet_flags = self.session_present as u8;
+            packet_flags.write(&mut cursor);
+            self.reason_code.write(&mut cursor);
+            properties_remaining_length.write(&mut cursor);
+            write_properties!(&mut cursor, self, {
+                PropertyType::SessionExpiryInterval => session_expiry_interval: (Option<u32>) = None,
+                PropertyType::AssignedClientId => assigned_client_id: (Option<Py<PyString>>) = None,
+                PropertyType::ServerKeepAlive => server_keep_alive: (Option<u16>) = None,
+                PropertyType::AuthenticationMethod => authentication_method: (Option<Py<PyString>>) = None,
+                PropertyType::AuthenticationData => authentication_data: (Option<Py<PyBytes>>) = None,
+                PropertyType::ResponseInfo => response_info: (Option<Py<PyString>>) = None,
+                PropertyType::ServerReference => server_reference: (Option<Py<PyString>>) = None,
+                PropertyType::ReasonStr => reason_str: (Option<Py<PyString>>) = None,
+                PropertyType::ReceiveMax => receive_max: u16 = 65535,
+                PropertyType::TopicAliasMax => topic_alias_max: u16 = 0,
+                PropertyType::MaxQoS => max_qos: QoS = (QoS::ExactlyOnce),
+                PropertyType::RetainAvailable => retain_available: bool = true,
+                PropertyType::MaxPacketSize => max_packet_size: (Option<u32>) = None,
+                PropertyType::WildcardSubscriptionAvailable => wildcard_subscription_available: bool = true,
+                PropertyType::SubscriptionIdAvailable => subscription_id_available: bool = true,
+                PropertyType::SharedSubscriptionAvailable => shared_subscription_available: bool = true,
+                PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = PyList::empty(py),
+            });
 
-        Ok(cursor.index - index)
+            Ok(())
+        })
+        .map(|bytes| bytes.unbind())
     }
 }
 
@@ -907,13 +909,7 @@ impl PublishPacket {
         })
     }
 
-    #[pyo3(signature = (buffer, /, *, index=0))]
-    pub fn write(
-        &self,
-        py: Python,
-        buffer: &Bound<'_, PyByteArray>,
-        index: usize,
-    ) -> PyResult<usize> {
+    pub fn write(&self, py: Python) -> PyResult<Py<PyBytes>> {
         let payload = self.payload.as_ref().map(|x| x.bind(py).as_bytes());
         let properties_nbytes = nbytes_properties!(self, {
             PropertyType::PayloadFormatIndicator => payload_format_indicator: u8 = 0,
@@ -932,41 +928,43 @@ impl PublishPacket {
             + properties_nbytes
             + payload.map_or(0, |payload| payload.len());
         let remaining_length = VariableByteInteger::new(nbytes as u32);
-        let mut cursor = Cursor::new(buffer, index);
-        cursor.require(1 + remaining_length.nbytes() + nbytes)?;
+        PyBytes::new_with(py, 1 + remaining_length.nbytes() + nbytes, |buffer| {
+            let mut cursor = Cursor::new(buffer, 0);
 
-        // [3.3.1] Fixed header
-        let first_byte = (PacketType::Publish as u8) << 4
-            | (self.duplicate as u8) << 3
-            | (self.qos as u8) << 1
-            | self.retain as u8;
-        first_byte.write(&mut cursor);
-        remaining_length.write(&mut cursor);
+            // [3.3.1] Fixed header
+            let first_byte = (PacketType::Publish as u8) << 4
+                | (self.duplicate as u8) << 3
+                | (self.qos as u8) << 1
+                | self.retain as u8;
+            first_byte.write(&mut cursor);
+            remaining_length.write(&mut cursor);
 
-        // [3.3.2] Variable header
-        self.topic.write(&mut cursor);
-        self.packet_id.write(&mut cursor);
-        properties_remaining_length.write(&mut cursor);
-        write_properties!(&mut cursor, self, {
-            PropertyType::PayloadFormatIndicator => payload_format_indicator: u8 = 0,
-            PropertyType::MessageExpiryInterval => message_expiry_interval: (Option<u32>) = None,
-            PropertyType::ContentType => content_type: (Option<Py<PyString>>) = None,
-            PropertyType::ResponseTopic => response_topic: (Option<Py<PyString>>) = None,
-            PropertyType::CorrelationData => correlation_data: (Option<Py<PyBytes>>) = None,
-            PropertyType::SubscriptionId => subscription_ids: (Py<PyList<VariableByteInteger>>) = PyList::empty(py),
-            PropertyType::TopicAlias => topic_alias: (Option<u16>) = None,
-            PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = PyList::empty(py),
-        });
+            // [3.3.2] Variable header
+            self.topic.write(&mut cursor);
+            self.packet_id.write(&mut cursor);
+            properties_remaining_length.write(&mut cursor);
+            write_properties!(&mut cursor, self, {
+                PropertyType::PayloadFormatIndicator => payload_format_indicator: u8 = 0,
+                PropertyType::MessageExpiryInterval => message_expiry_interval: (Option<u32>) = None,
+                PropertyType::ContentType => content_type: (Option<Py<PyString>>) = None,
+                PropertyType::ResponseTopic => response_topic: (Option<Py<PyString>>) = None,
+                PropertyType::CorrelationData => correlation_data: (Option<Py<PyBytes>>) = None,
+                PropertyType::SubscriptionId => subscription_ids: (Py<PyList<VariableByteInteger>>) = PyList::empty(py),
+                PropertyType::TopicAlias => topic_alias: (Option<u16>) = None,
+                PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = PyList::empty(py),
+            });
 
-        // [3.3.3] Payload
-        if let Some(payload) = payload {
-            let payload_remaining_length = payload.len();
-            cursor.buffer[cursor.index..cursor.index + payload_remaining_length]
-                .copy_from_slice(payload);
-            cursor.index += payload_remaining_length;
-        }
+            // [3.3.3] Payload
+            if let Some(payload) = payload {
+                let payload_remaining_length = payload.len();
+                cursor.buffer[cursor.index..cursor.index + payload_remaining_length]
+                    .copy_from_slice(payload);
+                cursor.index += payload_remaining_length;
+            }
 
-        Ok(cursor.index - index)
+            Ok(())
+        })
+        .map(|bytes| bytes.unbind())
     }
 }
 
@@ -1082,8 +1080,7 @@ impl PubAckPacket {
         })
     }
 
-    #[pyo3(signature = (buffer, /, *, index=0))]
-    pub fn write(&self, buffer: &Bound<'_, PyByteArray>, index: usize) -> PyResult<usize> {
+    pub fn write(&self, py: Python) -> PyResult<Py<PyBytes>> {
         let properties_nbytes = nbytes_properties!(self, {
             PropertyType::ReasonStr => reason_str: (Option<Py<PyString>>) = None,
             PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = PyList::empty(py),
@@ -1094,24 +1091,26 @@ impl PubAckPacket {
             + properties_remaining_length.nbytes()
             + properties_nbytes;
         let remaining_length = VariableByteInteger::new(nbytes as u32);
-        let mut cursor = Cursor::new(buffer, index);
-        cursor.require(1 + remaining_length.nbytes() + nbytes)?;
+        PyBytes::new_with(py, 1 + remaining_length.nbytes() + nbytes, |buffer| {
+            let mut cursor = Cursor::new(buffer, 0);
 
-        // [3.4.1] Fixed header
-        let first_byte = (PacketType::PubAck as u8) << 4;
-        first_byte.write(&mut cursor);
-        remaining_length.write(&mut cursor);
+            // [3.4.1] Fixed header
+            let first_byte = (PacketType::PubAck as u8) << 4;
+            first_byte.write(&mut cursor);
+            remaining_length.write(&mut cursor);
 
-        // [3.4.2] Variable header
-        self.packet_id.write(&mut cursor);
-        self.reason_code.write(&mut cursor);
-        properties_remaining_length.write(&mut cursor);
-        write_properties!(&mut cursor, self, {
-            PropertyType::ReasonStr => reason_str: (Option<Py<PyString>>) = None,
-            PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = PyList::empty(py),
-        });
+            // [3.4.2] Variable header
+            self.packet_id.write(&mut cursor);
+            self.reason_code.write(&mut cursor);
+            properties_remaining_length.write(&mut cursor);
+            write_properties!(&mut cursor, self, {
+                PropertyType::ReasonStr => reason_str: (Option<Py<PyString>>) = None,
+                PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = PyList::empty(py),
+            });
 
-        Ok(cursor.index - index)
+            Ok(())
+        })
+        .map(|bytes| bytes.unbind())
     }
 }
 
@@ -1192,8 +1191,7 @@ impl PubRecPacket {
         })
     }
 
-    #[pyo3(signature = (buffer, /, *, index=0))]
-    pub fn write(&self, buffer: &Bound<'_, PyByteArray>, index: usize) -> PyResult<usize> {
+    pub fn write(&self, py: Python) -> PyResult<Py<PyBytes>> {
         let properties_nbytes = nbytes_properties!(self, {
             PropertyType::ReasonStr => reason_str: (Option<Py<PyString>>) = None,
             PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = PyList::empty(py),
@@ -1204,24 +1202,26 @@ impl PubRecPacket {
             + properties_remaining_length.nbytes()
             + properties_nbytes;
         let remaining_length = VariableByteInteger::new(nbytes as u32);
-        let mut cursor = Cursor::new(buffer, index);
-        cursor.require(1 + remaining_length.nbytes() + nbytes)?;
+        PyBytes::new_with(py, 1 + remaining_length.nbytes() + nbytes, |buffer| {
+            let mut cursor = Cursor::new(buffer, 0);
 
-        // [3.5.1] Fixed header
-        let first_byte = (PacketType::PubRec as u8) << 4;
-        first_byte.write(&mut cursor);
-        remaining_length.write(&mut cursor);
+            // [3.5.1] Fixed header
+            let first_byte = (PacketType::PubRec as u8) << 4;
+            first_byte.write(&mut cursor);
+            remaining_length.write(&mut cursor);
 
-        // [3.5.2] Variable header
-        self.packet_id.write(&mut cursor);
-        self.reason_code.write(&mut cursor);
-        properties_remaining_length.write(&mut cursor);
-        write_properties!(&mut cursor, self, {
-            PropertyType::ReasonStr => reason_str: (Option<Py<PyString>>) = None,
-            PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = PyList::empty(py),
-        });
+            // [3.5.2] Variable header
+            self.packet_id.write(&mut cursor);
+            self.reason_code.write(&mut cursor);
+            properties_remaining_length.write(&mut cursor);
+            write_properties!(&mut cursor, self, {
+                PropertyType::ReasonStr => reason_str: (Option<Py<PyString>>) = None,
+                PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = PyList::empty(py),
+            });
 
-        Ok(cursor.index - index)
+            Ok(())
+        })
+        .map(|bytes| bytes.unbind())
     }
 }
 
@@ -1302,8 +1302,7 @@ impl PubRelPacket {
         })
     }
 
-    #[pyo3(signature = (buffer, /, *, index=0))]
-    pub fn write(&self, buffer: &Bound<'_, PyByteArray>, index: usize) -> PyResult<usize> {
+    pub fn write(&self, py: Python) -> PyResult<Py<PyBytes>> {
         let properties_nbytes = nbytes_properties!(self, {
             PropertyType::ReasonStr => reason_str: (Option<Py<PyString>>) = None,
             PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = PyList::empty(py),
@@ -1314,24 +1313,26 @@ impl PubRelPacket {
             + properties_remaining_length.nbytes()
             + properties_nbytes;
         let remaining_length = VariableByteInteger::new(nbytes as u32);
-        let mut cursor = Cursor::new(buffer, index);
-        cursor.require(1 + remaining_length.nbytes() + nbytes)?;
+        PyBytes::new_with(py, 1 + remaining_length.nbytes() + nbytes, |buffer| {
+            let mut cursor = Cursor::new(buffer, 0);
 
-        // [3.6.1] Fixed header
-        let first_byte = (PacketType::PubRel as u8) << 4 | 0x02;
-        first_byte.write(&mut cursor);
-        remaining_length.write(&mut cursor);
+            // [3.6.1] Fixed header
+            let first_byte = (PacketType::PubRel as u8) << 4 | 0x02;
+            first_byte.write(&mut cursor);
+            remaining_length.write(&mut cursor);
 
-        // [3.6.2] Variable header
-        self.packet_id.write(&mut cursor);
-        self.reason_code.write(&mut cursor);
-        properties_remaining_length.write(&mut cursor);
-        write_properties!(&mut cursor, self, {
-            PropertyType::ReasonStr => reason_str: (Option<Py<PyString>>) = None,
-            PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = PyList::empty(py),
-        });
+            // [3.6.2] Variable header
+            self.packet_id.write(&mut cursor);
+            self.reason_code.write(&mut cursor);
+            properties_remaining_length.write(&mut cursor);
+            write_properties!(&mut cursor, self, {
+                PropertyType::ReasonStr => reason_str: (Option<Py<PyString>>) = None,
+                PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = PyList::empty(py),
+            });
 
-        Ok(cursor.index - index)
+            Ok(())
+        })
+        .map(|bytes| bytes.unbind())
     }
 }
 
@@ -1412,8 +1413,7 @@ impl PubCompPacket {
         })
     }
 
-    #[pyo3(signature = (buffer, /, *, index=0))]
-    pub fn write(&self, buffer: &Bound<'_, PyByteArray>, index: usize) -> PyResult<usize> {
+    pub fn write(&self, py: Python) -> PyResult<Py<PyBytes>> {
         let properties_nbytes = nbytes_properties!(self, {
             PropertyType::ReasonStr => reason_str: (Option<Py<PyString>>) = None,
             PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = PyList::empty(py),
@@ -1424,24 +1424,26 @@ impl PubCompPacket {
             + properties_remaining_length.nbytes()
             + properties_nbytes;
         let remaining_length = VariableByteInteger::new(nbytes as u32);
-        let mut cursor = Cursor::new(buffer, index);
-        cursor.require(1 + remaining_length.nbytes() + nbytes)?;
+        PyBytes::new_with(py, 1 + remaining_length.nbytes() + nbytes, |buffer| {
+            let mut cursor = Cursor::new(buffer, 0);
 
-        // [3.7.1] Fixed header
-        let first_byte = (PacketType::PubComp as u8) << 4;
-        first_byte.write(&mut cursor);
-        remaining_length.write(&mut cursor);
+            // [3.7.1] Fixed header
+            let first_byte = (PacketType::PubComp as u8) << 4;
+            first_byte.write(&mut cursor);
+            remaining_length.write(&mut cursor);
 
-        // [3.7.2] Variable header
-        self.packet_id.write(&mut cursor);
-        self.reason_code.write(&mut cursor);
-        properties_remaining_length.write(&mut cursor);
-        write_properties!(&mut cursor, self, {
-            PropertyType::ReasonStr => reason_str: (Option<Py<PyString>>) = None,
-            PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = PyList::empty(py),
-        });
+            // [3.7.2] Variable header
+            self.packet_id.write(&mut cursor);
+            self.reason_code.write(&mut cursor);
+            properties_remaining_length.write(&mut cursor);
+            write_properties!(&mut cursor, self, {
+                PropertyType::ReasonStr => reason_str: (Option<Py<PyString>>) = None,
+                PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = PyList::empty(py),
+            });
 
-        Ok(cursor.index - index)
+            Ok(())
+        })
+        .map(|bytes| bytes.unbind())
     }
 }
 
@@ -1517,13 +1519,7 @@ impl SubscribePacket {
         })
     }
 
-    #[pyo3(signature = (buffer, /, *, index=0))]
-    pub fn write(
-        &self,
-        py: Python,
-        buffer: &Bound<'_, PyByteArray>,
-        index: usize,
-    ) -> PyResult<usize> {
+    pub fn write(&self, py: Python) -> PyResult<Py<PyBytes>> {
         let properties_nbytes = nbytes_properties!(self, {
             PropertyType::SubscriptionId => subscription_id: (Option<VariableByteInteger>) = None,
         });
@@ -1538,33 +1534,35 @@ impl SubscribePacket {
                     Ok(acc + item.extract::<PyRef<Subscription>>()?.pattern.nbytes() + 1)
                 })?;
         let remaining_length = VariableByteInteger::new(nbytes as u32);
-        let mut cursor = Cursor::new(buffer, index);
-        cursor.require(1 + remaining_length.nbytes() + nbytes)?;
+        PyBytes::new_with(py, 1 + remaining_length.nbytes() + nbytes, |buffer| {
+            let mut cursor = Cursor::new(buffer, 0);
 
-        // [3.8.1] Fixed header
-        let first_byte = (PacketType::Subscribe as u8) << 4 | 0x02;
-        first_byte.write(&mut cursor);
-        remaining_length.write(&mut cursor);
+            // [3.8.1] Fixed header
+            let first_byte = (PacketType::Subscribe as u8) << 4 | 0x02;
+            first_byte.write(&mut cursor);
+            remaining_length.write(&mut cursor);
 
-        // [3.8.2] Variable header
-        self.packet_id.write(&mut cursor);
-        properties_remaining_length.write(&mut cursor);
-        write_properties!(&mut cursor, self, {
-            PropertyType::SubscriptionId => subscription_id: (Option<VariableByteInteger>) = None,
-        });
+            // [3.8.2] Variable header
+            self.packet_id.write(&mut cursor);
+            properties_remaining_length.write(&mut cursor);
+            write_properties!(&mut cursor, self, {
+                PropertyType::SubscriptionId => subscription_id: (Option<VariableByteInteger>) = None,
+            });
 
-        // [3.8.3] Payload
-        for item in subscriptions.iter() {
-            let subscription: PyRef<Subscription> = item.extract()?;
-            subscription.pattern.write(&mut cursor);
-            let options = subscription.max_qos as u8
-                | (subscription.no_local as u8) << 2
-                | (subscription.retain_as_published as u8) << 3
-                | (subscription.retain_handling as u8) << 4;
-            options.write(&mut cursor);
-        }
+            // [3.8.3] Payload
+            for item in subscriptions.iter() {
+                let subscription: PyRef<Subscription> = item.extract()?;
+                subscription.pattern.write(&mut cursor);
+                let options = subscription.max_qos as u8
+                    | (subscription.no_local as u8) << 2
+                    | (subscription.retain_as_published as u8) << 3
+                    | (subscription.retain_handling as u8) << 4;
+                options.write(&mut cursor);
+            }
 
-        Ok(cursor.index - index)
+            Ok(())
+        })
+        .map(|bytes| bytes.unbind())
     }
 }
 
@@ -1652,13 +1650,7 @@ impl SubAckPacket {
         })
     }
 
-    #[pyo3(signature = (buffer, /, *, index=0))]
-    pub fn write(
-        &self,
-        py: Python,
-        buffer: &Bound<'_, PyByteArray>,
-        index: usize,
-    ) -> PyResult<usize> {
+    pub fn write(&self, py: Python) -> PyResult<Py<PyBytes>> {
         let properties_nbytes = nbytes_properties!(self, {
             PropertyType::ReasonStr => reason_str: (Option<Py<PyString>>) = None,
             PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = PyList::empty(py),
@@ -1674,29 +1666,31 @@ impl SubAckPacket {
                     Ok(acc + item?.extract::<PyRef<SubAckReasonCode>>()?.nbytes())
                 })?;
         let remaining_length = VariableByteInteger::new(nbytes as u32);
-        let mut cursor = Cursor::new(buffer, index);
-        cursor.require(1 + remaining_length.nbytes() + nbytes)?;
+        PyBytes::new_with(py, 1 + remaining_length.nbytes() + nbytes, |buffer| {
+            let mut cursor = Cursor::new(buffer, 0);
 
-        // [3.9.1] Fixed header
-        let first_byte = (PacketType::SubAck as u8) << 4;
-        first_byte.write(&mut cursor);
-        remaining_length.write(&mut cursor);
+            // [3.9.1] Fixed header
+            let first_byte = (PacketType::SubAck as u8) << 4;
+            first_byte.write(&mut cursor);
+            remaining_length.write(&mut cursor);
 
-        // [3.9.2] Variable header
-        self.packet_id.write(&mut cursor);
-        properties_remaining_length.write(&mut cursor);
-        write_properties!(&mut cursor, self, {
-            PropertyType::ReasonStr => reason_str: (Option<Py<PyString>>) = None,
-            PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = PyList::empty(py),
-        });
+            // [3.9.2] Variable header
+            self.packet_id.write(&mut cursor);
+            properties_remaining_length.write(&mut cursor);
+            write_properties!(&mut cursor, self, {
+                PropertyType::ReasonStr => reason_str: (Option<Py<PyString>>) = None,
+                PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = PyList::empty(py),
+            });
 
-        // [3.9.3] Payload
-        for item in reason_codes.try_iter()? {
-            let reason_code: PyRef<SubAckReasonCode> = item?.extract()?;
-            reason_code.write(&mut cursor);
-        }
+            // [3.9.3] Payload
+            for item in reason_codes.try_iter()? {
+                let reason_code: PyRef<SubAckReasonCode> = item?.extract()?;
+                reason_code.write(&mut cursor);
+            }
 
-        Ok(cursor.index - index)
+            Ok(())
+        })
+        .map(|bytes| bytes.unbind())
     }
 }
 
@@ -1775,13 +1769,7 @@ impl UnsubscribePacket {
         })
     }
 
-    #[pyo3(signature = (buffer, /, *, index=0))]
-    pub fn write(
-        &self,
-        py: Python,
-        buffer: &Bound<'_, PyByteArray>,
-        index: usize,
-    ) -> PyResult<usize> {
+    pub fn write(&self, py: Python) -> PyResult<Py<PyBytes>> {
         let properties_nbytes = nbytes_properties!(self, {
             PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = PyList::empty(py),
         });
@@ -1796,28 +1784,30 @@ impl UnsubscribePacket {
                     Ok(acc + item.extract::<Py<PyString>>()?.nbytes())
                 })?;
         let remaining_length = VariableByteInteger::new(nbytes as u32);
-        let mut cursor = Cursor::new(buffer, index);
-        cursor.require(1 + remaining_length.nbytes() + nbytes)?;
+        PyBytes::new_with(py, 1 + remaining_length.nbytes() + nbytes, |buffer| {
+            let mut cursor = Cursor::new(buffer, 0);
 
-        // [3.9.1] Fixed header
-        let first_byte = (PacketType::Unsubscribe as u8) << 4 | 0x02;
-        first_byte.write(&mut cursor);
-        remaining_length.write(&mut cursor);
+            // [3.9.1] Fixed header
+            let first_byte = (PacketType::Unsubscribe as u8) << 4 | 0x02;
+            first_byte.write(&mut cursor);
+            remaining_length.write(&mut cursor);
 
-        // [3.9.2] Variable header
-        self.packet_id.write(&mut cursor);
-        properties_remaining_length.write(&mut cursor);
-        write_properties!(&mut cursor, self, {
-            PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = PyList::empty(py),
-        });
+            // [3.9.2] Variable header
+            self.packet_id.write(&mut cursor);
+            properties_remaining_length.write(&mut cursor);
+            write_properties!(&mut cursor, self, {
+                PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = PyList::empty(py),
+            });
 
-        // [3.9.3] Payload
-        for item in patterns.iter() {
-            let pattern: Py<PyString> = item.extract()?;
-            pattern.write(&mut cursor);
-        }
+            // [3.9.3] Payload
+            for item in patterns.iter() {
+                let pattern: Py<PyString> = item.extract()?;
+                pattern.write(&mut cursor);
+            }
 
-        Ok(cursor.index - index)
+            Ok(())
+        })
+        .map(|bytes| bytes.unbind())
     }
 }
 
@@ -1897,13 +1887,7 @@ impl UnsubAckPacket {
         })
     }
 
-    #[pyo3(signature = (buffer, /, *, index=0))]
-    pub fn write(
-        &self,
-        py: Python,
-        buffer: &Bound<'_, PyByteArray>,
-        index: usize,
-    ) -> PyResult<usize> {
+    pub fn write(&self, py: Python) -> PyResult<Py<PyBytes>> {
         let properties_nbytes = nbytes_properties!(self, {
             PropertyType::ReasonStr => reason_str: (Option<Py<PyString>>) = None,
             PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = PyList::empty(py),
@@ -1919,29 +1903,31 @@ impl UnsubAckPacket {
                     Ok(acc + item?.extract::<PyRef<UnsubAckReasonCode>>()?.nbytes())
                 })?;
         let remaining_length = VariableByteInteger::new(nbytes as u32);
-        let mut cursor = Cursor::new(buffer, index);
-        cursor.require(1 + remaining_length.nbytes() + nbytes)?;
+        PyBytes::new_with(py, 1 + remaining_length.nbytes() + nbytes, |buffer| {
+            let mut cursor = Cursor::new(buffer, 0);
 
-        // [3.11.1] Fixed header
-        let first_byte = (PacketType::UnsubAck as u8) << 4;
-        first_byte.write(&mut cursor);
-        remaining_length.write(&mut cursor);
+            // [3.11.1] Fixed header
+            let first_byte = (PacketType::UnsubAck as u8) << 4;
+            first_byte.write(&mut cursor);
+            remaining_length.write(&mut cursor);
 
-        // [3.11.2] Variable header
-        self.packet_id.write(&mut cursor);
-        properties_remaining_length.write(&mut cursor);
-        write_properties!(&mut cursor, self, {
-            PropertyType::ReasonStr => reason_str: (Option<Py<PyString>>) = None,
-            PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = PyList::empty(py),
-        });
+            // [3.11.2] Variable header
+            self.packet_id.write(&mut cursor);
+            properties_remaining_length.write(&mut cursor);
+            write_properties!(&mut cursor, self, {
+                PropertyType::ReasonStr => reason_str: (Option<Py<PyString>>) = None,
+                PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = PyList::empty(py),
+            });
 
-        // [3.11.3] Payload
-        for item in reason_codes.try_iter()? {
-            let reason_code: PyRef<UnsubAckReasonCode> = item?.extract()?;
-            reason_code.write(&mut cursor);
-        }
+            // [3.11.3] Payload
+            for item in reason_codes.try_iter()? {
+                let reason_code: PyRef<UnsubAckReasonCode> = item?.extract()?;
+                reason_code.write(&mut cursor);
+            }
 
-        Ok(cursor.index - index)
+            Ok(())
+        })
+        .map(|bytes| bytes.unbind())
     }
 }
 
@@ -2002,18 +1988,19 @@ impl PingReqPacket {
         Ok(Self {})
     }
 
-    #[pyo3(signature = (buffer, /, *, index=0))]
-    pub fn write(&self, buffer: &Bound<'_, PyByteArray>, index: usize) -> PyResult<usize> {
+    pub fn write(&self, py: Python) -> PyResult<Py<PyBytes>> {
         let remaining_length = VariableByteInteger::new(0);
-        let mut cursor = Cursor::new(buffer, index);
-        cursor.require(2)?;
+        PyBytes::new_with(py, 1 + remaining_length.nbytes(), |buffer| {
+            let mut cursor = Cursor::new(buffer, 0);
 
-        // [3.12.1] Fixed header
-        let first_byte = (PacketType::PingReq as u8) << 4;
-        first_byte.write(&mut cursor);
-        remaining_length.write(&mut cursor);
+            // [3.12.1] Fixed header
+            let first_byte = (PacketType::PingReq as u8) << 4;
+            first_byte.write(&mut cursor);
+            remaining_length.write(&mut cursor);
 
-        Ok(cursor.index - index)
+            Ok(())
+        })
+        .map(|bytes| bytes.unbind())
     }
 }
 
@@ -2051,18 +2038,19 @@ impl PingRespPacket {
         Ok(Self {})
     }
 
-    #[pyo3(signature = (buffer, /, *, index=0))]
-    pub fn write(&self, buffer: &Bound<'_, PyByteArray>, index: usize) -> PyResult<usize> {
+    pub fn write(&self, py: Python) -> PyResult<Py<PyBytes>> {
         let remaining_length = VariableByteInteger::new(0);
-        let mut cursor = Cursor::new(buffer, index);
-        cursor.require(2)?;
+        PyBytes::new_with(py, 1 + remaining_length.nbytes(), |buffer| {
+            let mut cursor = Cursor::new(buffer, 0);
 
-        // [3.13.1] Fixed header
-        let first_byte = (PacketType::PingResp as u8) << 4;
-        first_byte.write(&mut cursor);
-        remaining_length.write(&mut cursor);
+            // [3.13.1] Fixed header
+            let first_byte = (PacketType::PingResp as u8) << 4;
+            first_byte.write(&mut cursor);
+            remaining_length.write(&mut cursor);
 
-        Ok(cursor.index - index)
+            Ok(())
+        })
+        .map(|bytes| bytes.unbind())
     }
 }
 
@@ -2126,8 +2114,7 @@ impl DisconnectPacket {
         })
     }
 
-    #[pyo3(signature = (buffer, /, *, index=0))]
-    pub fn write(&self, buffer: &Bound<'_, PyByteArray>, index: usize) -> PyResult<usize> {
+    pub fn write(&self, py: Python) -> PyResult<Py<PyBytes>> {
         let properties_nbytes = nbytes_properties!(self, {
             PropertyType::SessionExpiryInterval => session_expiry_interval: (Option<u32>) = None,
             PropertyType::ServerReference => server_reference: (Option<Py<PyString>>) = None,
@@ -2138,25 +2125,27 @@ impl DisconnectPacket {
         let nbytes =
             self.reason_code.nbytes() + properties_remaining_length.nbytes() + properties_nbytes;
         let remaining_length = VariableByteInteger::new(nbytes as u32);
-        let mut cursor = Cursor::new(buffer, index);
-        cursor.require(1 + remaining_length.nbytes() + nbytes)?;
+        PyBytes::new_with(py, 1 + remaining_length.nbytes() + nbytes, |buffer| {
+            let mut cursor = Cursor::new(buffer, 0);
 
-        // [3.14.1] Fixed header
-        let first_byte = (PacketType::Disconnect as u8) << 4;
-        first_byte.write(&mut cursor);
-        remaining_length.write(&mut cursor);
+            // [3.14.1] Fixed header
+            let first_byte = (PacketType::Disconnect as u8) << 4;
+            first_byte.write(&mut cursor);
+            remaining_length.write(&mut cursor);
 
-        // [3.14.2] Variable header
-        self.reason_code.write(&mut cursor);
-        properties_remaining_length.write(&mut cursor);
-        write_properties!(&mut cursor, self, {
-            PropertyType::SessionExpiryInterval => session_expiry_interval: (Option<u32>) = None,
-            PropertyType::ServerReference => server_reference: (Option<Py<PyString>>) = None,
-            PropertyType::ReasonStr => reason_str: (Option<Py<PyString>>) = None,
-            PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = PyList::empty(py),
-        });
+            // [3.14.2] Variable header
+            self.reason_code.write(&mut cursor);
+            properties_remaining_length.write(&mut cursor);
+            write_properties!(&mut cursor, self, {
+                PropertyType::SessionExpiryInterval => session_expiry_interval: (Option<u32>) = None,
+                PropertyType::ServerReference => server_reference: (Option<Py<PyString>>) = None,
+                PropertyType::ReasonStr => reason_str: (Option<Py<PyString>>) = None,
+                PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = PyList::empty(py),
+            });
 
-        Ok(cursor.index - index)
+            Ok(())
+        })
+        .map(|bytes| bytes.unbind())
     }
 }
 
@@ -2244,8 +2233,7 @@ impl AuthPacket {
         })
     }
 
-    #[pyo3(signature = (buffer, /, *, index=0))]
-    pub fn write(&self, buffer: &Bound<'_, PyByteArray>, index: usize) -> PyResult<usize> {
+    pub fn write(&self, py: Python) -> PyResult<Py<PyBytes>> {
         let properties_nbytes = nbytes_properties!(self, {
             PropertyType::AuthenticationMethod => authentication_method: (Option<Py<PyString>>) = None,
             PropertyType::AuthenticationData => authentication_data: (Option<Py<PyBytes>>) = None,
@@ -2256,25 +2244,27 @@ impl AuthPacket {
         let nbytes =
             self.reason_code.nbytes() + properties_remaining_length.nbytes() + properties_nbytes;
         let remaining_length = VariableByteInteger::new(nbytes as u32);
-        let mut cursor = Cursor::new(buffer, index);
-        cursor.require(1 + remaining_length.nbytes() + nbytes)?;
+        PyBytes::new_with(py, 1 + remaining_length.nbytes() + nbytes, |buffer| {
+            let mut cursor = Cursor::new(buffer, 0);
 
-        // [3.15.1] Fixed header
-        let first_byte = (PacketType::Auth as u8) << 4;
-        first_byte.write(&mut cursor);
-        remaining_length.write(&mut cursor);
+            // [3.15.1] Fixed header
+            let first_byte = (PacketType::Auth as u8) << 4;
+            first_byte.write(&mut cursor);
+            remaining_length.write(&mut cursor);
 
-        // [3.15.2] Variable header
-        self.reason_code.write(&mut cursor);
-        properties_remaining_length.write(&mut cursor);
-        write_properties!(&mut cursor, self, {
-            PropertyType::AuthenticationMethod => authentication_method: (Option<Py<PyString>>) = None,
-            PropertyType::AuthenticationData => authentication_data: (Option<Py<PyBytes>>) = None,
-            PropertyType::ReasonStr => reason_str: (Option<Py<PyString>>) = None,
-            PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = PyList::empty(py),
-        });
+            // [3.15.2] Variable header
+            self.reason_code.write(&mut cursor);
+            properties_remaining_length.write(&mut cursor);
+            write_properties!(&mut cursor, self, {
+                PropertyType::AuthenticationMethod => authentication_method: (Option<Py<PyString>>) = None,
+                PropertyType::AuthenticationData => authentication_data: (Option<Py<PyBytes>>) = None,
+                PropertyType::ReasonStr => reason_str: (Option<Py<PyString>>) = None,
+                PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = PyList::empty(py),
+            });
 
-        Ok(cursor.index - index)
+            Ok(())
+        })
+        .map(|bytes| bytes.unbind())
     }
 }
 

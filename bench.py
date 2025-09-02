@@ -61,12 +61,12 @@ for packet_name, packet_init, packet_init_mqttproto in benchmarks:
         )
     runner.timeit(
         name=f"mqtt5: Write {packet_name}",
-        setup=f"import mqtt5; buffer = bytearray({len(buffer)})",
-        stmt=source(packet_init) + ".write(buffer)",
+        setup="import mqtt5",
+        stmt=f"{source(packet_init)}.write()",
     )
     if args.compare:
         runner.timeit(
             name=f"proto: Write {packet_name}",
             setup="import mqttproto; buffer = bytearray()",
-            stmt=source(packet_init_mqttproto) + ".encode(buffer)",
+            stmt=f"{source(packet_init_mqttproto)}.encode(buffer)",
         )
