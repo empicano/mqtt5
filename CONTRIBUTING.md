@@ -26,4 +26,5 @@ Add the `--compare` flag to benchmark against [mqttproto](https://github.com/agr
 
 ## Release
 
-Adjust the package's version in `Cargo.toml`, then create a new release on GitHub.
+1. Adjust the version in `Cargo.toml`
+1. Create a new release on GitHub.

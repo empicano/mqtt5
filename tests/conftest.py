@@ -1,39 +1,41 @@
-import pytest
-import mqtt5
+"""Contains test configurations and packet definitions."""
+
 import mqttproto
 
+import mqtt5
 
-def connect_packet():
+
+def connect_packet() -> mqtt5.ConnectPacket:  # noqa: D103
     return mqtt5.ConnectPacket(client_id="Bulbasaur")
 
 
-def connect_packet_mqttproto():
+def connect_packet_mqttproto() -> mqttproto.MQTTConnectPacket:  # noqa: D103
     return mqttproto.MQTTConnectPacket(client_id="Bulbasaur")
 
 
-def connect_packet_will():
+def connect_packet_will() -> mqtt5.ConnectPacket:  # noqa: D103
     return mqtt5.ConnectPacket(
         client_id="Bulbasaur",
         will=mqtt5.Will(
-            topic="foo/bar/+",
+            topic="foo/bar/1234",
             payload=b"\x12" * 2**8,
             qos=mqtt5.QoS.EXACTLY_ONCE,
             retain=True,
             payload_format_indicator=1,
             message_expiry_interval=2**24,
             content_type="text/html",
-            response_topic="HELLO/4444/#",
+            response_topic="foo/bar/1234",
             correlation_data=b"\x12" * 2**8,
             will_delay_interval=12,
         ),
     )
 
 
-def connect_packet_will_mqttproto():
+def connect_packet_will_mqttproto() -> mqttproto.MQTTConnectPacket:  # noqa: D103
     return mqttproto.MQTTConnectPacket(
         client_id="Bulbasaur",
         will=mqttproto.Will(
-            topic="foo/bar/+",
+            topic="foo/bar/1234",
             payload=b"\x12" * 2**8,
             qos=mqttproto.QoS.EXACTLY_ONCE,
             retain=True,
@@ -41,7 +43,7 @@ def connect_packet_will_mqttproto():
                 mqttproto.PropertyType.PAYLOAD_FORMAT_INDICATOR: 1,
                 mqttproto.PropertyType.MESSAGE_EXPIRY_INTERVAL: 2**24,
                 mqttproto.PropertyType.CONTENT_TYPE: "text/html",
-                mqttproto.PropertyType.RESPONSE_TOPIC: "HELLO/4444/#",
+                mqttproto.PropertyType.RESPONSE_TOPIC: "foo/bar/1234",
                 mqttproto.PropertyType.CORRELATION_DATA: b"\x12" * 2**8,
                 mqttproto.PropertyType.WILL_DELAY_INTERVAL: 12,
             },
@@ -49,27 +51,26 @@ def connect_packet_will_mqttproto():
     )
 
 
-def connect_packet_full():
+def connect_packet_full() -> mqtt5.ConnectPacket:  # noqa: D103
     return mqtt5.ConnectPacket(
         client_id="Bulbasaur",
         username="ProfOak",
         password="RazorLeaf?456",
         clean_start=True,
         will=mqtt5.Will(
-            topic="foo/bar/+",
+            topic="foo/bar/1234",
             payload=b"\x12" * 2**8,
             qos=mqtt5.QoS.EXACTLY_ONCE,
             retain=True,
             payload_format_indicator=1,
             message_expiry_interval=2**24,
             content_type="text/html",
-            response_topic="HELLO/4444/#",
+            response_topic="foo/bar/1234",
             correlation_data=b"\x12" * 2**8,
             will_delay_interval=12,
             user_properties=[
                 ("location", "Pallet Town"),
                 ("type", "Grass"),
-                # ("type", "Poison"),  # TODO: mqttproto doesn't support duplicate property keys
             ],
         ),
         keep_alive=6789,
@@ -84,19 +85,18 @@ def connect_packet_full():
         user_properties=[
             ("location", "Pallet Town"),
             ("type", "Grass"),
-            # ("type", "Poison"),  # TODO: mqttproto doesn't support duplicate property keys
         ],
     )
 
 
-def connect_packet_full_mqttproto():
+def connect_packet_full_mqttproto() -> mqttproto.MQTTConnectPacket:  # noqa: D103
     return mqttproto.MQTTConnectPacket(
         client_id="Bulbasaur",
         username="ProfOak",
         password="RazorLeaf?456",
         clean_start=True,
         will=mqttproto.Will(
-            topic="foo/bar/+",
+            topic="foo/bar/1234",
             payload=b"\x12" * 2**8,
             qos=mqttproto.QoS.EXACTLY_ONCE,
             retain=True,
@@ -104,7 +104,7 @@ def connect_packet_full_mqttproto():
                 mqttproto.PropertyType.PAYLOAD_FORMAT_INDICATOR: 1,
                 mqttproto.PropertyType.MESSAGE_EXPIRY_INTERVAL: 2**24,
                 mqttproto.PropertyType.CONTENT_TYPE: "text/html",
-                mqttproto.PropertyType.RESPONSE_TOPIC: "HELLO/4444/#",
+                mqttproto.PropertyType.RESPONSE_TOPIC: "foo/bar/1234",
                 mqttproto.PropertyType.CORRELATION_DATA: b"\x12" * 2**8,
                 mqttproto.PropertyType.WILL_DELAY_INTERVAL: 12,
             },
@@ -125,17 +125,17 @@ def connect_packet_full_mqttproto():
     )
 
 
-def connack_packet():
+def connack_packet() -> mqtt5.ConnAckPacket:  # noqa: D103
     return mqtt5.ConnAckPacket()
 
 
-def connack_packet_mqttproto():
+def connack_packet_mqttproto() -> mqttproto.MQTTConnAckPacket:  # noqa: D103
     return mqttproto.MQTTConnAckPacket(
         session_present=False, reason_code=mqttproto.ReasonCode.SUCCESS
     )
 
 
-def connack_packet_full():
+def connack_packet_full() -> mqtt5.ConnAckPacket:  # noqa: D103
     return mqtt5.ConnAckPacket(
         session_present=True,
         reason_code=mqtt5.ConnAckReasonCode.UNSPECIFIED_ERROR,
@@ -146,7 +146,7 @@ def connack_packet_full():
         authentication_data=b"\x12" * 2**8,
         response_info="response/information",
         server_reference="example.com:1883",
-        reason_str="The reason string is a human readable string designed for diagnostics.",
+        reason_str="The reason string is a human readable string designed for diagnostics.",  # noqa: E501
         receive_max=2**10,
         topic_alias_max=2**8,
         max_qos=mqtt5.QoS.AT_MOST_ONCE,
@@ -158,12 +158,11 @@ def connack_packet_full():
         user_properties=[
             ("location", "Pallet Town"),
             ("type", "Grass"),
-            # ("type", "Poison"),  # TODO: mqttproto doesn't support duplicate property keys
         ],
     )
 
 
-def connack_packet_full_mqttproto():
+def connack_packet_full_mqttproto() -> mqttproto.MQTTConnAckPacket:  # noqa: D103
     return mqttproto.MQTTConnAckPacket(
         session_present=True,
         reason_code=mqttproto.ReasonCode.UNSPECIFIED_ERROR,
@@ -175,7 +174,7 @@ def connack_packet_full_mqttproto():
             mqttproto.PropertyType.AUTHENTICATION_DATA: b"\x12" * 2**8,
             mqttproto.PropertyType.RESPONSE_INFORMATION: "response/information",
             mqttproto.PropertyType.SERVER_REFERENCE: "example.com:1883",
-            mqttproto.PropertyType.REASON_STRING: "The reason string is a human readable string designed for diagnostics.",
+            mqttproto.PropertyType.REASON_STRING: "The reason string is a human readable string designed for diagnostics.",  # noqa: E501
             mqttproto.PropertyType.RECEIVE_MAXIMUM: 2**10,
             mqttproto.PropertyType.TOPIC_ALIAS_MAXIMUM: 2**8,
             mqttproto.PropertyType.MAXIMUM_QOS: 0,
@@ -189,301 +188,295 @@ def connack_packet_full_mqttproto():
     )
 
 
-def publish_packet_qos0():
-    return mqtt5.PublishPacket(topic="foo/bar/+", payload=b"\x12" * 2**8)
+def publish_packet_qos0() -> mqtt5.PublishPacket:  # noqa: D103
+    return mqtt5.PublishPacket(topic="foo/bar/1234", payload=b"\x12" * 2**8)
 
 
-def publish_packet_qos0_mqttproto():
-    return mqttproto.MQTTPublishPacket(topic="foo/bar/+", payload=b"\x12" * 2**8)
+def publish_packet_qos0_mqttproto() -> mqttproto.MQTTPublishPacket:  # noqa: D103
+    return mqttproto.MQTTPublishPacket(topic="foo/bar/1234", payload=b"\x12" * 2**8)
 
 
-def publish_packet_qos1():
+def publish_packet_qos1() -> mqtt5.PublishPacket:  # noqa: D103
     return mqtt5.PublishPacket(
-        topic="foo/bar/+",
+        topic="foo/bar/1234",
         payload=b"\x12" * 2**8,
         qos=mqtt5.QoS.AT_LEAST_ONCE,
         packet_id=1234,
     )
 
 
-def publish_packet_qos1_mqttproto():
+def publish_packet_qos1_mqttproto() -> mqttproto.MQTTPublishPacket:  # noqa: D103
     return mqttproto.MQTTPublishPacket(
-        topic="foo/bar/+",
+        topic="foo/bar/1234",
         payload=b"\x12" * 2**8,
         qos=mqttproto.QoS.AT_LEAST_ONCE,
         packet_id=1234,
     )
 
 
-def puback_packet():
+def puback_packet() -> mqtt5.PubAckPacket:  # noqa: D103
     return mqtt5.PubAckPacket(packet_id=1234)
 
 
-def puback_packet_mqttproto():
+def puback_packet_mqttproto() -> mqttproto.MQTTPublishAckPacket:  # noqa: D103
     return mqttproto.MQTTPublishAckPacket(
         packet_id=1234, reason_code=mqttproto.ReasonCode.SUCCESS
     )
 
 
-def puback_packet_full():
+def puback_packet_full() -> mqtt5.PubAckPacket:  # noqa: D103
     return mqtt5.PubAckPacket(
         packet_id=1234,
         reason_code=mqtt5.PubAckReasonCode.NO_MATCHING_SUBSCRIBERS,
-        reason_str="The reason string is a human readable string designed for diagnostics.",
+        reason_str="The reason string is a human readable string designed for diagnostics.",  # noqa: E501
     )
 
 
-def puback_packet_full_mqttproto():
+def puback_packet_full_mqttproto() -> mqttproto.MQTTPublishAckPacket:  # noqa: D103
     return mqttproto.MQTTPublishAckPacket(
         packet_id=1234,
         reason_code=mqttproto.ReasonCode.NO_MATCHING_SUBSCRIBERS,
         properties={
-            mqttproto.PropertyType.REASON_STRING: "The reason string is a human readable string designed for diagnostics.",
+            mqttproto.PropertyType.REASON_STRING: "The reason string is a human readable string designed for diagnostics.",  # noqa: E501
         },
     )
 
 
-def pubrec_packet():
+def pubrec_packet() -> mqtt5.PubRecPacket:  # noqa: D103
     return mqtt5.PubRecPacket(packet_id=1234)
 
 
-def pubrec_packet_mqttproto():
+def pubrec_packet_mqttproto() -> mqttproto.MQTTPublishReceivePacket:  # noqa: D103
     return mqttproto.MQTTPublishReceivePacket(
         packet_id=1234, reason_code=mqttproto.ReasonCode.SUCCESS
     )
 
 
-def pubrec_packet_full():
+def pubrec_packet_full() -> mqtt5.PubRecPacket:  # noqa: D103
     return mqtt5.PubRecPacket(
         packet_id=1234,
         reason_code=mqtt5.PubRecReasonCode.NO_MATCHING_SUBSCRIBERS,
-        reason_str="The reason string is a human readable string designed for diagnostics.",
+        reason_str="The reason string is a human readable string designed for diagnostics.",  # noqa: E501
         user_properties=[
             ("location", "Pallet Town"),
             ("type", "Grass"),
-            # ("type", "Poison"),  # TODO: mqttproto doesn't support duplicate property keys
         ],
     )
 
 
-def pubrec_packet_full_mqttproto():
+def pubrec_packet_full_mqttproto() -> mqttproto.MQTTPublishReceivePacket:  # noqa: D103
     return mqttproto.MQTTPublishReceivePacket(
         packet_id=1234,
         reason_code=mqttproto.ReasonCode.NO_MATCHING_SUBSCRIBERS,
         properties={
-            mqttproto.PropertyType.REASON_STRING: "The reason string is a human readable string designed for diagnostics.",
+            mqttproto.PropertyType.REASON_STRING: "The reason string is a human readable string designed for diagnostics.",  # noqa: E501
         },
         user_properties={"location": "Pallet Town", "type": "Grass"},
     )
 
 
-def pubrel_packet():
+def pubrel_packet() -> mqtt5.PubRelPacket:  # noqa: D103
     return mqtt5.PubRelPacket(packet_id=1234)
 
 
-def pubrel_packet_mqttproto():
+def pubrel_packet_mqttproto() -> mqttproto.MQTTPublishReleasePacket:  # noqa: D103
     return mqttproto.MQTTPublishReleasePacket(
         packet_id=1234, reason_code=mqttproto.ReasonCode.SUCCESS
     )
 
 
-def pubrel_packet_full():
+def pubrel_packet_full() -> mqtt5.PubRelPacket:  # noqa: D103
     return mqtt5.PubRelPacket(
         packet_id=1234,
         reason_code=mqtt5.PubRelReasonCode.PACKET_ID_NOT_FOUND,
-        reason_str="The reason string is a human readable string designed for diagnostics.",
+        reason_str="The reason string is a human readable string designed for diagnostics.",  # noqa: E501
         user_properties=[
             ("location", "Pallet Town"),
             ("type", "Grass"),
-            # ("type", "Poison"),  # TODO: mqttproto doesn't support duplicate property keys
         ],
     )
 
 
-def pubrel_packet_full_mqttproto():
+def pubrel_packet_full_mqttproto() -> mqttproto.MQTTPublishReleasePacket:  # noqa: D103
     return mqttproto.MQTTPublishReleasePacket(
         packet_id=1234,
         reason_code=mqttproto.ReasonCode.PACKET_IDENTIFIER_NOT_FOUND,
         properties={
-            mqttproto.PropertyType.REASON_STRING: "The reason string is a human readable string designed for diagnostics.",
+            mqttproto.PropertyType.REASON_STRING: "The reason string is a human readable string designed for diagnostics.",  # noqa: E501
         },
         user_properties={"location": "Pallet Town", "type": "Grass"},
     )
 
 
-def pubcomp_packet():
+def pubcomp_packet() -> mqtt5.PubCompPacket:  # noqa: D103
     return mqtt5.PubCompPacket(packet_id=1234)
 
 
-def pubcomp_packet_mqttproto():
+def pubcomp_packet_mqttproto() -> mqttproto.MQTTPublishCompletePacket:  # noqa: D103
     return mqttproto.MQTTPublishCompletePacket(
         packet_id=1234, reason_code=mqttproto.ReasonCode.SUCCESS
     )
 
 
-def pubcomp_packet_full():
+def pubcomp_packet_full() -> mqtt5.PubCompPacket:  # noqa: D103
     return mqtt5.PubCompPacket(
         packet_id=1234,
         reason_code=mqtt5.PubCompReasonCode.PACKET_ID_NOT_FOUND,
-        reason_str="The reason string is a human readable string designed for diagnostics.",
+        reason_str="The reason string is a human readable string designed for diagnostics.",  # noqa: E501
         user_properties=[
             ("location", "Pallet Town"),
             ("type", "Grass"),
-            # ("type", "Poison"),  # TODO: mqttproto doesn't support duplicate property keys
         ],
     )
 
 
-def pubcomp_packet_full_mqttproto():
+def pubcomp_packet_full_mqttproto() -> mqttproto.MQTTPublishCompletePacket:  # noqa: D103
     return mqttproto.MQTTPublishCompletePacket(
         packet_id=1234,
         reason_code=mqttproto.ReasonCode.PACKET_IDENTIFIER_NOT_FOUND,
         properties={
-            mqttproto.PropertyType.REASON_STRING: "The reason string is a human readable string designed for diagnostics.",
+            mqttproto.PropertyType.REASON_STRING: "The reason string is a human readable string designed for diagnostics.",  # noqa: E501
         },
         user_properties={"location": "Pallet Town", "type": "Grass"},
     )
 
 
-def subscribe_packet():
+def subscribe_packet() -> mqtt5.SubscribePacket:  # noqa: D103
     return mqtt5.SubscribePacket(
-        packet_id=1234, subscriptions=[mqtt5.Subscription(pattern="foo/bar/+")]
+        packet_id=1234, subscriptions=[mqtt5.Subscription(pattern="+/bar/#")]
     )
 
 
-def subscribe_packet_mqttproto():
+def subscribe_packet_mqttproto() -> mqttproto.MQTTSubscribePacket:  # noqa: D103
     return mqttproto.MQTTSubscribePacket(
-        packet_id=1234, subscriptions=[mqttproto.Subscription(pattern="foo/bar/+")]
+        packet_id=1234, subscriptions=[mqttproto.Subscription(pattern="+/bar/#")]
     )
 
 
-def suback_packet():
+def suback_packet() -> mqtt5.SubAckPacket:  # noqa: D103
     return mqtt5.SubAckPacket(
         packet_id=1234, reason_codes=[mqtt5.SubAckReasonCode.TOPIC_FILTER_INVALID]
     )
 
 
-def suback_packet_mqttproto():
+def suback_packet_mqttproto() -> mqttproto.MQTTSubscribeAckPacket:  # noqa: D103
     return mqttproto.MQTTSubscribeAckPacket(
         packet_id=1234, reason_codes=[mqttproto.ReasonCode.TOPIC_FILTER_INVALID]
     )
 
 
-def unsubscribe_packet():
-    return mqtt5.UnsubscribePacket(packet_id=1234, patterns=["foo/bar/+", "baz/#"])
+def unsubscribe_packet() -> mqtt5.UnsubscribePacket:  # noqa: D103
+    return mqtt5.UnsubscribePacket(packet_id=1234, patterns=["+/bar/#", "foo/#"])
 
 
-def unsubscribe_packet_mqttproto():
+def unsubscribe_packet_mqttproto() -> mqttproto.MQTTUnsubscribePacket:  # noqa: D103
     return mqttproto.MQTTUnsubscribePacket(
-        packet_id=1234, patterns=["foo/bar/+", "baz/#"]
+        packet_id=1234, patterns=["+/bar/#", "foo/#"]
     )
 
 
-def unsuback_packet():
+def unsuback_packet() -> mqtt5.UnsubAckPacket:  # noqa: D103
     return mqtt5.UnsubAckPacket(
         packet_id=1234,
         reason_codes=[mqtt5.UnsubAckReasonCode.TOPIC_FILTER_INVALID],
-        reason_str="The reason string is a human readable string designed for diagnostics.",
+        reason_str="The reason string is a human readable string designed for diagnostics.",  # noqa: E501
         user_properties=[
             ("location", "Pallet Town"),
             ("type", "Grass"),
-            # ("type", "Poison"),  # TODO: mqttproto doesn't support duplicate property keys
         ],
     )
 
 
-def unsuback_packet_mqttproto():
+def unsuback_packet_mqttproto() -> mqttproto.MQTTUnsubscribeAckPacket:  # noqa: D103
     return mqttproto.MQTTUnsubscribeAckPacket(
         packet_id=1234,
         reason_codes=[mqttproto.ReasonCode.TOPIC_FILTER_INVALID],
         properties={
-            mqttproto.PropertyType.REASON_STRING: "The reason string is a human readable string designed for diagnostics.",
+            mqttproto.PropertyType.REASON_STRING: "The reason string is a human readable string designed for diagnostics.",  # noqa: E501
         },
         user_properties={"location": "Pallet Town", "type": "Grass"},
     )
 
 
-def pingreq_packet():
+def pingreq_packet() -> mqtt5.PingReqPacket:  # noqa: D103
     return mqtt5.PingReqPacket()
 
 
-def pingreq_packet_mqttproto():
+def pingreq_packet_mqttproto() -> mqttproto.MQTTPingRequestPacket:  # noqa: D103
     return mqttproto.MQTTPingRequestPacket()
 
 
-def pingresp_packet():
+def pingresp_packet() -> mqtt5.PingRespPacket:  # noqa: D103
     return mqtt5.PingRespPacket()
 
 
-def pingresp_packet_mqttproto():
+def pingresp_packet_mqttproto() -> mqttproto.MQTTPingResponsePacket:  # noqa: D103
     return mqttproto.MQTTPingResponsePacket()
 
 
-def disconnect_packet():
+def disconnect_packet() -> mqtt5.DisconnectPacket:  # noqa: D103
     return mqtt5.DisconnectPacket()
 
 
-def disconnect_packet_mqttproto():
+def disconnect_packet_mqttproto() -> mqttproto.MQTTDisconnectPacket:  # noqa: D103
     return mqttproto.MQTTDisconnectPacket(
         reason_code=mqttproto.ReasonCode.NORMAL_DISCONNECTION
     )
 
 
-def disconnect_packet_full():
+def disconnect_packet_full() -> mqtt5.DisconnectPacket:  # noqa: D103
     return mqtt5.DisconnectPacket(
         reason_code=mqtt5.DisconnectReasonCode.SERVER_SHUTTING_DOWN,
         session_expiry_interval=9999,
         server_reference="example.com:1883",
-        reason_str="The reason string is a human readable string designed for diagnostics.",
+        reason_str="The reason string is a human readable string designed for diagnostics.",  # noqa: E501
         user_properties=[
             ("location", "Pallet Town"),
             ("type", "Grass"),
-            # ("type", "Poison"),  # TODO: mqttproto doesn't support duplicate property keys
         ],
     )
 
 
-def disconnect_packet_full_mqttproto():
+def disconnect_packet_full_mqttproto() -> mqttproto.MQTTDisconnectPacket:  # noqa: D103
     return mqttproto.MQTTDisconnectPacket(
         reason_code=mqttproto.ReasonCode.SERVER_SHUTTING_DOWN,
         properties={
             mqttproto.PropertyType.SESSION_EXPIRY_INTERVAL: 9999,
             mqttproto.PropertyType.SERVER_REFERENCE: "example.com:1883",
-            mqttproto.PropertyType.REASON_STRING: "The reason string is a human readable string designed for diagnostics.",
+            mqttproto.PropertyType.REASON_STRING: "The reason string is a human readable string designed for diagnostics.",  # noqa: E501
         },
         user_properties={"location": "Pallet Town", "type": "Grass"},
     )
 
 
-def auth_packet():
+def auth_packet() -> mqtt5.AuthPacket:  # noqa: D103
     return mqtt5.AuthPacket()
 
 
-def auth_packet_mqttproto():
+def auth_packet_mqttproto() -> mqttproto.MQTTAuthPacket:  # noqa: D103
     return mqttproto.MQTTAuthPacket(reason_code=mqttproto.ReasonCode.SUCCESS)
 
 
-def auth_packet_full():
+def auth_packet_full() -> mqtt5.AuthPacket:  # noqa: D103
     return mqtt5.AuthPacket(
         reason_code=mqtt5.AuthReasonCode.CONTINUE_AUTHENTICATION,
         authentication_method="GS2-KRB5",
         authentication_data=b"\x12" * 2**8,
-        reason_str="The reason string is a human readable string designed for diagnostics.",
+        reason_str="The reason string is a human readable string designed for diagnostics.",  # noqa: E501
         user_properties=[
             ("location", "Pallet Town"),
             ("type", "Grass"),
-            # ("type", "Poison"),  # TODO: mqttproto doesn't support duplicate property keys
         ],
     )
 
 
-def auth_packet_full_mqttproto():
+def auth_packet_full_mqttproto() -> mqttproto.MQTTAuthPacket:  # noqa: D103
     return mqttproto.MQTTAuthPacket(
         reason_code=mqttproto.ReasonCode.CONTINUE_AUTHENTICATION,
         properties={
             mqttproto.PropertyType.AUTHENTICATION_METHOD: "GS2-KRB5",
             mqttproto.PropertyType.AUTHENTICATION_DATA: b"\x12" * 2**8,
-            mqttproto.PropertyType.REASON_STRING: "The reason string is a human readable string designed for diagnostics.",
+            mqttproto.PropertyType.REASON_STRING: "The reason string is a human readable string designed for diagnostics.",  # noqa: E501
         },
         user_properties={"location": "Pallet Town", "type": "Grass"},
     )
@@ -503,14 +496,6 @@ for key, value in dict(locals()).items():
         PACKET_NAMES.append(name)
         PACKET_INITS.append(value)
 
-# Validate that we have both mqtt5 and mqttproto implementations for all test packets
-assert len(PACKET_INITS) == len(PACKET_INITS_MQTTPROTO)
 # Collect the initialized packets
 PACKETS = [f() for f in PACKET_INITS]
 PACKETS_MQTTPROTO = [f() for f in PACKET_INITS_MQTTPROTO]
-
-
-@pytest.fixture(scope="session")
-def buffer():
-    """Pre-allocated buffer for packet de/serialization."""
-    return bytearray(2048)

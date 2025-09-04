@@ -1,12 +1,13 @@
-"""Tests for the write/read (roundtrip) consistency of the implementation."""
+"""Tests write/read (roundtrip) consistency."""
+
+import conftest
+import pytest
 
 import mqtt5
-import pytest
-import conftest
 
 
 @pytest.mark.parametrize("packet", conftest.PACKETS, ids=conftest.PACKET_NAMES)
-def test_roundtrip(packet, buffer):
+def test_roundtrip(packet: mqtt5.Packet) -> None:
     """Test write/read (roundtrip) consistency for all packet types."""
     data = packet.write()
     packet2, nbytes = mqtt5.read(bytearray(data))

@@ -34,7 +34,8 @@ dev = [
     "mqttproto",
     "pyperf>=2.9.0",
     "pytest>=8.0.0",
-    "ruff>=0.12.1",
+    "ruff>=0.12.12",
+    "ty>=0.0.1a20",
 ]
 
 [tool.maturin]
@@ -52,3 +53,33 @@ cache-keys = [
 
 [tool.uv.sources]
 mqttproto = { git = "https://github.com/empicano/mqttproto.git" }
+
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = [
+    "COM812",  # missing-trailing-comma
+    "FIX002",  # line-contains-todo
+    "TD003",   # missing-todo-link
+    "PYI011",  # typed-argument-default-in-stub
+    "PYI021",  # docstring-in-stub
+    "PLR0913", # too-many-arguments
+    "D104",    # undocumented-public-package
+    "D105",    # undocumented-magic-method
+    "D107",    # undocumented-public-init
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.per-file-ignores]
+"**/__init__.py" = [
+    "F403", # undefined-local-with-import-star
+    "F405", # undefined-local-with-import-star-usage
+]
+"tests/**.py" = [
+    "INP001",  # implicit-namespace-package
+    "PLR2004", # magic-value-comparison
+    "S101",    # assert
+    "S106",    # hardcoded-password-func-arg
+    "SLF001",  # private-member-access
+]

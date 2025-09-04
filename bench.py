@@ -1,11 +1,15 @@
-import pyperf
-import inspect
+"""Benchmarks mqtt5's read and write performance."""
+
 import argparse
+import inspect
+import typing
+
+import pyperf
 
 import tests.conftest
 
 
-def source(func):
+def source(func: typing.Callable) -> str:
     """Extract the body of a packet initialization function as str."""
     s = inspect.getsource(func).split("\n")
     del s[0], s[-1]
@@ -15,7 +19,7 @@ def source(func):
     return s
 
 
-def _add_cmdline_args(cmd, args):
+def _add_cmdline_args(cmd: list[str], args: argparse.Namespace) -> None:
     """Propagate our custom runner command line arguments to the workers."""
     for item in args.packets:
         cmd.extend(["--packets", item])
@@ -40,6 +44,7 @@ benchmarks = [
         tests.conftest.PACKET_NAMES,
         tests.conftest.PACKET_INITS,
         tests.conftest.PACKET_INITS_MQTTPROTO,
+        strict=True,
     )
     if len(args.packets) == 0
     or any(packet_name.lower().startswith(item.lower()) for item in args.packets)

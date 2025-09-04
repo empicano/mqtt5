@@ -1,5 +1,5 @@
-import typing
 import enum
+import typing
 
 class QoS(enum.IntEnum):
     AT_MOST_ONCE = 0
@@ -170,14 +170,6 @@ class Subscription:
         retain_handling: RetainHandling = RetainHandling.SEND_ALWAYS,
     ) -> None: ...
 
-class Packet(typing.Protocol):
-    def write(self) -> bytes:
-        """Serialize the packet to bytes.
-
-        Returns:
-            The serialized packet as bytes.
-        """
-
 class ConnectPacket:
     client_id: str
     username: str | None
@@ -214,12 +206,7 @@ class ConnectPacket:
         max_packet_size: int | None = None,
         user_properties: list[tuple[str, str]] | None = None,
     ) -> None: ...
-    def write(self) -> bytes:
-        """Serialize the packet to bytes.
-
-        Returns:
-            The serialized packet as bytes.
-        """
+    def write(self) -> bytes: ...
 
 class ConnAckPacket:
     session_present: bool
@@ -264,13 +251,8 @@ class ConnAckPacket:
         subscription_id_available: bool = True,
         shared_subscription_available: bool = True,
         user_properties: list[tuple[str, str]] | None = None,
-    ): ...
-    def write(self) -> bytes:
-        """Serialize the packet to bytes.
-
-        Returns:
-            The serialized packet as bytes.
-        """
+    ) -> None: ...
+    def write(self) -> bytes: ...
 
 class PublishPacket:
     topic: str
@@ -306,12 +288,7 @@ class PublishPacket:
         topic_alias: int | None = None,
         user_properties: list[tuple[str, str]] | None = None,
     ) -> None: ...
-    def write(self) -> bytes:
-        """Serialize the packet to bytes.
-
-        Returns:
-            The serialized packet as bytes.
-        """
+    def write(self) -> bytes: ...
 
 class PubAckPacket:
     packet_id: int
@@ -327,12 +304,7 @@ class PubAckPacket:
         reason_str: str | None = None,
         user_properties: list[tuple[str, str]] | None = None,
     ) -> None: ...
-    def write(self) -> bytes:
-        """Serialize the packet to bytes.
-
-        Returns:
-            The serialized packet as bytes.
-        """
+    def write(self) -> bytes: ...
 
 class PubRecPacket:
     packet_id: int
@@ -348,12 +320,7 @@ class PubRecPacket:
         reason_str: str | None = None,
         user_properties: list[tuple[str, str]] | None = None,
     ) -> None: ...
-    def write(self) -> bytes:
-        """Serialize the packet to bytes.
-
-        Returns:
-            The serialized packet as bytes.
-        """
+    def write(self) -> bytes: ...
 
 class PubRelPacket:
     packet_id: int
@@ -369,12 +336,7 @@ class PubRelPacket:
         reason_str: str | None = None,
         user_properties: list[tuple[str, str]] | None = None,
     ) -> None: ...
-    def write(self) -> bytes:
-        """Serialize the packet to bytes.
-
-        Returns:
-            The serialized packet as bytes.
-        """
+    def write(self) -> bytes: ...
 
 class PubCompPacket:
     packet_id: int
@@ -390,12 +352,7 @@ class PubCompPacket:
         reason_str: str | None = None,
         user_properties: list[tuple[str, str]] | None = None,
     ) -> None: ...
-    def write(self) -> bytes:
-        """Serialize the packet to bytes.
-
-        Returns:
-            The serialized packet as bytes.
-        """
+    def write(self) -> bytes: ...
 
 class SubscribePacket:
     packet_id: int
@@ -411,12 +368,7 @@ class SubscribePacket:
         subscription_id: int | None = None,
         user_properties: list[tuple[str, str]] | None = None,
     ) -> None: ...
-    def write(self) -> bytes:
-        """Serialize the packet to bytes.
-
-        Returns:
-            The serialized packet as bytes.
-        """
+    def write(self) -> bytes: ...
 
 class SubAckPacket:
     packet_id: int
@@ -432,12 +384,7 @@ class SubAckPacket:
         reason_str: str | None = None,
         user_properties: list[tuple[str, str]] | None = None,
     ) -> None: ...
-    def write(self) -> bytes:
-        """Serialize the packet to bytes.
-
-        Returns:
-            The serialized packet as bytes.
-        """
+    def write(self) -> bytes: ...
 
 class UnsubscribePacket:
     packet_id: int
@@ -451,12 +398,7 @@ class UnsubscribePacket:
         *,
         user_properties: list[tuple[str, str]] | None = None,
     ) -> None: ...
-    def write(self) -> bytes:
-        """Serialize the packet to bytes.
-
-        Returns:
-            The serialized packet as bytes.
-        """
+    def write(self) -> bytes: ...
 
 class UnsubAckPacket:
     packet_id: int
@@ -472,30 +414,15 @@ class UnsubAckPacket:
         reason_str: str | None = None,
         user_properties: list[tuple[str, str]] | None = None,
     ) -> None: ...
-    def write(self) -> bytes:
-        """Serialize the packet to bytes.
-
-        Returns:
-            The serialized packet as bytes.
-        """
+    def write(self) -> bytes: ...
 
 class PingReqPacket:
     def __init__(self) -> None: ...
-    def write(self) -> bytes:
-        """Serialize the packet to bytes.
-
-        Returns:
-            The serialized packet as bytes.
-        """
+    def write(self) -> bytes: ...
 
 class PingRespPacket:
     def __init__(self) -> None: ...
-    def write(self) -> bytes:
-        """Serialize the packet to bytes.
-
-        Returns:
-            The serialized packet as bytes.
-        """
+    def write(self) -> bytes: ...
 
 class DisconnectPacket:
     reason_code: DisconnectReasonCode
@@ -513,12 +440,7 @@ class DisconnectPacket:
         reason_str: str | None = None,
         user_properties: list[tuple[str, str]] | None = None,
     ) -> None: ...
-    def write(self) -> bytes:
-        """Serialize the packet to bytes.
-
-        Returns:
-            The serialized packet as bytes.
-        """
+    def write(self) -> bytes: ...
 
 class AuthPacket:
     reason_code: AuthReasonCode
@@ -536,20 +458,24 @@ class AuthPacket:
         reason_str: str | None = None,
         user_properties: list[tuple[str, str]] | None = None,
     ) -> None: ...
-    def write(self) -> bytes:
-        """Serialize the packet to bytes.
+    def write(self) -> bytes: ...
 
-        Returns:
-            The serialized packet as bytes.
-        """
+Packet: typing.TypeAlias = (
+    ConnectPacket
+    | ConnAckPacket
+    | PublishPacket
+    | PubAckPacket
+    | PubRecPacket
+    | PubRelPacket
+    | PubCompPacket
+    | SubscribePacket
+    | SubAckPacket
+    | UnsubscribePacket
+    | UnsubAckPacket
+    | PingReqPacket
+    | PingRespPacket
+    | DisconnectPacket
+    | AuthPacket
+)
 
-def read(buffer: bytearray, /, *, index: int = 0) -> tuple[Packet, int]:
-    """Parse the next MQTT packet from the buffer.
-
-    Args:
-        buffer: The buffer containing packet data.
-        index: Offset in the buffer to start reading from.
-
-    Returns:
-        A tuple of (parsed packet, number of bytes consumed).
-    """
+def read(buffer: bytearray, /, *, index: int = 0) -> tuple[Packet, int]: ...

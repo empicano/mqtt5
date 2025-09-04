@@ -6,5 +6,6 @@ set -o errexit -o pipefail -o nounset
 cd "$(dirname "$0")/.."
 
 # Run the checks
-uv run ruff check --fix
 uv run ruff format
+uv run ruff check --fix
+uv run ty check
