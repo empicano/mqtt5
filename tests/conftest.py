@@ -26,7 +26,7 @@ def connect_packet_will() -> mqtt5.ConnectPacket:  # noqa: D103
             content_type="text/html",
             response_topic="foo/bar/1234",
             correlation_data=b"\x12" * 2**8,
-            will_delay_interval=12,
+            will_delay_interval=20,
         ),
     )
 
@@ -45,7 +45,7 @@ def connect_packet_will_mqttproto() -> mqttproto.MQTTConnectPacket:  # noqa: D10
                 mqttproto.PropertyType.CONTENT_TYPE: "text/html",
                 mqttproto.PropertyType.RESPONSE_TOPIC: "foo/bar/1234",
                 mqttproto.PropertyType.CORRELATION_DATA: b"\x12" * 2**8,
-                mqttproto.PropertyType.WILL_DELAY_INTERVAL: 12,
+                mqttproto.PropertyType.WILL_DELAY_INTERVAL: 20,
             },
         ),
     )
@@ -67,21 +67,21 @@ def connect_packet_full() -> mqtt5.ConnectPacket:  # noqa: D103
             content_type="text/html",
             response_topic="foo/bar/1234",
             correlation_data=b"\x12" * 2**8,
-            will_delay_interval=12,
+            will_delay_interval=20,
             user_properties=[
                 ("location", "Pallet Town"),
                 ("type", "Grass"),
             ],
         ),
         keep_alive=6789,
-        session_expiry_interval=9999,
+        session_expiry_interval=600,
         authentication_method="GS2-KRB5",
         authentication_data=b"\x12" * 2**8,
         request_problem_info=False,
         request_response_info=True,
         receive_max=55555,
         topic_alias_max=3,
-        max_packet_size=5000,
+        max_packet_size=2**12,
         user_properties=[
             ("location", "Pallet Town"),
             ("type", "Grass"),
@@ -106,20 +106,20 @@ def connect_packet_full_mqttproto() -> mqttproto.MQTTConnectPacket:  # noqa: D10
                 mqttproto.PropertyType.CONTENT_TYPE: "text/html",
                 mqttproto.PropertyType.RESPONSE_TOPIC: "foo/bar/1234",
                 mqttproto.PropertyType.CORRELATION_DATA: b"\x12" * 2**8,
-                mqttproto.PropertyType.WILL_DELAY_INTERVAL: 12,
+                mqttproto.PropertyType.WILL_DELAY_INTERVAL: 20,
             },
             user_properties={"location": "Pallet Town", "type": "Grass"},
         ),
         keep_alive=6789,
         properties={
-            mqttproto.PropertyType.SESSION_EXPIRY_INTERVAL: 9999,
+            mqttproto.PropertyType.SESSION_EXPIRY_INTERVAL: 600,
             mqttproto.PropertyType.AUTHENTICATION_METHOD: "GS2-KRB5",
             mqttproto.PropertyType.AUTHENTICATION_DATA: b"\x12" * 2**8,
             mqttproto.PropertyType.REQUEST_PROBLEM_INFORMATION: 0,
             mqttproto.PropertyType.REQUEST_RESPONSE_INFORMATION: 1,
             mqttproto.PropertyType.RECEIVE_MAXIMUM: 55555,
             mqttproto.PropertyType.TOPIC_ALIAS_MAXIMUM: 3,
-            mqttproto.PropertyType.MAXIMUM_PACKET_SIZE: 5000,
+            mqttproto.PropertyType.MAXIMUM_PACKET_SIZE: 2**12,
         },
         user_properties={"location": "Pallet Town", "type": "Grass"},
     )
@@ -139,7 +139,7 @@ def connack_packet_full() -> mqtt5.ConnAckPacket:  # noqa: D103
     return mqtt5.ConnAckPacket(
         session_present=True,
         reason_code=mqtt5.ConnAckReasonCode.UNSPECIFIED_ERROR,
-        session_expiry_interval=9999,
+        session_expiry_interval=600,
         assigned_client_id="Bulbasaur",
         server_keep_alive=6789,
         authentication_method="GS2-KRB5",
@@ -167,7 +167,7 @@ def connack_packet_full_mqttproto() -> mqttproto.MQTTConnAckPacket:  # noqa: D10
         session_present=True,
         reason_code=mqttproto.ReasonCode.UNSPECIFIED_ERROR,
         properties={
-            mqttproto.PropertyType.SESSION_EXPIRY_INTERVAL: 9999,
+            mqttproto.PropertyType.SESSION_EXPIRY_INTERVAL: 600,
             mqttproto.PropertyType.ASSIGNED_CLIENT_IDENTIFIER: "Bulbasaur",
             mqttproto.PropertyType.SERVER_KEEP_ALIVE: 6789,
             mqttproto.PropertyType.AUTHENTICATION_METHOD: "GS2-KRB5",
@@ -201,7 +201,7 @@ def publish_packet_qos1() -> mqtt5.PublishPacket:  # noqa: D103
         topic="foo/bar/1234",
         payload=b"\x12" * 2**8,
         qos=mqtt5.QoS.AT_LEAST_ONCE,
-        packet_id=1234,
+        packet_id=999,
     )
 
 
@@ -210,23 +210,23 @@ def publish_packet_qos1_mqttproto() -> mqttproto.MQTTPublishPacket:  # noqa: D10
         topic="foo/bar/1234",
         payload=b"\x12" * 2**8,
         qos=mqttproto.QoS.AT_LEAST_ONCE,
-        packet_id=1234,
+        packet_id=999,
     )
 
 
 def puback_packet() -> mqtt5.PubAckPacket:  # noqa: D103
-    return mqtt5.PubAckPacket(packet_id=1234)
+    return mqtt5.PubAckPacket(packet_id=999)
 
 
 def puback_packet_mqttproto() -> mqttproto.MQTTPublishAckPacket:  # noqa: D103
     return mqttproto.MQTTPublishAckPacket(
-        packet_id=1234, reason_code=mqttproto.ReasonCode.SUCCESS
+        packet_id=999, reason_code=mqttproto.ReasonCode.SUCCESS
     )
 
 
 def puback_packet_full() -> mqtt5.PubAckPacket:  # noqa: D103
     return mqtt5.PubAckPacket(
-        packet_id=1234,
+        packet_id=999,
         reason_code=mqtt5.PubAckReasonCode.NO_MATCHING_SUBSCRIBERS,
         reason_str="The reason string is a human readable string designed for diagnostics.",  # noqa: E501
     )
@@ -234,7 +234,7 @@ def puback_packet_full() -> mqtt5.PubAckPacket:  # noqa: D103
 
 def puback_packet_full_mqttproto() -> mqttproto.MQTTPublishAckPacket:  # noqa: D103
     return mqttproto.MQTTPublishAckPacket(
-        packet_id=1234,
+        packet_id=999,
         reason_code=mqttproto.ReasonCode.NO_MATCHING_SUBSCRIBERS,
         properties={
             mqttproto.PropertyType.REASON_STRING: "The reason string is a human readable string designed for diagnostics.",  # noqa: E501
@@ -243,18 +243,18 @@ def puback_packet_full_mqttproto() -> mqttproto.MQTTPublishAckPacket:  # noqa: D
 
 
 def pubrec_packet() -> mqtt5.PubRecPacket:  # noqa: D103
-    return mqtt5.PubRecPacket(packet_id=1234)
+    return mqtt5.PubRecPacket(packet_id=999)
 
 
 def pubrec_packet_mqttproto() -> mqttproto.MQTTPublishReceivePacket:  # noqa: D103
     return mqttproto.MQTTPublishReceivePacket(
-        packet_id=1234, reason_code=mqttproto.ReasonCode.SUCCESS
+        packet_id=999, reason_code=mqttproto.ReasonCode.SUCCESS
     )
 
 
 def pubrec_packet_full() -> mqtt5.PubRecPacket:  # noqa: D103
     return mqtt5.PubRecPacket(
-        packet_id=1234,
+        packet_id=999,
         reason_code=mqtt5.PubRecReasonCode.NO_MATCHING_SUBSCRIBERS,
         reason_str="The reason string is a human readable string designed for diagnostics.",  # noqa: E501
         user_properties=[
@@ -266,7 +266,7 @@ def pubrec_packet_full() -> mqtt5.PubRecPacket:  # noqa: D103
 
 def pubrec_packet_full_mqttproto() -> mqttproto.MQTTPublishReceivePacket:  # noqa: D103
     return mqttproto.MQTTPublishReceivePacket(
-        packet_id=1234,
+        packet_id=999,
         reason_code=mqttproto.ReasonCode.NO_MATCHING_SUBSCRIBERS,
         properties={
             mqttproto.PropertyType.REASON_STRING: "The reason string is a human readable string designed for diagnostics.",  # noqa: E501
@@ -276,18 +276,18 @@ def pubrec_packet_full_mqttproto() -> mqttproto.MQTTPublishReceivePacket:  # noq
 
 
 def pubrel_packet() -> mqtt5.PubRelPacket:  # noqa: D103
-    return mqtt5.PubRelPacket(packet_id=1234)
+    return mqtt5.PubRelPacket(packet_id=999)
 
 
 def pubrel_packet_mqttproto() -> mqttproto.MQTTPublishReleasePacket:  # noqa: D103
     return mqttproto.MQTTPublishReleasePacket(
-        packet_id=1234, reason_code=mqttproto.ReasonCode.SUCCESS
+        packet_id=999, reason_code=mqttproto.ReasonCode.SUCCESS
     )
 
 
 def pubrel_packet_full() -> mqtt5.PubRelPacket:  # noqa: D103
     return mqtt5.PubRelPacket(
-        packet_id=1234,
+        packet_id=999,
         reason_code=mqtt5.PubRelReasonCode.PACKET_ID_NOT_FOUND,
         reason_str="The reason string is a human readable string designed for diagnostics.",  # noqa: E501
         user_properties=[
@@ -299,7 +299,7 @@ def pubrel_packet_full() -> mqtt5.PubRelPacket:  # noqa: D103
 
 def pubrel_packet_full_mqttproto() -> mqttproto.MQTTPublishReleasePacket:  # noqa: D103
     return mqttproto.MQTTPublishReleasePacket(
-        packet_id=1234,
+        packet_id=999,
         reason_code=mqttproto.ReasonCode.PACKET_IDENTIFIER_NOT_FOUND,
         properties={
             mqttproto.PropertyType.REASON_STRING: "The reason string is a human readable string designed for diagnostics.",  # noqa: E501
@@ -309,18 +309,18 @@ def pubrel_packet_full_mqttproto() -> mqttproto.MQTTPublishReleasePacket:  # noq
 
 
 def pubcomp_packet() -> mqtt5.PubCompPacket:  # noqa: D103
-    return mqtt5.PubCompPacket(packet_id=1234)
+    return mqtt5.PubCompPacket(packet_id=999)
 
 
 def pubcomp_packet_mqttproto() -> mqttproto.MQTTPublishCompletePacket:  # noqa: D103
     return mqttproto.MQTTPublishCompletePacket(
-        packet_id=1234, reason_code=mqttproto.ReasonCode.SUCCESS
+        packet_id=999, reason_code=mqttproto.ReasonCode.SUCCESS
     )
 
 
 def pubcomp_packet_full() -> mqtt5.PubCompPacket:  # noqa: D103
     return mqtt5.PubCompPacket(
-        packet_id=1234,
+        packet_id=999,
         reason_code=mqtt5.PubCompReasonCode.PACKET_ID_NOT_FOUND,
         reason_str="The reason string is a human readable string designed for diagnostics.",  # noqa: E501
         user_properties=[
@@ -332,7 +332,7 @@ def pubcomp_packet_full() -> mqtt5.PubCompPacket:  # noqa: D103
 
 def pubcomp_packet_full_mqttproto() -> mqttproto.MQTTPublishCompletePacket:  # noqa: D103
     return mqttproto.MQTTPublishCompletePacket(
-        packet_id=1234,
+        packet_id=999,
         reason_code=mqttproto.ReasonCode.PACKET_IDENTIFIER_NOT_FOUND,
         properties={
             mqttproto.PropertyType.REASON_STRING: "The reason string is a human readable string designed for diagnostics.",  # noqa: E501
@@ -343,41 +343,39 @@ def pubcomp_packet_full_mqttproto() -> mqttproto.MQTTPublishCompletePacket:  # n
 
 def subscribe_packet() -> mqtt5.SubscribePacket:  # noqa: D103
     return mqtt5.SubscribePacket(
-        packet_id=1234, subscriptions=[mqtt5.Subscription(pattern="+/bar/#")]
+        packet_id=999, subscriptions=[mqtt5.Subscription(pattern="+/bar/#")]
     )
 
 
 def subscribe_packet_mqttproto() -> mqttproto.MQTTSubscribePacket:  # noqa: D103
     return mqttproto.MQTTSubscribePacket(
-        packet_id=1234, subscriptions=[mqttproto.Subscription(pattern="+/bar/#")]
+        packet_id=999, subscriptions=[mqttproto.Subscription(pattern="+/bar/#")]
     )
 
 
 def suback_packet() -> mqtt5.SubAckPacket:  # noqa: D103
     return mqtt5.SubAckPacket(
-        packet_id=1234, reason_codes=[mqtt5.SubAckReasonCode.TOPIC_FILTER_INVALID]
+        packet_id=999, reason_codes=[mqtt5.SubAckReasonCode.TOPIC_FILTER_INVALID]
     )
 
 
 def suback_packet_mqttproto() -> mqttproto.MQTTSubscribeAckPacket:  # noqa: D103
     return mqttproto.MQTTSubscribeAckPacket(
-        packet_id=1234, reason_codes=[mqttproto.ReasonCode.TOPIC_FILTER_INVALID]
+        packet_id=999, reason_codes=[mqttproto.ReasonCode.TOPIC_FILTER_INVALID]
     )
 
 
 def unsubscribe_packet() -> mqtt5.UnsubscribePacket:  # noqa: D103
-    return mqtt5.UnsubscribePacket(packet_id=1234, patterns=["+/bar/#", "foo/#"])
+    return mqtt5.UnsubscribePacket(packet_id=999, patterns=["+/bar/#", "foo/#"])
 
 
 def unsubscribe_packet_mqttproto() -> mqttproto.MQTTUnsubscribePacket:  # noqa: D103
-    return mqttproto.MQTTUnsubscribePacket(
-        packet_id=1234, patterns=["+/bar/#", "foo/#"]
-    )
+    return mqttproto.MQTTUnsubscribePacket(packet_id=999, patterns=["+/bar/#", "foo/#"])
 
 
 def unsuback_packet() -> mqtt5.UnsubAckPacket:  # noqa: D103
     return mqtt5.UnsubAckPacket(
-        packet_id=1234,
+        packet_id=999,
         reason_codes=[mqtt5.UnsubAckReasonCode.TOPIC_FILTER_INVALID],
         reason_str="The reason string is a human readable string designed for diagnostics.",  # noqa: E501
         user_properties=[
@@ -389,7 +387,7 @@ def unsuback_packet() -> mqtt5.UnsubAckPacket:  # noqa: D103
 
 def unsuback_packet_mqttproto() -> mqttproto.MQTTUnsubscribeAckPacket:  # noqa: D103
     return mqttproto.MQTTUnsubscribeAckPacket(
-        packet_id=1234,
+        packet_id=999,
         reason_codes=[mqttproto.ReasonCode.TOPIC_FILTER_INVALID],
         properties={
             mqttproto.PropertyType.REASON_STRING: "The reason string is a human readable string designed for diagnostics.",  # noqa: E501
@@ -427,7 +425,7 @@ def disconnect_packet_mqttproto() -> mqttproto.MQTTDisconnectPacket:  # noqa: D1
 def disconnect_packet_full() -> mqtt5.DisconnectPacket:  # noqa: D103
     return mqtt5.DisconnectPacket(
         reason_code=mqtt5.DisconnectReasonCode.SERVER_SHUTTING_DOWN,
-        session_expiry_interval=9999,
+        session_expiry_interval=600,
         server_reference="example.com:1883",
         reason_str="The reason string is a human readable string designed for diagnostics.",  # noqa: E501
         user_properties=[
@@ -441,7 +439,7 @@ def disconnect_packet_full_mqttproto() -> mqttproto.MQTTDisconnectPacket:  # noq
     return mqttproto.MQTTDisconnectPacket(
         reason_code=mqttproto.ReasonCode.SERVER_SHUTTING_DOWN,
         properties={
-            mqttproto.PropertyType.SESSION_EXPIRY_INTERVAL: 9999,
+            mqttproto.PropertyType.SESSION_EXPIRY_INTERVAL: 600,
             mqttproto.PropertyType.SERVER_REFERENCE: "example.com:1883",
             mqttproto.PropertyType.REASON_STRING: "The reason string is a human readable string designed for diagnostics.",  # noqa: E501
         },

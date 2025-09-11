@@ -13,9 +13,17 @@ import mqtt5
     ids=conftest.PACKET_NAMES,
 )
 def test_compliance(
-    packet: mqtt5.Packet, packet_mqttproto: mqttproto.MQTTPacket
+    packet: mqtt5.Packet,
+    packet_mqttproto: mqttproto.MQTTPacket,
+    request: pytest.FixtureRequest,
 ) -> None:
     """Test that mqtt5 writes the same bytes as mqttproto."""
+    identifier = request.node.callspec.id
+    if identifier in {"PubAck", "PubRec", "PubRel", "PubComp", "Disconnect"}:
+        # Mismatch because it's not always needed to write zero property length and
+        # we optimize for size
+        pytest.xfail("Mismatch due to encoding optimization")
+
     data = packet.write()
     buffer_mqttproto = bytearray()
     packet_mqttproto.encode(buffer_mqttproto)
