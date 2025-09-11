@@ -5,6 +5,7 @@ mod types;
 
 use io::{ReadCursor, Readable, VariableByteInteger};
 use packets::*;
+use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::types::PyByteArray;
 use pyo3::PyResult;
@@ -19,6 +20,8 @@ fn read(py: Python, buffer: &Bound<'_, PyByteArray>, index: usize) -> PyResult<(
     let first_byte = u8::read(&mut cursor)?;
     let flags = first_byte & 0x0F;
     let remaining_length = VariableByteInteger::read(&mut cursor)?;
+    // Check if we have enough bytes available
+    cursor.require(remaining_length.value() as usize)?;
     // Call the read method of the corresponding packet for the remaining bytes
     #[rustfmt::skip]
     let packet = match PacketType::new(first_byte >> 4)? {
@@ -38,7 +41,12 @@ fn read(py: Python, buffer: &Bound<'_, PyByteArray>, index: usize) -> PyResult<(
         PacketType::Disconnect => DisconnectPacket::read(py, &mut cursor, flags, remaining_length)?.into(),
         PacketType::Auth => AuthPacket::read(py, &mut cursor, flags, remaining_length)?.into(),
     };
-    Ok((packet, cursor.index - index))
+    // Check if we've read enough bytes
+    if cursor.index < index + remaining_length.value() as usize {
+        Err(PyValueError::new_err("Malformed packet"))
+    } else {
+        Ok((packet, cursor.index - index))
+    }
 }
 
 #[pymodule]

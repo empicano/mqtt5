@@ -15,7 +15,7 @@ import mqtt5
 def test_compliance(
     packet: mqtt5.Packet, packet_mqttproto: mqttproto.MQTTPacket
 ) -> None:
-    """Test that mqtt5 writes the same bytes as mqttproto for all packet types."""
+    """Test that mqtt5 writes the same bytes as mqttproto."""
     data = packet.write()
     buffer_mqttproto = bytearray()
     packet_mqttproto.encode(buffer_mqttproto)

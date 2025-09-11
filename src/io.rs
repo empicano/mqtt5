@@ -121,12 +121,17 @@ impl Readable for VariableByteInteger {
         let mut result = 0;
         for _ in 0..4 {
             cursor.require(1)?;
-            result += (cursor.buffer[cursor.index] & 0x7f) as u32 * multiplier;
-            multiplier *= 128;
+            let value = (cursor.buffer[cursor.index] & 0x7f) as u32;
+            result += value * multiplier;
             cursor.index += 1;
             if (cursor.buffer[cursor.index - 1] & 0x80) == 0 {
+                if multiplier > 1 && value == 0 {
+                    // Unnecessary zero byte
+                    return Err(PyValueError::new_err("Malformed bytes"));
+                }
                 return Ok(VariableByteInteger(result));
             }
+            multiplier *= 128;
         }
         Err(PyValueError::new_err("Malformed bytes"))
     }

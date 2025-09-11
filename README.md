@@ -30,6 +30,14 @@ buffer = bytearray(b"\x20\x03\x00\x00\x00")
 packet, nbytes = mqtt5.read(buffer)
 ```
 
+## Key features
+
+- Complete MQTTv5 support (user properties, QoS, topic aliases, ...)
+- Packets are encoded to the smallest possible size
+- Input validation prevents invalid outgoing packets
+- Strict parsing for incoming packets
+- Fully type-hinted
+
 ## Installation
 
 ```bash
@@ -40,9 +48,7 @@ Note that mqtt5 implements only the low-level packet de/serialization. If you're
 
 ## Documentation
 
-See the [stub file](https://github.com/empicano/mqtt5/blob/main/mqtt5.pyi) for an API reference and the [MQTTv5 specification](https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html) for details about the de/serialization.
-
-Invalid packets raise exceptions rather than being silently ignored or partially parsed.
+See the [stub file](https://github.com/empicano/mqtt5/blob/main/mqtt5/mqtt5.pyi) for an API reference and the [MQTTv5 specification](https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html) for details about the de/serialization.
 
 ## Versioning
 
