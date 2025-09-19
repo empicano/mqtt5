@@ -20,8 +20,8 @@ def test_compliance(
     """Test that mqtt5 writes the same bytes as mqttproto."""
     identifier = request.node.callspec.id
     if identifier in {"PubAck", "PubRec", "PubRel", "PubComp", "Disconnect"}:
-        # Mismatch because it's not always needed to write zero property length and
-        # we optimize for size
+        # Not all packets have to include the property length when they have no
+        # properties. We optimize for this case, but mqttproto doesn't.
         pytest.xfail("Mismatch due to encoding optimization")
 
     data = packet.write()

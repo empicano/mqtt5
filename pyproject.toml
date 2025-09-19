@@ -61,11 +61,7 @@ ignore = [
     "FIX002",  # line-contains-todo
     "TD003",   # missing-todo-link
     "PYI011",  # typed-argument-default-in-stub
-    "PYI021",  # docstring-in-stub
     "PLR0913", # too-many-arguments
-    "D104",    # undocumented-public-package
-    "D105",    # undocumented-magic-method
-    "D107",    # undocumented-public-init
 ]
 
 [tool.ruff.lint.pydocstyle]

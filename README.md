@@ -12,7 +12,7 @@ A sans-I/O implementation of the MQTTv5 protocol for Python, written in Rust. Se
   <i>Reading/Writing a QoS=1 Publish packet with a 256 bytes payload.</i>
 </p>
 
-**Write a packet**
+**Serialize a packet to bytes**
 
 ```py
 import mqtt5
@@ -21,7 +21,7 @@ packet = mqtt5.ConnectPacket(client_id="Bulbasaur")
 data = packet.write()
 ```
 
-**Read a packet**
+**Deserialize a packet from bytes**
 
 ```py
 import mqtt5
@@ -32,11 +32,10 @@ packet, nbytes = mqtt5.read(buffer)
 
 ## Key features
 
-- Complete MQTTv5 support (user properties, QoS, topic aliases, ...)
-- Packets are encoded to the smallest possible size
-- Input validation prevents invalid outgoing packets
-- Strict parsing for incoming packets
-- Fully type-hinted
+- Complete MQTTv5 support (user properties, QoS, topic aliases, flow control, ...)
+- Packets are serialized to minimal wire format
+- Strict validation on both outgoing and incoming packets
+- Fully type-annotated
 
 ## Installation
 

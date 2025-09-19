@@ -1,6 +1,5 @@
 mod io;
 mod packets;
-mod reason_codes;
 mod types;
 
 use io::{ReadCursor, Readable, VariableByteInteger};
@@ -9,7 +8,6 @@ use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::types::PyByteArray;
 use pyo3::PyResult;
-use reason_codes::*;
 use types::*;
 
 #[pyfunction]

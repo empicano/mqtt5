@@ -1,6 +1,5 @@
 use crate::io::{ReadCursor, Readable, UserProperty, VariableByteInteger, Writable, WriteCursor};
-use crate::reason_codes::*;
-use crate::types::{PacketType, PropertyType, PyEq, QoS, RetainHandling};
+use crate::types::*;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyList, PyString};
