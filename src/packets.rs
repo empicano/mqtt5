@@ -888,7 +888,9 @@ impl PublishPacket {
         user_properties: Option<Py<PyList>>,
     ) -> PyResult<Self> {
         if packet_id.is_some() && qos == QoS::AtMostOnce {
-            return Err(PyValueError::new_err("Packet ID must not be set for QoS 0"));
+            return Err(PyValueError::new_err(
+                "Packet ID must not be set for QoS = 0",
+            ));
         }
         if packet_id.is_none() && (qos == QoS::AtLeastOnce || qos == QoS::ExactlyOnce) {
             return Err(PyValueError::new_err("Packet ID must be set for QoS > 0"));
@@ -1520,6 +1522,7 @@ pub struct SubscribePacket {
     pub packet_id: u16,
     pub subscriptions: Py<PyList>,
     pub subscription_id: Option<VariableByteInteger>,
+    pub user_properties: Py<PyList>,
 }
 
 #[pymethods]
@@ -1530,22 +1533,27 @@ impl SubscribePacket {
         subscriptions,
         *,
         subscription_id=None,
+        user_properties=None,
     ))]
     pub fn new(
         packet_id: u16,
         subscriptions: Py<PyList>,
         subscription_id: Option<VariableByteInteger>,
+        user_properties: Option<Py<PyList>>,
     ) -> PyResult<Self> {
         Ok(Self {
             packet_id,
             subscriptions,
             subscription_id,
+            user_properties: user_properties
+                .unwrap_or_else(|| Python::with_gil(|py| PyList::empty(py).unbind())),
         })
     }
 
     pub fn write(&self, py: Python) -> PyResult<Py<PyBytes>> {
         let properties_nbytes = nbytes_properties!(self, {
             PropertyType::SubscriptionId => subscription_id: (Option<VariableByteInteger>) = None,
+            PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = PyList::empty(py),
         });
         let properties_remaining_length = VariableByteInteger::new(properties_nbytes as u32);
         let subscriptions = self.subscriptions.bind(py);
@@ -1571,6 +1579,7 @@ impl SubscribePacket {
             properties_remaining_length.write(&mut cursor);
             write_properties!(&mut cursor, self, {
                 PropertyType::SubscriptionId => subscription_id: (Option<VariableByteInteger>) = None,
+                PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = PyList::empty(py),
             });
 
             // [3.8.3] Payload
@@ -1606,6 +1615,7 @@ impl SubscribePacket {
         let packet_id = u16::read(cursor)?;
         read_properties!("SubscribePacket", cursor, start_index, remaining_length, {
             PropertyType::SubscriptionId => subscription_id: (Option<VariableByteInteger>) = None,
+            PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = PyList::empty(py),
         });
 
         // [3.8.3] Payload
@@ -1628,6 +1638,7 @@ impl SubscribePacket {
             packet_id,
             subscriptions: subscriptions.unbind(),
             subscription_id,
+            user_properties: user_properties.unbind(),
         };
         Py::new(py, packet)
     }
@@ -1638,6 +1649,7 @@ impl PartialEq for SubscribePacket {
         self.packet_id == other.packet_id
             && self.subscription_id == other.subscription_id
             && self.subscriptions.py_eq(&other.subscriptions)
+            && self.user_properties.py_eq(&other.user_properties)
     }
 }
 
