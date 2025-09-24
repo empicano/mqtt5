@@ -2,7 +2,7 @@
 
 <a href="https://pypi.org/project/mqtt5"><img alt="PyPI downloads" src="https://img.shields.io/pypi/dm/mqtt5"></a> <a href="https://pypi.org/project/mqtt5"><img alt="PyPI version" src="https://img.shields.io/pypi/v/mqtt5"></a> <a href="https://pypi.org/project/mqtt5"><img alt="Supported Python versions" src="https://img.shields.io/pypi/pyversions/mqtt5"></a>
 
-A sans-I/O implementation of the MQTTv5 protocol for Python, written in Rust. Serialization is ~5x faster and deserialization ~20x faster than comparable Python code (benchmarked against [mqttproto](https://github.com/agronholm/mqttproto)).
+A [sans-I/O](https://sans-io.readthedocs.io/how-to-sans-io.html#what-is-an-i-o-free-protocol-implementation) implementation of the MQTTv5 protocol for Python, written in Rust. Serialization is ~5x faster and deserialization ~20x faster than comparable Python code (benchmarked against [mqttproto](https://github.com/agronholm/mqttproto)).
 
 <p align="center">
     <img src="https://github.com/empicano/mqtt5/blob/main/chart.svg?raw=true" width="650px" />
@@ -59,4 +59,4 @@ See [CHANGELOG.md](https://github.com/empicano/mqtt5/blob/main/CHANGELOG.md), wh
 
 ## Acknowledgments
 
-mqtt5 was inspired by Brett Cannon's [sans-I/O documentation](https://sans-io.readthedocs.io). I've also learned a lot from Alex Grönholm's [mqttproto](https://github.com/agronholm/mqttproto), which is an excellent pure-Python MQTTv5 protocol implementation.
+I've learned a lot from Alex Grönholm's [mqttproto](https://github.com/agronholm/mqttproto), which is an excellent pure-Python MQTTv5 protocol implementation.
