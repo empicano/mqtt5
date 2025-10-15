@@ -888,12 +888,12 @@ impl PublishPacket {
         user_properties: Option<Py<PyList>>,
     ) -> PyResult<Self> {
         if packet_id.is_some() && qos == QoS::AtMostOnce {
-            return Err(PyValueError::new_err(
-                "Packet ID must not be set for QoS = 0",
-            ));
+            return Err(PyValueError::new_err("Packet ID must not be set for QoS=0"));
         }
         if packet_id.is_none() && (qos == QoS::AtLeastOnce || qos == QoS::ExactlyOnce) {
-            return Err(PyValueError::new_err("Packet ID must be set for QoS > 0"));
+            return Err(PyValueError::new_err(
+                "Packet ID must be set for QoS=1 and QoS=2",
+            ));
         }
         Ok(Self {
             topic,

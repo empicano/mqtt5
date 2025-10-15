@@ -9,7 +9,7 @@ A [sans-I/O](https://sans-io.readthedocs.io/how-to-sans-io.html#what-is-an-i-o-f
 </p>
 
 <p align="center">
-  <i>Reading/Writing a QoS=1 Publish packet with a 256 bytes payload.</i>
+  <i>Reading/Writing a QoS=1 Publish packet with 256 bytes payload.</i>
 </p>
 
 **Serialize a packet to bytes**
@@ -59,4 +59,4 @@ See [CHANGELOG.md](https://github.com/empicano/mqtt5/blob/main/CHANGELOG.md), wh
 
 ## Acknowledgments
 
-I've learned a lot from Alex Grönholm's [mqttproto](https://github.com/agronholm/mqttproto), which is an excellent pure-Python MQTTv5 protocol implementation.
+mqtt5 was inspired by [Cory Benfield's talk at PyCon 2016](https://www.youtube.com/watch?v=7cC3_jGwl_U). I've also learned a lot from Alex Grönholm's [mqttproto](https://github.com/agronholm/mqttproto), which is an excellent pure-Python MQTTv5 protocol implementation.
