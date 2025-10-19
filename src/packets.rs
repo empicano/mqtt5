@@ -77,7 +77,7 @@ macro_rules! write_properties {
     };
 
     (@write, $cursor:expr, $context:expr, $property_type:path, $field:ident, (Py<PyList<$inner:ty>>), $default:expr) => {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             if !$context.$field.bind(py).is_empty() {
                 for item in $context.$field.bind(py).iter() {
                     ($property_type as u8).write($cursor);
@@ -115,7 +115,7 @@ macro_rules! nbytes_properties {
     };
 
     (@nbytes, $context:expr, $accumulator:expr, $field:ident, (Py<PyList<$inner:ty>>), $default:expr) => {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             if !$context.$field.bind(py).is_empty() {
                 for item in $context.$field.bind(py).iter() {
                     let value: $inner = item.extract().unwrap();
@@ -193,14 +193,14 @@ impl Will {
             correlation_data,
             will_delay_interval,
             user_properties: user_properties
-                .unwrap_or_else(|| Python::with_gil(|py| PyList::empty(py).unbind())),
+                .unwrap_or_else(|| Python::attach(|py| PyList::empty(py).unbind())),
         }
     }
 }
 
 impl Clone for Will {
     fn clone(&self) -> Self {
-        Python::with_gil(|py| Self {
+        Python::attach(|py| Self {
             topic: self.topic.clone_ref(py),
             payload: self.payload.as_ref().map(|x| x.clone_ref(py)),
             qos: self.qos,
@@ -352,7 +352,7 @@ impl ConnectPacket {
             topic_alias_max,
             max_packet_size,
             user_properties: user_properties
-                .unwrap_or_else(|| Python::with_gil(|py| PyList::empty(py).unbind())),
+                .unwrap_or_else(|| Python::attach(|py| PyList::empty(py).unbind())),
         })
     }
 
@@ -674,7 +674,7 @@ impl ConnAckPacket {
             subscription_id_available,
             shared_subscription_available,
             user_properties: user_properties
-                .unwrap_or_else(|| Python::with_gil(|py| PyList::empty(py).unbind())),
+                .unwrap_or_else(|| Python::attach(|py| PyList::empty(py).unbind())),
         })
     }
 
@@ -908,10 +908,10 @@ impl PublishPacket {
             response_topic,
             correlation_data,
             subscription_ids: subscription_ids
-                .unwrap_or_else(|| Python::with_gil(|py| PyList::empty(py).unbind())),
+                .unwrap_or_else(|| Python::attach(|py| PyList::empty(py).unbind())),
             topic_alias,
             user_properties: user_properties
-                .unwrap_or_else(|| Python::with_gil(|py| PyList::empty(py).unbind())),
+                .unwrap_or_else(|| Python::attach(|py| PyList::empty(py).unbind())),
         })
     }
 
@@ -1082,7 +1082,7 @@ impl PubAckPacket {
             reason_code,
             reason_str,
             user_properties: user_properties
-                .unwrap_or_else(|| Python::with_gil(|py| PyList::empty(py).unbind())),
+                .unwrap_or_else(|| Python::attach(|py| PyList::empty(py).unbind())),
         })
     }
 
@@ -1198,7 +1198,7 @@ impl PubRecPacket {
             reason_code,
             reason_str,
             user_properties: user_properties
-                .unwrap_or_else(|| Python::with_gil(|py| PyList::empty(py).unbind())),
+                .unwrap_or_else(|| Python::attach(|py| PyList::empty(py).unbind())),
         })
     }
 
@@ -1314,7 +1314,7 @@ impl PubRelPacket {
             reason_code,
             reason_str,
             user_properties: user_properties
-                .unwrap_or_else(|| Python::with_gil(|py| PyList::empty(py).unbind())),
+                .unwrap_or_else(|| Python::attach(|py| PyList::empty(py).unbind())),
         })
     }
 
@@ -1430,7 +1430,7 @@ impl PubCompPacket {
             reason_code,
             reason_str,
             user_properties: user_properties
-                .unwrap_or_else(|| Python::with_gil(|py| PyList::empty(py).unbind())),
+                .unwrap_or_else(|| Python::attach(|py| PyList::empty(py).unbind())),
         })
     }
 
@@ -1546,7 +1546,7 @@ impl SubscribePacket {
             subscriptions,
             subscription_id,
             user_properties: user_properties
-                .unwrap_or_else(|| Python::with_gil(|py| PyList::empty(py).unbind())),
+                .unwrap_or_else(|| Python::attach(|py| PyList::empty(py).unbind())),
         })
     }
 
@@ -1682,7 +1682,7 @@ impl SubAckPacket {
             reason_codes,
             reason_str,
             user_properties: user_properties
-                .unwrap_or_else(|| Python::with_gil(|py| PyList::empty(py).unbind())),
+                .unwrap_or_else(|| Python::attach(|py| PyList::empty(py).unbind())),
         })
     }
 
@@ -1801,7 +1801,7 @@ impl UnsubscribePacket {
             packet_id,
             patterns,
             user_properties: user_properties
-                .unwrap_or_else(|| Python::with_gil(|py| PyList::empty(py).unbind())),
+                .unwrap_or_else(|| Python::attach(|py| PyList::empty(py).unbind())),
         })
     }
 
@@ -1919,7 +1919,7 @@ impl UnsubAckPacket {
             reason_codes,
             reason_str,
             user_properties: user_properties
-                .unwrap_or_else(|| Python::with_gil(|py| PyList::empty(py).unbind())),
+                .unwrap_or_else(|| Python::attach(|py| PyList::empty(py).unbind())),
         })
     }
 
@@ -2146,7 +2146,7 @@ impl DisconnectPacket {
             server_reference,
             reason_str,
             user_properties: user_properties
-                .unwrap_or_else(|| Python::with_gil(|py| PyList::empty(py).unbind())),
+                .unwrap_or_else(|| Python::attach(|py| PyList::empty(py).unbind())),
         })
     }
 
@@ -2271,7 +2271,7 @@ impl AuthPacket {
             authentication_data,
             reason_str,
             user_properties: user_properties
-                .unwrap_or_else(|| Python::with_gil(|py| PyList::empty(py).unbind())),
+                .unwrap_or_else(|| Python::attach(|py| PyList::empty(py).unbind())),
         })
     }
 

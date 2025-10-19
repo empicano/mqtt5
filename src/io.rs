@@ -160,7 +160,7 @@ impl Readable for Py<PyBytes> {
     fn read(cursor: &mut ReadCursor<'_>) -> PyResult<Self> {
         let length = u16::read(cursor)? as usize;
         cursor.require(length)?;
-        let result = Python::with_gil(|py| {
+        let result = Python::attach(|py| {
             PyBytes::new(py, &cursor.buffer[cursor.index..cursor.index + length]).unbind()
         });
         cursor.index += length;
@@ -172,7 +172,7 @@ impl Readable for Py<PyString> {
     fn read(cursor: &mut ReadCursor<'_>) -> PyResult<Self> {
         let length = u16::read(cursor)? as usize;
         cursor.require(length)?;
-        let result = Python::with_gil(|py| {
+        let result = Python::attach(|py| {
             PyString::new(py, unsafe {
                 str::from_utf8_unchecked(&cursor.buffer[cursor.index..cursor.index + length])
             })
@@ -187,7 +187,7 @@ impl Readable for UserProperty {
     fn read(cursor: &mut ReadCursor<'_>) -> PyResult<Self> {
         let key = Py::<PyString>::read(cursor)?;
         let value = Py::<PyString>::read(cursor)?;
-        Ok(Python::with_gil(|py| {
+        Ok(Python::attach(|py| {
             let tuple = PyTuple::new(py, [key.bind(py), value.bind(py)]).unwrap();
             UserProperty(tuple.unbind())
         }))
@@ -295,13 +295,13 @@ impl Writable for &str {
 
 impl Writable for Py<PyBytes> {
     fn write(&self, cursor: &mut WriteCursor<'_>) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             self.bind(py).as_bytes().write(cursor);
         })
     }
 
     fn nbytes(&self) -> usize {
-        Python::with_gil(|py| self.bind(py).as_bytes().nbytes())
+        Python::attach(|py| self.bind(py).as_bytes().nbytes())
     }
 }
 
@@ -317,13 +317,13 @@ impl Writable for &Bound<'_, PyBytes> {
 
 impl Writable for Py<PyString> {
     fn write(&self, cursor: &mut WriteCursor<'_>) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             self.bind(py).to_str().unwrap().write(cursor);
         })
     }
 
     fn nbytes(&self) -> usize {
-        Python::with_gil(|py| self.bind(py).to_str().unwrap().nbytes())
+        Python::attach(|py| self.bind(py).to_str().unwrap().nbytes())
     }
 }
 
@@ -339,7 +339,7 @@ impl Writable for &Bound<'_, PyString> {
 
 impl Writable for UserProperty {
     fn write(&self, cursor: &mut WriteCursor<'_>) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let tuple = self.0.bind(py);
             let key: Py<PyString> = tuple.get_item(0).unwrap().extract().unwrap();
             let value: Py<PyString> = tuple.get_item(1).unwrap().extract().unwrap();
@@ -349,7 +349,7 @@ impl Writable for UserProperty {
     }
 
     fn nbytes(&self) -> usize {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let tuple = self.0.bind(py);
             let key: Py<PyString> = tuple.get_item(0).unwrap().extract().unwrap();
             let value: Py<PyString> = tuple.get_item(1).unwrap().extract().unwrap();

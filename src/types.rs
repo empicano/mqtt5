@@ -12,19 +12,19 @@ pub trait PyEq {
 
 impl PyEq for Py<PyString> {
     fn py_eq(&self, other: &Self) -> bool {
-        Python::with_gil(|py| self.bind(py).as_any().eq(other.bind(py)).unwrap_or(false))
+        Python::attach(|py| self.bind(py).as_any().eq(other.bind(py)).unwrap_or(false))
     }
 }
 
 impl PyEq for Py<PyBytes> {
     fn py_eq(&self, other: &Self) -> bool {
-        Python::with_gil(|py| self.bind(py).as_any().eq(other.bind(py)).unwrap_or(false))
+        Python::attach(|py| self.bind(py).as_any().eq(other.bind(py)).unwrap_or(false))
     }
 }
 
 impl PyEq for Py<PyList> {
     fn py_eq(&self, other: &Self) -> bool {
-        Python::with_gil(|py| self.bind(py).as_any().eq(other.bind(py)).unwrap_or(false))
+        Python::attach(|py| self.bind(py).as_any().eq(other.bind(py)).unwrap_or(false))
     }
 }
 

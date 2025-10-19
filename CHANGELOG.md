@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Return number of bytes read from `read()` instead of index
 - Add `Packet` TypeAlias in custom `__init__.py`
 - Test for error cases
+- Fix missing user properties for `SubscribePacket`
+- Bump PyO3 version
 
 ## [0.3.0] - 2025-08-26
 

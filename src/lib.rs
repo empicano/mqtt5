@@ -12,7 +12,7 @@ use types::*;
 
 #[pyfunction]
 #[pyo3(signature = (buffer, *, index=0))]
-fn read(py: Python, buffer: &Bound<'_, PyByteArray>, index: usize) -> PyResult<(PyObject, usize)> {
+fn read(py: Python, buffer: &Bound<'_, PyByteArray>, index: usize) -> PyResult<(Py<PyAny>, usize)> {
     // Parse the fixed header
     let mut cursor = ReadCursor::new(unsafe { buffer.as_bytes() }, index);
     let first_byte = u8::read(&mut cursor)?;
