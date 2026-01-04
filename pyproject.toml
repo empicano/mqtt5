@@ -30,12 +30,12 @@ dependencies = []
 
 [dependency-groups]
 dev = [
-    "maturin>=1.9.1",
+    "maturin>=1.10.2",
     "mqttproto",
     "pyperf>=2.9.0",
     "pytest>=8.0.0",
     "ruff>=0.12.12",
-    "ty>=0.0.1a20",
+    "ty>=0.0.8",
 ]
 
 [tool.maturin]
