@@ -1,4 +1,4 @@
-# Contributing
+# How to contribute
 
 Building mqtt5 requires Rust and the uv package manager.
 
@@ -27,4 +27,5 @@ Add the `--compare` flag to benchmark against [mqttproto](https://github.com/agr
 ## Release
 
 1. Adjust the version in `Cargo.toml`
+1. Update the `CHANGELOG.md`
 1. Create a new release on GitHub.
