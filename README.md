@@ -26,7 +26,7 @@ data = packet.write()
 ```py
 import mqtt5
 
-buffer = bytearray(b"\x20\x03\x00\x00\x00")
+buffer = memoryview(b"\x20\x03\x00\x00\x00")
 packet, nbytes = mqtt5.read(buffer)
 ```
 

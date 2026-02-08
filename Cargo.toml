@@ -11,7 +11,7 @@ num_enum = "^0.7.5"
 
 [dependencies.pyo3]
 version = "^0.28.0"
-features = ["abi3-py310"]
+features = ["abi3-py311"]
 
 [profile.release]
 codegen-units = 1

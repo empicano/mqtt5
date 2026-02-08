@@ -2,8 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
@@ -13,7 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `Packet` TypeAlias in custom `__init__.py`
 - Test for error cases
 - Fix missing user properties for `SubscribePacket`
-- Bump PyO3 version
+- Pass `memoryview` instead of `bytearray` to `read()`
+- Drop Python 3.10 support
 
 ## [0.3.0] - 2025-08-26
 

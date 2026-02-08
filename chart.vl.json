@@ -5,14 +5,14 @@
       {
         "library": "mqtt5",
         "operation": "mqtt5 (Read)",
-        "time": 107,
-        "timeFormat": "107 ns"
+        "time": 132,
+        "timeFormat": "132 ns"
       },
       {
         "library": "mqtt5",
         "operation": "mqtt5 (Write)",
-        "time": 214,
-        "timeFormat": "214 ns"
+        "time": 224,
+        "timeFormat": "224 ns"
       },
       {
         "library": "mqttproto",
@@ -24,7 +24,7 @@
         "library": "mqttproto",
         "operation": "mqttproto (Write)",
         "time": 1120,
-        "timeFormat": "1.11 μs"
+        "timeFormat": "1.12 μs"
       }
     ]
   },

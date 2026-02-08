@@ -4,17 +4,18 @@ mod types;
 
 use io::{ReadCursor, Readable, VariableByteInteger};
 use packets::*;
+use pyo3::buffer::PyBuffer;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
-use pyo3::types::PyByteArray;
 use pyo3::PyResult;
 use types::*;
 
 #[pyfunction]
-#[pyo3(signature = (buffer, *, index=0))]
-fn read(py: Python, buffer: &Bound<'_, PyByteArray>, index: usize) -> PyResult<(Py<PyAny>, usize)> {
+fn read(py: Python, buffer: PyBuffer<u8>) -> PyResult<(Py<PyAny>, usize)> {
     // Parse the fixed header
-    let mut cursor = ReadCursor::new(unsafe { buffer.as_bytes() }, index);
+    let mut cursor = ReadCursor::new(unsafe {
+        std::slice::from_raw_parts(buffer.buf_ptr() as *const u8, buffer.len_bytes())
+    });
     let first_byte = u8::read(&mut cursor)?;
     let flags = first_byte & 0x0F;
     let remaining_length = VariableByteInteger::read(&mut cursor)?;
@@ -40,10 +41,10 @@ fn read(py: Python, buffer: &Bound<'_, PyByteArray>, index: usize) -> PyResult<(
         PacketType::Auth => AuthPacket::read(py, &mut cursor, flags, remaining_length)?.into(),
     };
     // Check if we've read enough bytes
-    if cursor.index < index + remaining_length.value() as usize {
+    if cursor.index < remaining_length.value() as usize {
         Err(PyValueError::new_err("Malformed packet"))
     } else {
-        Ok((packet, cursor.index - index))
+        Ok((packet, cursor.index))
     }
 }
 

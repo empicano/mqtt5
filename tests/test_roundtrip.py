@@ -10,7 +10,7 @@ import mqtt5
 def test_roundtrip(packet: mqtt5.Packet) -> None:
     """Test write/read (roundtrip) consistency."""
     data = packet.write()
-    packet2, nbytes = mqtt5.read(bytearray(data))
+    packet2, nbytes = mqtt5.read(memoryview(data))
     assert nbytes == len(data)
     assert isinstance(packet2, type(packet))
     assert packet == packet2

@@ -22,8 +22,8 @@ pub struct ReadCursor<'a> {
 }
 
 impl<'a> ReadCursor<'a> {
-    pub fn new(buffer: &'a [u8], index: usize) -> Self {
-        Self { buffer, index }
+    pub fn new(buffer: &'a [u8]) -> Self {
+        Self { buffer, index: 0 }
     }
 
     /// Ensures that the buffer has at least the given number of bytes available.

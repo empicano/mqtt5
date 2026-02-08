@@ -9,7 +9,7 @@ import mqtt5
 @pytest.mark.parametrize("packet", conftest.PACKETS, ids=conftest.PACKET_NAMES)
 def test_read_incomplete_buffer(packet: mqtt5.Packet) -> None:
     """Test error from reading an incomplete buffer."""
-    buffer = bytearray(packet.write())
+    buffer = memoryview(packet.write())
     for index in range(len(buffer)):
         with pytest.raises(IndexError):
             mqtt5.read(buffer[:index])
@@ -90,7 +90,7 @@ def test_read_incomplete_buffer(packet: mqtt5.Packet) -> None:
 def test_read_malformed_packet(buffer: bytearray) -> None:
     """Test error from reading a malformed packet."""
     with pytest.raises(ValueError):  # noqa: PT011
-        mqtt5.read(bytearray(buffer))
+        mqtt5.read(memoryview(buffer))
 
 
 @pytest.mark.parametrize(
