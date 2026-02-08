@@ -136,7 +136,7 @@ macro_rules! nbytes_properties {
     };
 }
 
-#[pyclass(frozen, eq, get_all, module = "mqtt5")]
+#[pyclass(frozen, eq, get_all, from_py_object, module = "mqtt5")]
 pub struct Will {
     pub topic: Py<PyString>,
     pub payload: Option<Py<PyBytes>>,

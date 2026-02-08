@@ -104,7 +104,7 @@ impl PropertyType {
 
 macro_rules! py_int_enum {
     ( $name:ident { $($field:ident = $value:expr),* $(,)? } ) => {
-        #[pyclass(eq, eq_int, str, rename_all = "SCREAMING_SNAKE_CASE", module = "mqtt5")]
+        #[pyclass(eq, eq_int, str, from_py_object, rename_all = "SCREAMING_SNAKE_CASE", module = "mqtt5")]
         #[derive(Copy, Clone, PartialEq, Eq, TryFromPrimitive)]
         #[repr(u8)]
         pub enum $name {
