@@ -1,0 +1,121 @@
+{
+  "$schema": "https://vega.github.io/schema/vega-lite/v6.json",
+  "data": {
+    "values": [
+      {
+        "library": "mqtt5",
+        "operation": "mqtt5 (Read)",
+        "time": 107,
+        "timeFormat": "107 ns"
+      },
+      {
+        "library": "mqtt5",
+        "operation": "mqtt5 (Write)",
+        "time": 214,
+        "timeFormat": "214 ns"
+      },
+      {
+        "library": "mqttproto",
+        "operation": "mqttproto (Read)",
+        "time": 2190,
+        "timeFormat": "2.19 μs"
+      },
+      {
+        "library": "mqttproto",
+        "operation": "mqttproto (Write)",
+        "time": 1120,
+        "timeFormat": "1.11 μs"
+      }
+    ]
+  },
+  "config": {
+    "padding": { "left": 10, "top": 15, "right": 10, "bottom": 10 },
+    "text": {
+      "font": "Helvetica Neue",
+      "color": "#1f2937"
+    },
+    "mark": {
+      "font": "Helvetica Neue",
+      "color": "#1f2937"
+    },
+    "axis": { "labelFont": "Helvetica Neue" },
+    "view": { "stroke": null }
+  },
+  "encoding": {
+    "y": {
+      "field": "operation",
+      "type": "nominal",
+      "axis": {
+        "grid": false,
+        "title": null,
+        "labelFontSize": 12,
+        "ticks": false,
+        "labelPadding": 8,
+        "domain": false
+      },
+      "sort": [
+        "mqtt5 (Read)",
+        "mqttproto (Read)",
+        "mqtt5 (Write)",
+        "mqttproto (Write)"
+      ]
+    },
+    "x": {
+      "field": "time",
+      "type": "quantitative",
+      "axis": {
+        "title": null,
+        "labelExpr": "datum.value < 1000 ? datum.value + ' ns' : format(datum.value/1000, '.2f') + ' μs'",
+        "tickCount": 3,
+        "tickSize": 0,
+        "labelPadding": 6,
+        "labelAlign": "center",
+        "labelFontSize": 12,
+        "gridColor": "#d1d5db",
+        "domain": false
+      }
+    }
+  },
+  "height": 100,
+  "width": 400,
+  "layer": [
+    {
+      "mark": "bar",
+      "encoding": {
+        "size": { "value": 14 },
+        "color": {
+          "condition": {
+            "test": "datum.library == 'mqtt5'",
+            "value": "#6366f1"
+          },
+          "value": "#9ca3af"
+        }
+      }
+    },
+    {
+      "transform": [{ "filter": "datum.library !== 'mqtt5'" }],
+      "mark": {
+        "type": "text",
+        "align": "left",
+        "baseline": "middle",
+        "dx": 5,
+        "fontSize": 12,
+        "fill": "#1f2937"
+      },
+      "encoding": { "text": { "field": "timeFormat" } }
+    },
+    {
+      "transform": [{ "filter": "datum.library === 'mqtt5'" }],
+      "mark": {
+        "type": "text",
+        "align": "left",
+        "baseline": "middle",
+        "dx": 5,
+        "fontSize": 12,
+        "fontWeight": "bold",
+        "fill": "#1f2937"
+      },
+      "encoding": { "text": { "field": "timeFormat" } }
+    }
+  ]
+}
