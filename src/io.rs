@@ -19,21 +19,38 @@ impl<'a> WriteCursor<'a> {
 pub struct ReadCursor<'a> {
     pub buffer: &'a [u8],
     pub index: usize,
+    bounded: bool,
 }
 
 impl<'a> ReadCursor<'a> {
     pub fn new(buffer: &'a [u8]) -> Self {
-        Self { buffer, index: 0 }
+        Self {
+            buffer,
+            index: 0,
+            bounded: false,
+        }
     }
 
     /// Ensures that the buffer has at least the given number of bytes available.
     pub fn require(&self, length: usize) -> PyResult<()> {
         let available = self.buffer.len() - self.index;
         if available < length {
-            return Err(PyIndexError::new_err(format!(
-                "Not enough bytes available: {available} < {length}"
-            )));
+            return if self.bounded {
+                Err(PyValueError::new_err("Malformed packet"))
+            } else {
+                Err(PyIndexError::new_err(format!(
+                    "Not enough bytes available: {available} < {length}"
+                )))
+            };
         }
+        Ok(())
+    }
+
+    /// Binds the cursor to the next `length` bytes.
+    pub fn bind(&mut self, length: usize) -> PyResult<()> {
+        self.require(length)?;
+        self.buffer = &self.buffer[..self.index + length];
+        self.bounded = true;
         Ok(())
     }
 }

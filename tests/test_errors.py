@@ -62,12 +62,10 @@ def test_read_incomplete_buffer(packet: mqtt5.Packet) -> None:
         pytest.param(
             b"\x32\x03\x00\x00\x00",
             id="Publish: QoS=1 without packet id",
-            marks=[pytest.mark.xfail],
         ),
         pytest.param(
             b"\x34\x03\x00\x00\x00",
             id="Publish: QoS=2 without packet id",
-            marks=[pytest.mark.xfail],
         ),
         pytest.param(
             b"\x60\x04\xff\xff\x00\x00",
@@ -84,6 +82,14 @@ def test_read_incomplete_buffer(packet: mqtt5.Packet) -> None:
         pytest.param(
             b"\xa0\x05\xff\xff\x00\x00\x00",
             id="Unsubscribe: Invalid flags",
+        ),
+        pytest.param(
+            b"\x20\x04\x00\x00\x00\x00",
+            id="ConnAck: Unconsumed remaining bytes",
+        ),
+        pytest.param(
+            b"\x40\x01\xff\xff",
+            id="PubAck: Remaining length value too small",
         ),
     ],
 )

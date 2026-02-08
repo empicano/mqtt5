@@ -19,29 +19,29 @@ fn read(py: Python, buffer: PyBuffer<u8>) -> PyResult<(Py<PyAny>, usize)> {
     let first_byte = u8::read(&mut cursor)?;
     let flags = first_byte & 0x0F;
     let remaining_length = VariableByteInteger::read(&mut cursor)?;
-    // Check if we have enough bytes available
-    cursor.require(remaining_length.value() as usize)?;
-    // Call the read method of the corresponding packet for the remaining bytes
+    // Bind the cursor to the remaining bytes
+    cursor.bind(remaining_length.value() as usize)?;
+    // Call the read method of the corresponding packet
     #[rustfmt::skip]
     let packet = match PacketType::new(first_byte >> 4)? {
-        PacketType::Connect => ConnectPacket::read(py, &mut cursor, flags, remaining_length)?.into(),
-        PacketType::ConnAck => ConnAckPacket::read(py, &mut cursor, flags, remaining_length)?.into(),
-        PacketType::Publish => PublishPacket::read(py, &mut cursor, flags, remaining_length)?.into(),
-        PacketType::PubAck => PubAckPacket::read(py, &mut cursor, flags, remaining_length)?.into(),
-        PacketType::PubRec => PubRecPacket::read(py, &mut cursor, flags, remaining_length)?.into(),
-        PacketType::PubRel => PubRelPacket::read(py, &mut cursor, flags, remaining_length)?.into(),
-        PacketType::PubComp => PubCompPacket::read(py, &mut cursor, flags, remaining_length)?.into(),
-        PacketType::Subscribe => SubscribePacket::read(py, &mut cursor, flags, remaining_length)?.into(),
-        PacketType::SubAck => SubAckPacket::read(py, &mut cursor, flags, remaining_length)?.into(),
-        PacketType::Unsubscribe => UnsubscribePacket::read(py, &mut cursor, flags, remaining_length)?.into(),
-        PacketType::UnsubAck => UnsubAckPacket::read(py, &mut cursor, flags, remaining_length)?.into(),
-        PacketType::PingReq => PingReqPacket::read(py, &mut cursor, flags, remaining_length)?.into(),
-        PacketType::PingResp => PingRespPacket::read(py, &mut cursor, flags, remaining_length)?.into(),
-        PacketType::Disconnect => DisconnectPacket::read(py, &mut cursor, flags, remaining_length)?.into(),
-        PacketType::Auth => AuthPacket::read(py, &mut cursor, flags, remaining_length)?.into(),
+        PacketType::Connect => ConnectPacket::read(py, &mut cursor, flags)?.into(),
+        PacketType::ConnAck => ConnAckPacket::read(py, &mut cursor, flags)?.into(),
+        PacketType::Publish => PublishPacket::read(py, &mut cursor, flags)?.into(),
+        PacketType::PubAck => PubAckPacket::read(py, &mut cursor, flags)?.into(),
+        PacketType::PubRec => PubRecPacket::read(py, &mut cursor, flags)?.into(),
+        PacketType::PubRel => PubRelPacket::read(py, &mut cursor, flags)?.into(),
+        PacketType::PubComp => PubCompPacket::read(py, &mut cursor, flags)?.into(),
+        PacketType::Subscribe => SubscribePacket::read(py, &mut cursor, flags)?.into(),
+        PacketType::SubAck => SubAckPacket::read(py, &mut cursor, flags)?.into(),
+        PacketType::Unsubscribe => UnsubscribePacket::read(py, &mut cursor, flags)?.into(),
+        PacketType::UnsubAck => UnsubAckPacket::read(py, &mut cursor, flags)?.into(),
+        PacketType::PingReq => PingReqPacket::read(py, &mut cursor, flags)?.into(),
+        PacketType::PingResp => PingRespPacket::read(py, &mut cursor, flags)?.into(),
+        PacketType::Disconnect => DisconnectPacket::read(py, &mut cursor, flags)?.into(),
+        PacketType::Auth => AuthPacket::read(py, &mut cursor, flags)?.into(),
     };
     // Check if we've read enough bytes
-    if cursor.index < remaining_length.value() as usize {
+    if cursor.index < cursor.buffer.len() {
         Err(PyValueError::new_err("Malformed packet"))
     } else {
         Ok((packet, cursor.index))

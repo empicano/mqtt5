@@ -26,7 +26,7 @@ Add the `--compare` flag to benchmark against [mqttproto](https://github.com/agr
 
 ### Benchmark chart
 
-The chart in the README is generated from the [Vega Lite](https://vega.github.io/editor) spec in `chart.vl.json`. To update it:
+The chart in the README is generated from the Vega Lite spec in `chart.vl.json`. To update it:
 
 1. Run `uv run bench.py --quiet --compare --packets "publish(qos1"` to get the latest numbers
 2. Update the values in `chart.vl.json`

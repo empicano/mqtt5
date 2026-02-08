@@ -9,14 +9,14 @@ const PROTOCOL_NAME: &str = "MQTT";
 const PROTOCOL_VERSION: u8 = 5;
 
 macro_rules! read_properties {
-    ($packet_name:literal, $cursor:expr, $start_index:expr, $remaining_length:expr, {
+    ($packet_name:literal, $cursor:expr, {
         $($property_type:path => $field:ident: $field_type:tt = $default:expr),* $(,)?
     }) => {
         $(
             #[allow(unused_mut)]
             let mut $field = $default;
         )*
-        if $cursor.index - $start_index < $remaining_length.value() as usize {
+        if $cursor.index < $cursor.buffer.len() {
             let properties_remaining_length = VariableByteInteger::read($cursor)?;
             let properties_start_index = $cursor.index;
             let mut seen = 0u64;
@@ -467,16 +467,10 @@ impl ConnectPacket {
 }
 
 impl ConnectPacket {
-    pub fn read(
-        py: Python,
-        cursor: &mut ReadCursor,
-        flags: u8,
-        remaining_length: VariableByteInteger,
-    ) -> PyResult<Py<Self>> {
+    pub fn read(py: Python, cursor: &mut ReadCursor, flags: u8) -> PyResult<Py<Self>> {
         if flags != 0x00 {
             return Err(PyValueError::new_err("Malformed bytes"));
         }
-        let start_index = cursor.index;
 
         // [3.1.2] Variable header
         if String::read(cursor)? != PROTOCOL_NAME {
@@ -488,7 +482,7 @@ impl ConnectPacket {
         let packet_flags = u8::read(cursor)?;
         let clean_start = (packet_flags & 0x02) != 0;
         let keep_alive = u16::read(cursor)?;
-        read_properties!("ConnectPacket", cursor, start_index, remaining_length, {
+        read_properties!("ConnectPacket", cursor, {
             PropertyType::SessionExpiryInterval => session_expiry_interval: u32 = 0,
             PropertyType::AuthenticationMethod => authentication_method: (Option<Py<PyString>>) = None,
             PropertyType::AuthenticationData => authentication_data: (Option<Py<PyBytes>>) = None,
@@ -503,7 +497,7 @@ impl ConnectPacket {
         // [3.1.3] Payload
         let client_id = Py::<PyString>::read(cursor)?;
         let will = if (packet_flags & 0x04) != 0 {
-            read_properties!("Will", cursor, cursor.index, remaining_length, {
+            read_properties!("Will", cursor, {
                 PropertyType::PayloadFormatIndicator => payload_format_indicator: u8 = 0,
                 PropertyType::MessageExpiryInterval => message_expiry_interval: (Option<u32>) = None,
                 PropertyType::ContentType => content_type: (Option<Py<PyString>>) = None,
@@ -744,16 +738,10 @@ impl ConnAckPacket {
 }
 
 impl ConnAckPacket {
-    pub fn read(
-        py: Python,
-        cursor: &mut ReadCursor,
-        flags: u8,
-        remaining_length: VariableByteInteger,
-    ) -> PyResult<Py<Self>> {
+    pub fn read(py: Python, cursor: &mut ReadCursor, flags: u8) -> PyResult<Py<Self>> {
         if flags != 0x00 {
             return Err(PyValueError::new_err("Malformed bytes"));
         }
-        let start_index = cursor.index;
 
         // [3.2.2] Variable header
         let packet_flags = u8::read(cursor)?;
@@ -762,7 +750,7 @@ impl ConnAckPacket {
         }
         let session_present = (packet_flags & 0x01) != 0;
         let reason_code = ConnAckReasonCode::read(cursor)?;
-        read_properties!("ConnAckPacket", cursor, start_index, remaining_length, {
+        read_properties!("ConnAckPacket", cursor, {
             PropertyType::SessionExpiryInterval => session_expiry_interval: (Option<u32>) = None,
             PropertyType::AssignedClientId => assigned_client_id: (Option<Py<PyString>>) = None,
             PropertyType::ServerKeepAlive => server_keep_alive: (Option<u16>) = None,
@@ -975,13 +963,7 @@ impl PublishPacket {
 }
 
 impl PublishPacket {
-    pub fn read(
-        py: Python,
-        cursor: &mut ReadCursor,
-        flags: u8,
-        remaining_length: VariableByteInteger,
-    ) -> PyResult<Py<Self>> {
-        let start_index = cursor.index;
+    pub fn read(py: Python, cursor: &mut ReadCursor, flags: u8) -> PyResult<Py<Self>> {
         let retain = (flags & 0x01) != 0;
         let qos = QoS::new((flags >> 1) & 0x03)?;
         let duplicate = (flags & 0x08) != 0;
@@ -993,7 +975,7 @@ impl PublishPacket {
         } else {
             None
         };
-        read_properties!("PublishPacket", cursor, start_index, remaining_length, {
+        read_properties!("PublishPacket", cursor, {
             PropertyType::PayloadFormatIndicator => payload_format_indicator: u8 = 0,
             PropertyType::MessageExpiryInterval => message_expiry_interval: (Option<u32>) = None,
             PropertyType::ContentType => content_type: (Option<Py<PyString>>) = None,
@@ -1005,13 +987,8 @@ impl PublishPacket {
         });
 
         // [3.3.3] Payload
-        let payload_remaining_length =
-            start_index + remaining_length.value() as usize - cursor.index;
-        let payload = PyBytes::new(
-            py,
-            &cursor.buffer[cursor.index..cursor.index + payload_remaining_length],
-        );
-        cursor.index += payload_remaining_length;
+        let payload = PyBytes::new(py, &cursor.buffer[cursor.index..]);
+        cursor.index = cursor.buffer.len();
 
         // Return the Python object
         let packet = Self {
@@ -1126,25 +1103,19 @@ impl PubAckPacket {
 }
 
 impl PubAckPacket {
-    pub fn read(
-        py: Python,
-        cursor: &mut ReadCursor,
-        flags: u8,
-        remaining_length: VariableByteInteger,
-    ) -> PyResult<Py<Self>> {
+    pub fn read(py: Python, cursor: &mut ReadCursor, flags: u8) -> PyResult<Py<Self>> {
         if flags != 0x00 {
             return Err(PyValueError::new_err("Malformed bytes"));
         }
-        let start_index = cursor.index;
 
         // [3.4.2] Variable header
         let packet_id = u16::read(cursor)?;
-        let reason_code = if remaining_length.value() > 2 {
+        let reason_code = if cursor.index < cursor.buffer.len() {
             PubAckReasonCode::read(cursor)?
         } else {
             PubAckReasonCode::Success
         };
-        read_properties!("PubAckPacket", cursor, start_index, remaining_length, {
+        read_properties!("PubAckPacket", cursor, {
             PropertyType::ReasonStr => reason_str: (Option<Py<PyString>>) = None,
             PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = PyList::empty(py),
         });
@@ -1242,25 +1213,19 @@ impl PubRecPacket {
 }
 
 impl PubRecPacket {
-    pub fn read(
-        py: Python,
-        cursor: &mut ReadCursor,
-        flags: u8,
-        remaining_length: VariableByteInteger,
-    ) -> PyResult<Py<Self>> {
+    pub fn read(py: Python, cursor: &mut ReadCursor, flags: u8) -> PyResult<Py<Self>> {
         if flags != 0x00 {
             return Err(PyValueError::new_err("Malformed bytes"));
         }
-        let start_index = cursor.index;
 
         // [3.5.2] Variable header
         let packet_id = u16::read(cursor)?;
-        let reason_code = if remaining_length.value() > 2 {
+        let reason_code = if cursor.index < cursor.buffer.len() {
             PubRecReasonCode::read(cursor)?
         } else {
             PubRecReasonCode::Success
         };
-        read_properties!("PubRecPacket", cursor, start_index, remaining_length, {
+        read_properties!("PubRecPacket", cursor, {
             PropertyType::ReasonStr => reason_str: (Option<Py<PyString>>) = None,
             PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = PyList::empty(py),
         });
@@ -1358,25 +1323,19 @@ impl PubRelPacket {
 }
 
 impl PubRelPacket {
-    pub fn read(
-        py: Python,
-        cursor: &mut ReadCursor,
-        flags: u8,
-        remaining_length: VariableByteInteger,
-    ) -> PyResult<Py<Self>> {
+    pub fn read(py: Python, cursor: &mut ReadCursor, flags: u8) -> PyResult<Py<Self>> {
         if flags != 0x02 {
             return Err(PyValueError::new_err("Malformed bytes"));
         }
-        let start_index = cursor.index;
 
         // [3.6.2] Variable header
         let packet_id = u16::read(cursor)?;
-        let reason_code = if remaining_length.value() > 2 {
+        let reason_code = if cursor.index < cursor.buffer.len() {
             PubRelReasonCode::read(cursor)?
         } else {
             PubRelReasonCode::Success
         };
-        read_properties!("PubRelPacket", cursor, start_index, remaining_length, {
+        read_properties!("PubRelPacket", cursor, {
             PropertyType::ReasonStr => reason_str: (Option<Py<PyString>>) = None,
             PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = PyList::empty(py),
         });
@@ -1474,25 +1433,19 @@ impl PubCompPacket {
 }
 
 impl PubCompPacket {
-    pub fn read(
-        py: Python,
-        cursor: &mut ReadCursor,
-        flags: u8,
-        remaining_length: VariableByteInteger,
-    ) -> PyResult<Py<Self>> {
+    pub fn read(py: Python, cursor: &mut ReadCursor, flags: u8) -> PyResult<Py<Self>> {
         if flags != 0x00 {
             return Err(PyValueError::new_err("Malformed bytes"));
         }
-        let start_index = cursor.index;
 
         // [3.7.2] Variable header
         let packet_id = u16::read(cursor)?;
-        let reason_code = if remaining_length.value() > 2 {
+        let reason_code = if cursor.index < cursor.buffer.len() {
             PubCompReasonCode::read(cursor)?
         } else {
             PubCompReasonCode::Success
         };
-        read_properties!("PubCompPacket", cursor, start_index, remaining_length, {
+        read_properties!("PubCompPacket", cursor, {
             PropertyType::ReasonStr => reason_str: (Option<Py<PyString>>) = None,
             PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = PyList::empty(py),
         });
@@ -1600,27 +1553,21 @@ impl SubscribePacket {
 }
 
 impl SubscribePacket {
-    pub fn read(
-        py: Python,
-        cursor: &mut ReadCursor,
-        flags: u8,
-        remaining_length: VariableByteInteger,
-    ) -> PyResult<Py<Self>> {
+    pub fn read(py: Python, cursor: &mut ReadCursor, flags: u8) -> PyResult<Py<Self>> {
         if flags != 0x02 {
             return Err(PyValueError::new_err("Malformed bytes"));
         }
-        let start_index = cursor.index;
 
         // [3.8.2] Variable header
         let packet_id = u16::read(cursor)?;
-        read_properties!("SubscribePacket", cursor, start_index, remaining_length, {
+        read_properties!("SubscribePacket", cursor, {
             PropertyType::SubscriptionId => subscription_id: (Option<VariableByteInteger>) = None,
             PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = PyList::empty(py),
         });
 
         // [3.8.3] Payload
         let subscriptions = PyList::empty(py);
-        while cursor.index - start_index < remaining_length.value() as usize {
+        while cursor.index < cursor.buffer.len() {
             let pattern = Py::<PyString>::read(cursor)?;
             let options = u8::read(cursor)?;
             let subscription = Subscription {
@@ -1731,27 +1678,21 @@ impl SubAckPacket {
 }
 
 impl SubAckPacket {
-    pub fn read(
-        py: Python,
-        cursor: &mut ReadCursor,
-        flags: u8,
-        remaining_length: VariableByteInteger,
-    ) -> PyResult<Py<Self>> {
+    pub fn read(py: Python, cursor: &mut ReadCursor, flags: u8) -> PyResult<Py<Self>> {
         if flags != 0x00 {
             return Err(PyValueError::new_err("Malformed bytes"));
         }
-        let start_index = cursor.index;
 
         // [3.9.2] Variable header
         let packet_id = u16::read(cursor)?;
-        read_properties!("SubAckPacket", cursor, start_index, remaining_length, {
+        read_properties!("SubAckPacket", cursor, {
             PropertyType::ReasonStr => reason_str: (Option<Py<PyString>>) = None,
             PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = PyList::empty(py),
         });
 
         // [3.9.3] Payload
         let reason_codes = PyList::empty(py);
-        while cursor.index - start_index < remaining_length.value() as usize {
+        while cursor.index < cursor.buffer.len() {
             let reason_code = SubAckReasonCode::read(cursor)?;
             reason_codes.append(reason_code)?;
         }
@@ -1848,26 +1789,20 @@ impl UnsubscribePacket {
 }
 
 impl UnsubscribePacket {
-    pub fn read(
-        py: Python,
-        cursor: &mut ReadCursor,
-        flags: u8,
-        remaining_length: VariableByteInteger,
-    ) -> PyResult<Py<Self>> {
+    pub fn read(py: Python, cursor: &mut ReadCursor, flags: u8) -> PyResult<Py<Self>> {
         if flags != 0x02 {
             return Err(PyValueError::new_err("Malformed bytes"));
         }
-        let start_index = cursor.index;
 
         // [3.10.2] Variable header
         let packet_id = u16::read(cursor)?;
-        read_properties!("UnsubscribePacket", cursor, start_index, remaining_length, {
+        read_properties!("UnsubscribePacket", cursor, {
             PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = PyList::empty(py),
         });
 
         // [3.9.3] Payload
         let patterns = PyList::empty(py);
-        while cursor.index - start_index < remaining_length.value() as usize {
+        while cursor.index < cursor.buffer.len() {
             let pattern = Py::<PyString>::read(cursor)?;
             patterns.append(pattern)?;
         }
@@ -1968,27 +1903,21 @@ impl UnsubAckPacket {
 }
 
 impl UnsubAckPacket {
-    pub fn read(
-        py: Python,
-        cursor: &mut ReadCursor,
-        flags: u8,
-        remaining_length: VariableByteInteger,
-    ) -> PyResult<Py<Self>> {
+    pub fn read(py: Python, cursor: &mut ReadCursor, flags: u8) -> PyResult<Py<Self>> {
         if flags != 0x00 {
             return Err(PyValueError::new_err("Malformed bytes"));
         }
-        let start_index = cursor.index;
 
         // [3.11.2] Variable header
         let packet_id = u16::read(cursor)?;
-        read_properties!("UnsubAckPacket", cursor, start_index, remaining_length, {
+        read_properties!("UnsubAckPacket", cursor, {
             PropertyType::ReasonStr => reason_str: (Option<Py<PyString>>) = None,
             PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = PyList::empty(py),
         });
 
         // [3.11.3] Payload
         let reason_codes = PyList::empty(py);
-        while cursor.index - start_index < remaining_length.value() as usize {
+        while cursor.index < cursor.buffer.len() {
             let reason_code = UnsubAckReasonCode::read(cursor)?;
             reason_codes.append(reason_code)?;
         }
@@ -2041,12 +1970,7 @@ impl PingReqPacket {
 }
 
 impl PingReqPacket {
-    pub fn read(
-        py: Python,
-        _cursor: &mut ReadCursor,
-        flags: u8,
-        _remaining_length: VariableByteInteger,
-    ) -> PyResult<Py<Self>> {
+    pub fn read(py: Python, _cursor: &mut ReadCursor, flags: u8) -> PyResult<Py<Self>> {
         if flags != 0x00 {
             return Err(PyValueError::new_err("Malformed bytes"));
         }
@@ -2091,12 +2015,7 @@ impl PingRespPacket {
 }
 
 impl PingRespPacket {
-    pub fn read(
-        py: Python,
-        _cursor: &mut ReadCursor,
-        flags: u8,
-        _remaining_length: VariableByteInteger,
-    ) -> PyResult<Py<Self>> {
+    pub fn read(py: Python, _cursor: &mut ReadCursor, flags: u8) -> PyResult<Py<Self>> {
         if flags != 0x00 {
             return Err(PyValueError::new_err("Malformed bytes"));
         }
@@ -2192,24 +2111,18 @@ impl DisconnectPacket {
 }
 
 impl DisconnectPacket {
-    pub fn read(
-        py: Python,
-        cursor: &mut ReadCursor,
-        flags: u8,
-        remaining_length: VariableByteInteger,
-    ) -> PyResult<Py<Self>> {
+    pub fn read(py: Python, cursor: &mut ReadCursor, flags: u8) -> PyResult<Py<Self>> {
         if flags != 0x00 {
             return Err(PyValueError::new_err("Malformed bytes"));
         }
-        let start_index = cursor.index;
 
         // [3.14.2] Variable header
-        let reason_code = if remaining_length.value() > 0 {
+        let reason_code = if cursor.index < cursor.buffer.len() {
             DisconnectReasonCode::read(cursor)?
         } else {
             DisconnectReasonCode::NormalDisconnection
         };
-        read_properties!("DisconnectPacket", cursor, start_index, remaining_length, {
+        read_properties!("DisconnectPacket", cursor, {
             PropertyType::SessionExpiryInterval => session_expiry_interval: (Option<u32>) = None,
             PropertyType::ServerReference => server_reference: (Option<Py<PyString>>) = None,
             PropertyType::ReasonStr => reason_str: (Option<Py<PyString>>) = None,
@@ -2311,24 +2224,18 @@ impl AuthPacket {
 }
 
 impl AuthPacket {
-    pub fn read(
-        py: Python,
-        cursor: &mut ReadCursor,
-        flags: u8,
-        remaining_length: VariableByteInteger,
-    ) -> PyResult<Py<Self>> {
+    pub fn read(py: Python, cursor: &mut ReadCursor, flags: u8) -> PyResult<Py<Self>> {
         if flags != 0x00 {
             return Err(PyValueError::new_err("Malformed bytes"));
         }
-        let start_index = cursor.index;
 
         // [3.15.2] Variable header
-        let reason_code = if remaining_length.value() > 0 {
+        let reason_code = if cursor.index < cursor.buffer.len() {
             AuthReasonCode::read(cursor)?
         } else {
             AuthReasonCode::Success
         };
-        read_properties!("AuthPacket", cursor, start_index, remaining_length, {
+        read_properties!("AuthPacket", cursor, {
             PropertyType::AuthenticationMethod => authentication_method: (Option<Py<PyString>>) = None,
             PropertyType::AuthenticationData => authentication_data: (Option<Py<PyBytes>>) = None,
             PropertyType::ReasonStr => reason_str: (Option<Py<PyString>>) = None,
