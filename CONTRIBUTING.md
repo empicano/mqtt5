@@ -4,8 +4,6 @@ Building mqtt5 requires Rust and the uv package manager.
 
 ## Tests
 
-The tests check for write/read consistency and validate MQTT specification compliance by comparing outputs against [mqttproto](https://github.com/agronholm/mqttproto).
-
 You can run the tests with:
 
 ```bash

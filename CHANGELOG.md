@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+- Type password field in `ConnectPacket` as `bytes` following the specification
+
 ## [0.4.0] - 2026-02-08
 
 - Return bytes object on `write()` instead of writing to existing bytearray

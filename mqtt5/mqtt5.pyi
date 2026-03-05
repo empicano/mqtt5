@@ -173,7 +173,7 @@ class Subscription:
 class ConnectPacket:
     client_id: str
     username: str | None
-    password: str | None
+    password: bytes | None
     clean_start: bool
     will: Will | None
     keep_alive: int
@@ -192,7 +192,7 @@ class ConnectPacket:
         client_id: str,
         *,
         username: str | None = None,
-        password: str | None = None,
+        password: bytes | None = None,
         clean_start: bool = False,
         will: Will | None = None,
         keep_alive: int = 0,

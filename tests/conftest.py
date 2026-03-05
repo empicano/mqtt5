@@ -55,7 +55,7 @@ def connect_packet_full() -> mqtt5.ConnectPacket:  # noqa: D103
     return mqtt5.ConnectPacket(
         client_id="Bulbasaur",
         username="ProfOak",
-        password="RazorLeaf?456",
+        password=b"RazorLeaf?456",
         clean_start=True,
         will=mqtt5.Will(
             topic="foo/bar/1234",

@@ -283,7 +283,7 @@ impl PartialEq for Subscription {
 pub struct ConnectPacket {
     pub client_id: Py<PyString>,
     pub username: Option<Py<PyString>>,
-    pub password: Option<Py<PyString>>,
+    pub password: Option<Py<PyBytes>>,
     pub clean_start: bool,
     pub will: Option<Will>,
     pub keep_alive: u16,
@@ -322,7 +322,7 @@ impl ConnectPacket {
     pub fn new(
         client_id: Py<PyString>,
         username: Option<Py<PyString>>,
-        password: Option<Py<PyString>>,
+        password: Option<Py<PyBytes>>,
         clean_start: bool,
         will: Option<Will>,
         keep_alive: u16,
@@ -530,7 +530,7 @@ impl ConnectPacket {
             None
         };
         let password = if (packet_flags & 0x40) != 0 {
-            Some(Py::<PyString>::read(cursor)?)
+            Some(Py::<PyBytes>::read(cursor)?)
         } else {
             None
         };
