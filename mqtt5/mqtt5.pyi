@@ -273,8 +273,8 @@ class PublishPacket:
     def __init__(
         self,
         topic: str,
+        payload: bytes,
         *,
-        payload: bytes | None = None,
         qos: QoS = QoS.AT_MOST_ONCE,
         retain: bool = False,
         packet_id: int | None = None,

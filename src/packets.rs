@@ -824,7 +824,7 @@ impl PartialEq for ConnAckPacket {
 #[pyclass(frozen, eq, get_all, module = "mqtt5")]
 pub struct PublishPacket {
     pub topic: Py<PyString>,
-    pub payload: Option<Py<PyBytes>>,
+    pub payload: Py<PyBytes>,
     pub qos: QoS,
     pub retain: bool,
     pub packet_id: Option<u16>,
@@ -844,8 +844,8 @@ impl PublishPacket {
     #[new]
     #[pyo3(signature = (
         topic,
+        payload,
         *,
-        payload=None,
         qos=QoS::AtMostOnce,
         retain=false,
         packet_id=None,
@@ -861,7 +861,7 @@ impl PublishPacket {
     ))]
     pub fn new(
         topic: Py<PyString>,
-        payload: Option<Py<PyBytes>>,
+        payload: Py<PyBytes>,
         qos: QoS,
         retain: bool,
         packet_id: Option<u16>,
@@ -904,7 +904,7 @@ impl PublishPacket {
     }
 
     pub fn write(&self, py: Python) -> PyResult<Py<PyBytes>> {
-        let payload = self.payload.as_ref().map(|x| x.bind(py).as_bytes());
+        let payload = self.payload.bind(py).as_bytes();
         let properties_nbytes = nbytes_properties!(self, {
             PropertyType::PayloadFormatIndicator => payload_format_indicator: u8 = 0,
             PropertyType::MessageExpiryInterval => message_expiry_interval: (Option<u32>) = None,
@@ -920,7 +920,7 @@ impl PublishPacket {
             + self.packet_id.nbytes()
             + properties_remaining_length.nbytes()
             + properties_nbytes
-            + payload.map_or(0, |payload| payload.len());
+            + payload.len();
         let remaining_length = VariableByteInteger::new(nbytes as u32);
         PyBytes::new_with(py, 1 + remaining_length.nbytes() + nbytes, |buffer| {
             let mut cursor = WriteCursor::new(buffer, 0);
@@ -949,12 +949,10 @@ impl PublishPacket {
             });
 
             // [3.3.3] Payload
-            if let Some(payload) = payload {
-                let payload_remaining_length = payload.len();
-                cursor.buffer[cursor.index..cursor.index + payload_remaining_length]
-                    .copy_from_slice(payload);
-                cursor.index += payload_remaining_length;
-            }
+            let payload_remaining_length = payload.len();
+            cursor.buffer[cursor.index..cursor.index + payload_remaining_length]
+                .copy_from_slice(payload);
+            cursor.index += payload_remaining_length;
 
             Ok(())
         })
@@ -993,7 +991,7 @@ impl PublishPacket {
         // Return the Python object
         let packet = Self {
             topic,
-            payload: Some(payload.unbind()),
+            payload: payload.unbind(),
             qos,
             retain,
             packet_id,

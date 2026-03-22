@@ -104,17 +104,17 @@ def test_read_malformed_packet(buffer: bytearray) -> None:
     [
         pytest.param(
             mqtt5.PublishPacket,
-            {"topic": "foo/bar", "packet_id": 1},
+            {"topic": "foo/bar", "payload": b"", "packet_id": 1},
             id="Publish: QoS=0 with packet id",
         ),
         pytest.param(
             mqtt5.PublishPacket,
-            {"topic": "foo/bar", "qos": mqtt5.QoS.AT_LEAST_ONCE},
+            {"topic": "foo/bar", "payload": b"", "qos": mqtt5.QoS.AT_LEAST_ONCE},
             id="Publish: QoS=1 without packet id",
         ),
         pytest.param(
             mqtt5.PublishPacket,
-            {"topic": "foo/bar", "qos": mqtt5.QoS.EXACTLY_ONCE},
+            {"topic": "foo/bar", "payload": b"", "qos": mqtt5.QoS.EXACTLY_ONCE},
             id="Publish: QoS=2 without packet id",
         ),
     ],

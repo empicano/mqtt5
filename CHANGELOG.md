@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ## [Unreleased]
 
 - Type password field in `ConnectPacket` as `bytes` following the specification
+- Make `PublishPacket` payload field required and type as `bytes`
 
 ## [0.4.0] - 2026-02-08
 
