@@ -5,7 +5,7 @@ use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyList, PyString};
 use pyo3::PyResult;
 
-const PROTOCOL_NAME: &str = "MQTT";
+const PROTOCOL_NAME: &[u8] = b"MQTT";
 const PROTOCOL_VERSION: u8 = 5;
 
 fn repr_field(val: &Bound<'_, PyAny>) -> String {
@@ -550,7 +550,7 @@ impl ConnectPacket {
         }
 
         // [3.1.2] Variable header
-        if String::read(cursor)? != PROTOCOL_NAME {
+        if Vec::<u8>::read(cursor)? != PROTOCOL_NAME {
             return Err(PyValueError::new_err("Malformed bytes"));
         }
         if u8::read(cursor)? != PROTOCOL_VERSION {

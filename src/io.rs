@@ -165,14 +165,6 @@ impl Readable for Vec<u8> {
     }
 }
 
-// TODO: Remove, replaced with PyString
-impl Readable for String {
-    fn read(cursor: &mut ReadCursor<'_>) -> PyResult<Self> {
-        let value = Vec::<u8>::read(cursor)?;
-        String::from_utf8(value).map_err(|_| PyValueError::new_err("Malformed bytes"))
-    }
-}
-
 impl Readable for Py<PyBytes> {
     fn read(cursor: &mut ReadCursor<'_>) -> PyResult<Self> {
         let length = u16::read(cursor)? as usize;
@@ -300,25 +292,13 @@ impl Writable for &[u8] {
     }
 }
 
-impl Writable for &str {
-    fn write(&self, cursor: &mut WriteCursor<'_>) {
-        self.as_bytes().write(cursor);
-    }
-
-    fn nbytes(&self) -> usize {
-        self.len() + 2
-    }
-}
-
 impl Writable for Py<PyBytes> {
     fn write(&self, cursor: &mut WriteCursor<'_>) {
-        Python::attach(|py| {
-            self.bind(py).as_bytes().write(cursor);
-        })
+        Python::attach(|py| self.bind(py).write(cursor))
     }
 
     fn nbytes(&self) -> usize {
-        Python::attach(|py| self.bind(py).as_bytes().nbytes())
+        Python::attach(|py| self.bind(py).nbytes())
     }
 }
 
@@ -334,23 +314,21 @@ impl Writable for &Bound<'_, PyBytes> {
 
 impl Writable for Py<PyString> {
     fn write(&self, cursor: &mut WriteCursor<'_>) {
-        Python::attach(|py| {
-            self.bind(py).to_str().unwrap().write(cursor);
-        })
+        Python::attach(|py| self.bind(py).write(cursor))
     }
 
     fn nbytes(&self) -> usize {
-        Python::attach(|py| self.bind(py).to_str().unwrap().nbytes())
+        Python::attach(|py| self.bind(py).nbytes())
     }
 }
 
 impl Writable for &Bound<'_, PyString> {
     fn write(&self, cursor: &mut WriteCursor<'_>) {
-        self.to_str().unwrap().write(cursor);
+        self.to_str().unwrap().as_bytes().write(cursor);
     }
 
     fn nbytes(&self) -> usize {
-        self.to_str().unwrap().nbytes()
+        self.to_str().unwrap().as_bytes().nbytes()
     }
 }
 
