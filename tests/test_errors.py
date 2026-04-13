@@ -55,11 +55,6 @@ def test_read_incomplete_buffer(packet: mqtt5.Packet) -> None:
             id="Publish: Missing property length",
         ),
         pytest.param(
-            b"\x30\x05\x00\x00\x00\x01\x00",
-            id="Publish: QoS=0 with packet id",
-            marks=[pytest.mark.xfail],
-        ),
-        pytest.param(
             b"\x32\x03\x00\x00\x00",
             id="Publish: QoS=1 without packet id",
         ),
