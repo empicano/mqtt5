@@ -8,6 +8,31 @@ use pyo3::PyResult;
 const PROTOCOL_NAME: &str = "MQTT";
 const PROTOCOL_VERSION: u8 = 5;
 
+fn repr_field(val: &Bound<'_, PyAny>) -> String {
+    if let Ok(bytes) = val.cast::<PyBytes>() {
+        let bytes = bytes.as_bytes();
+        if bytes.len() > 8 {
+            let truncated = PyBytes::new(val.py(), &bytes[..8]);
+            let repr = truncated.repr().unwrap();
+            let repr = repr.to_str().unwrap();
+            return format!("{}...' ({} bytes)", &repr[..repr.len() - 1], bytes.len());
+        }
+    }
+    val.repr().unwrap().to_string()
+}
+
+macro_rules! py_repr {
+    ($slf:expr, $name:ident, $($field:ident),+ $(,)?) => {{
+        let parts = [
+            $(format!("{}={}", stringify!($field), repr_field(&$slf.getattr(stringify!($field)).unwrap())),)*
+        ];
+        format!("{}({})", stringify!($name), parts.join(", "))
+    }};
+    ($name:ident) => {
+        format!("{}()", stringify!($name))
+    };
+}
+
 macro_rules! read_properties {
     ($packet_name:literal, $cursor:expr, {
         $($property_type:path => $field:ident: $field_type:tt = $default:expr),* $(,)?
@@ -196,6 +221,24 @@ impl Will {
                 .unwrap_or_else(|| Python::attach(|py| PyList::empty(py).unbind())),
         }
     }
+
+    fn __repr__(slf: &Bound<'_, Self>) -> String {
+        py_repr!(
+            slf,
+            Will,
+            topic,
+            payload,
+            qos,
+            retain,
+            payload_format_indicator,
+            message_expiry_interval,
+            content_type,
+            response_topic,
+            correlation_data,
+            will_delay_interval,
+            user_properties,
+        )
+    }
 }
 
 impl Clone for Will {
@@ -261,11 +304,23 @@ impl Subscription {
     ) -> Self {
         Self {
             pattern,
-            no_local,
             max_qos,
+            no_local,
             retain_as_published,
             retain_handling,
         }
+    }
+
+    fn __repr__(slf: &Bound<'_, Self>) -> String {
+        py_repr!(
+            slf,
+            Subscription,
+            pattern,
+            max_qos,
+            no_local,
+            retain_as_published,
+            retain_handling,
+        )
     }
 }
 
@@ -463,6 +518,28 @@ impl ConnectPacket {
             Ok(())
         })
         .map(|bytes| bytes.unbind())
+    }
+
+    fn __repr__(slf: &Bound<'_, Self>) -> String {
+        py_repr!(
+            slf,
+            ConnectPacket,
+            client_id,
+            username,
+            password,
+            clean_start,
+            will,
+            keep_alive,
+            session_expiry_interval,
+            authentication_method,
+            authentication_data,
+            request_problem_info,
+            request_response_info,
+            receive_max,
+            topic_alias_max,
+            max_packet_size,
+            user_properties,
+        )
     }
 }
 
@@ -735,6 +812,32 @@ impl ConnAckPacket {
         })
         .map(|bytes| bytes.unbind())
     }
+
+    fn __repr__(slf: &Bound<'_, Self>) -> String {
+        py_repr!(
+            slf,
+            ConnAckPacket,
+            session_present,
+            reason_code,
+            session_expiry_interval,
+            assigned_client_id,
+            server_keep_alive,
+            authentication_method,
+            authentication_data,
+            response_info,
+            server_reference,
+            reason_str,
+            receive_max,
+            topic_alias_max,
+            max_qos,
+            retain_available,
+            max_packet_size,
+            wildcard_subscription_available,
+            subscription_id_available,
+            shared_subscription_available,
+            user_properties,
+        )
+    }
 }
 
 impl ConnAckPacket {
@@ -958,6 +1061,27 @@ impl PublishPacket {
         })
         .map(|bytes| bytes.unbind())
     }
+
+    fn __repr__(slf: &Bound<'_, Self>) -> String {
+        py_repr!(
+            slf,
+            PublishPacket,
+            topic,
+            payload,
+            qos,
+            retain,
+            packet_id,
+            duplicate,
+            payload_format_indicator,
+            message_expiry_interval,
+            content_type,
+            response_topic,
+            correlation_data,
+            subscription_ids,
+            topic_alias,
+            user_properties,
+        )
+    }
 }
 
 impl PublishPacket {
@@ -1098,6 +1222,17 @@ impl PubAckPacket {
         })
         .map(|bytes| bytes.unbind())
     }
+
+    fn __repr__(slf: &Bound<'_, Self>) -> String {
+        py_repr!(
+            slf,
+            PubAckPacket,
+            packet_id,
+            reason_code,
+            reason_str,
+            user_properties,
+        )
+    }
 }
 
 impl PubAckPacket {
@@ -1207,6 +1342,17 @@ impl PubRecPacket {
             Ok(())
         })
         .map(|bytes| bytes.unbind())
+    }
+
+    fn __repr__(slf: &Bound<'_, Self>) -> String {
+        py_repr!(
+            slf,
+            PubRecPacket,
+            packet_id,
+            reason_code,
+            reason_str,
+            user_properties,
+        )
     }
 }
 
@@ -1318,6 +1464,17 @@ impl PubRelPacket {
         })
         .map(|bytes| bytes.unbind())
     }
+
+    fn __repr__(slf: &Bound<'_, Self>) -> String {
+        py_repr!(
+            slf,
+            PubRelPacket,
+            packet_id,
+            reason_code,
+            reason_str,
+            user_properties,
+        )
+    }
 }
 
 impl PubRelPacket {
@@ -1427,6 +1584,17 @@ impl PubCompPacket {
             Ok(())
         })
         .map(|bytes| bytes.unbind())
+    }
+
+    fn __repr__(slf: &Bound<'_, Self>) -> String {
+        py_repr!(
+            slf,
+            PubCompPacket,
+            packet_id,
+            reason_code,
+            reason_str,
+            user_properties,
+        )
     }
 }
 
@@ -1547,6 +1715,17 @@ impl SubscribePacket {
             Ok(())
         })
         .map(|bytes| bytes.unbind())
+    }
+
+    fn __repr__(slf: &Bound<'_, Self>) -> String {
+        py_repr!(
+            slf,
+            SubscribePacket,
+            packet_id,
+            subscriptions,
+            subscription_id,
+            user_properties,
+        )
     }
 }
 
@@ -1673,6 +1852,17 @@ impl SubAckPacket {
         })
         .map(|bytes| bytes.unbind())
     }
+
+    fn __repr__(slf: &Bound<'_, Self>) -> String {
+        py_repr!(
+            slf,
+            SubAckPacket,
+            packet_id,
+            reason_codes,
+            reason_str,
+            user_properties,
+        )
+    }
 }
 
 impl SubAckPacket {
@@ -1783,6 +1973,10 @@ impl UnsubscribePacket {
             Ok(())
         })
         .map(|bytes| bytes.unbind())
+    }
+
+    fn __repr__(slf: &Bound<'_, Self>) -> String {
+        py_repr!(slf, UnsubscribePacket, packet_id, patterns, user_properties,)
     }
 }
 
@@ -1898,6 +2092,17 @@ impl UnsubAckPacket {
         })
         .map(|bytes| bytes.unbind())
     }
+
+    fn __repr__(slf: &Bound<'_, Self>) -> String {
+        py_repr!(
+            slf,
+            UnsubAckPacket,
+            packet_id,
+            reason_codes,
+            reason_str,
+            user_properties,
+        )
+    }
 }
 
 impl UnsubAckPacket {
@@ -1965,6 +2170,10 @@ impl PingReqPacket {
         })
         .map(|bytes| bytes.unbind())
     }
+
+    fn __repr__(_slf: &Bound<'_, Self>) -> String {
+        py_repr!(PingReqPacket)
+    }
 }
 
 impl PingReqPacket {
@@ -2009,6 +2218,10 @@ impl PingRespPacket {
             Ok(())
         })
         .map(|bytes| bytes.unbind())
+    }
+
+    fn __repr__(_slf: &Bound<'_, Self>) -> String {
+        py_repr!(PingRespPacket)
     }
 }
 
@@ -2105,6 +2318,18 @@ impl DisconnectPacket {
             Ok(())
         })
         .map(|bytes| bytes.unbind())
+    }
+
+    fn __repr__(slf: &Bound<'_, Self>) -> String {
+        py_repr!(
+            slf,
+            DisconnectPacket,
+            reason_code,
+            session_expiry_interval,
+            server_reference,
+            reason_str,
+            user_properties,
+        )
     }
 }
 
@@ -2218,6 +2443,18 @@ impl AuthPacket {
             Ok(())
         })
         .map(|bytes| bytes.unbind())
+    }
+
+    fn __repr__(slf: &Bound<'_, Self>) -> String {
+        py_repr!(
+            slf,
+            AuthPacket,
+            reason_code,
+            authentication_method,
+            authentication_data,
+            reason_str,
+            user_properties,
+        )
     }
 }
 
