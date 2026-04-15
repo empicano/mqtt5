@@ -4,27 +4,45 @@
     "values": [
       {
         "library": "mqtt5",
-        "operation": "mqtt5 (Read)",
+        "group": "Read",
+        "operation": "mqtt5",
         "time": 132,
         "timeFormat": "132 ns"
       },
       {
         "library": "mqtt5",
-        "operation": "mqtt5 (Write)",
+        "group": "Write",
+        "operation": "mqtt5",
         "time": 224,
         "timeFormat": "224 ns"
       },
       {
         "library": "mqttproto",
-        "operation": "mqttproto (Read)",
+        "group": "Read",
+        "operation": "mqttproto",
         "time": 2190,
         "timeFormat": "2.19 μs"
       },
       {
         "library": "mqttproto",
-        "operation": "mqttproto (Write)",
+        "group": "Write",
+        "operation": "mqttproto",
         "time": 1120,
         "timeFormat": "1.12 μs"
+      },
+      {
+        "library": "zmqtt",
+        "group": "Read",
+        "operation": "zmqtt",
+        "time": 1980,
+        "timeFormat": "1.98 μs"
+      },
+      {
+        "library": "zmqtt",
+        "group": "Write",
+        "operation": "zmqtt",
+        "time": 1420,
+        "timeFormat": "1.42 μs"
       }
     ]
   },
@@ -41,81 +59,88 @@
     "axis": { "labelFont": "Helvetica Neue" },
     "view": { "stroke": null }
   },
-  "encoding": {
-    "y": {
-      "field": "operation",
+  "facet": {
+    "row": {
+      "field": "group",
       "type": "nominal",
-      "axis": {
-        "grid": false,
-        "title": null,
-        "labelFontSize": 12,
-        "ticks": false,
-        "labelPadding": 8,
-        "domain": false
-      },
-      "sort": [
-        "mqtt5 (Read)",
-        "mqttproto (Read)",
-        "mqtt5 (Write)",
-        "mqttproto (Write)"
-      ]
-    },
-    "x": {
-      "field": "time",
-      "type": "quantitative",
-      "axis": {
-        "title": null,
-        "labelExpr": "datum.value < 1000 ? datum.value + ' ns' : format(datum.value/1000, '.2f') + ' μs'",
-        "tickCount": 3,
-        "tickSize": 0,
-        "labelPadding": 6,
-        "labelAlign": "center",
-        "labelFontSize": 12,
-        "gridColor": "#d1d5db",
-        "domain": false
-      }
+      "sort": ["Read", "Write"],
+      "header": { "title": null, "labels": true }
     }
   },
-  "height": 100,
-  "width": 400,
-  "layer": [
-    {
-      "mark": "bar",
-      "encoding": {
-        "size": { "value": 14 },
-        "color": {
-          "condition": {
-            "test": "datum.library == 'mqtt5'",
-            "value": "#6366f1"
-          },
-          "value": "#9ca3af"
+  "spacing": 10,
+  "resolve": { "scale": { "x": "shared", "y": "independent" } },
+  "spec": {
+    "height": 65,
+    "width": 400,
+    "encoding": {
+      "y": {
+        "field": "operation",
+        "type": "nominal",
+        "axis": {
+          "grid": false,
+          "title": null,
+          "labelFontSize": 12,
+          "ticks": false,
+          "labelPadding": 8,
+          "domain": false
+        },
+        "sort": ["mqtt5", "mqttproto", "zmqtt"]
+      },
+      "x": {
+        "field": "time",
+        "type": "quantitative",
+        "axis": {
+          "title": null,
+          "labelExpr": "format(datum.value/1000, '.2f') + ' μs'",
+          "tickCount": 3,
+          "tickSize": 0,
+          "labelPadding": 10,
+          "labelAlign": "center",
+          "labelFontSize": 12,
+          "gridColor": "#d1d5db",
+          "domain": false
         }
       }
     },
-    {
-      "transform": [{ "filter": "datum.library !== 'mqtt5'" }],
-      "mark": {
-        "type": "text",
-        "align": "left",
-        "baseline": "middle",
-        "dx": 5,
-        "fontSize": 12,
-        "fill": "#1f2937"
+    "layer": [
+      {
+        "mark": "bar",
+        "encoding": {
+          "size": { "value": 14 },
+          "color": {
+            "condition": {
+              "test": "datum.library == 'mqtt5'",
+              "value": "#6366f1"
+            },
+            "value": "#9ca3af"
+          }
+        }
       },
-      "encoding": { "text": { "field": "timeFormat" } }
-    },
-    {
-      "transform": [{ "filter": "datum.library === 'mqtt5'" }],
-      "mark": {
-        "type": "text",
-        "align": "left",
-        "baseline": "middle",
-        "dx": 5,
-        "fontSize": 12,
-        "fontWeight": "bold",
-        "fill": "#1f2937"
+      {
+        "transform": [{ "filter": "datum.library !== 'mqtt5'" }],
+        "mark": {
+          "type": "text",
+          "align": "left",
+          "baseline": "middle",
+          "dx": 5,
+          "fontSize": 12,
+          "fill": "#1f2937"
+        },
+        "encoding": { "text": { "field": "timeFormat" } }
       },
-      "encoding": { "text": { "field": "timeFormat" } }
-    }
-  ]
+      {
+        "transform": [{ "filter": "datum.library === 'mqtt5'" }],
+        "mark": {
+          "type": "text",
+          "align": "left",
+          "baseline": "middle",
+          "dx": 5,
+          "fontSize": 12,
+          "fontWeight": "bold",
+          "fill": "#1f2937"
+        },
+        "encoding": { "text": { "field": "timeFormat" } }
+      }
+    ]
+  }
 }
