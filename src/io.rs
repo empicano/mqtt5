@@ -33,14 +33,11 @@ impl<'a> ReadCursor<'a> {
 
     /// Ensures that the buffer has at least the given number of bytes available.
     pub fn require(&self, length: usize) -> PyResult<()> {
-        let available = self.buffer.len() - self.index;
-        if available < length {
+        if self.buffer.len() - self.index < length {
             return if self.bounded {
-                Err(PyValueError::new_err("Malformed packet"))
+                Err(PyValueError::new_err("Invalid remaining length"))
             } else {
-                Err(PyIndexError::new_err(format!(
-                    "Not enough bytes available: {available} < {length}"
-                )))
+                Err(PyIndexError::new_err("Not enough bytes"))
             };
         }
         Ok(())
@@ -127,7 +124,7 @@ impl Readable for bool {
         match byte {
             0 => Ok(false),
             1 => Ok(true),
-            _ => Err(PyValueError::new_err("Malformed bytes")),
+            _ => Err(PyValueError::new_err("Invalid boolean")),
         }
     }
 }
@@ -143,14 +140,13 @@ impl Readable for VariableByteInteger {
             cursor.index += 1;
             if (cursor.buffer[cursor.index - 1] & 0x80) == 0 {
                 if multiplier > 1 && value == 0 {
-                    // Unnecessary zero byte
-                    return Err(PyValueError::new_err("Malformed bytes"));
+                    return Err(PyValueError::new_err("Invalid variable byte integer"));
                 }
                 return Ok(VariableByteInteger(result));
             }
             multiplier *= 128;
         }
-        Err(PyValueError::new_err("Malformed bytes"))
+        Err(PyValueError::new_err("Invalid variable byte integer"))
     }
 }
 

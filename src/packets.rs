@@ -546,15 +546,15 @@ impl ConnectPacket {
 impl ConnectPacket {
     pub fn read(py: Python, cursor: &mut ReadCursor, flags: u8) -> PyResult<Py<Self>> {
         if flags != 0x00 {
-            return Err(PyValueError::new_err("Malformed bytes"));
+            return Err(PyValueError::new_err("Invalid fixed header flags"));
         }
 
         // [3.1.2] Variable header
         if Vec::<u8>::read(cursor)? != PROTOCOL_NAME {
-            return Err(PyValueError::new_err("Malformed bytes"));
+            return Err(PyValueError::new_err("Invalid protocol name"));
         }
         if u8::read(cursor)? != PROTOCOL_VERSION {
-            return Err(PyValueError::new_err("Malformed bytes"));
+            return Err(PyValueError::new_err("Invalid protocol version"));
         }
         let packet_flags = u8::read(cursor)?;
         let clean_start = (packet_flags & 0x02) != 0;
@@ -843,13 +843,13 @@ impl ConnAckPacket {
 impl ConnAckPacket {
     pub fn read(py: Python, cursor: &mut ReadCursor, flags: u8) -> PyResult<Py<Self>> {
         if flags != 0x00 {
-            return Err(PyValueError::new_err("Malformed bytes"));
+            return Err(PyValueError::new_err("Invalid fixed header flags"));
         }
 
         // [3.2.2] Variable header
         let packet_flags = u8::read(cursor)?;
         if (packet_flags & 0xfe) != 0 {
-            return Err(PyValueError::new_err("Malformed bytes"));
+            return Err(PyValueError::new_err("Invalid acknowledge flags"));
         }
         let session_present = (packet_flags & 0x01) != 0;
         let reason_code = ConnAckReasonCode::read(cursor)?;
@@ -1114,6 +1114,11 @@ impl PublishPacket {
             PropertyType::TopicAlias => topic_alias: (Option<u16>) = None,
             PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = PyList::empty(py),
         });
+        if topic_alias.unwrap_or(0) == 0 && topic.bind(py).to_str()?.is_empty() {
+            return Err(PyValueError::new_err(
+                "Topic alias must be set if topic is empty",
+            ));
+        }
 
         // [3.3.3] Payload
         let payload = PyBytes::new(py, &cursor.buffer[cursor.index..]);
@@ -1251,7 +1256,7 @@ impl PubAckPacket {
 impl PubAckPacket {
     pub fn read(py: Python, cursor: &mut ReadCursor, flags: u8) -> PyResult<Py<Self>> {
         if flags != 0x00 {
-            return Err(PyValueError::new_err("Malformed bytes"));
+            return Err(PyValueError::new_err("Invalid fixed header flags"));
         }
 
         // [3.4.2] Variable header
@@ -1378,7 +1383,7 @@ impl PubRecPacket {
 impl PubRecPacket {
     pub fn read(py: Python, cursor: &mut ReadCursor, flags: u8) -> PyResult<Py<Self>> {
         if flags != 0x00 {
-            return Err(PyValueError::new_err("Malformed bytes"));
+            return Err(PyValueError::new_err("Invalid fixed header flags"));
         }
 
         // [3.5.2] Variable header
@@ -1505,7 +1510,7 @@ impl PubRelPacket {
 impl PubRelPacket {
     pub fn read(py: Python, cursor: &mut ReadCursor, flags: u8) -> PyResult<Py<Self>> {
         if flags != 0x02 {
-            return Err(PyValueError::new_err("Malformed bytes"));
+            return Err(PyValueError::new_err("Invalid fixed header flags"));
         }
 
         // [3.6.2] Variable header
@@ -1632,7 +1637,7 @@ impl PubCompPacket {
 impl PubCompPacket {
     pub fn read(py: Python, cursor: &mut ReadCursor, flags: u8) -> PyResult<Py<Self>> {
         if flags != 0x00 {
-            return Err(PyValueError::new_err("Malformed bytes"));
+            return Err(PyValueError::new_err("Invalid fixed header flags"));
         }
 
         // [3.7.2] Variable header
@@ -1763,7 +1768,7 @@ impl SubscribePacket {
 impl SubscribePacket {
     pub fn read(py: Python, cursor: &mut ReadCursor, flags: u8) -> PyResult<Py<Self>> {
         if flags != 0x02 {
-            return Err(PyValueError::new_err("Malformed bytes"));
+            return Err(PyValueError::new_err("Invalid fixed header flags"));
         }
 
         // [3.8.2] Variable header
@@ -1899,7 +1904,7 @@ impl SubAckPacket {
 impl SubAckPacket {
     pub fn read(py: Python, cursor: &mut ReadCursor, flags: u8) -> PyResult<Py<Self>> {
         if flags != 0x00 {
-            return Err(PyValueError::new_err("Malformed bytes"));
+            return Err(PyValueError::new_err("Invalid fixed header flags"));
         }
 
         // [3.9.2] Variable header
@@ -2014,7 +2019,7 @@ impl UnsubscribePacket {
 impl UnsubscribePacket {
     pub fn read(py: Python, cursor: &mut ReadCursor, flags: u8) -> PyResult<Py<Self>> {
         if flags != 0x02 {
-            return Err(PyValueError::new_err("Malformed bytes"));
+            return Err(PyValueError::new_err("Invalid fixed header flags"));
         }
 
         // [3.10.2] Variable header
@@ -2139,7 +2144,7 @@ impl UnsubAckPacket {
 impl UnsubAckPacket {
     pub fn read(py: Python, cursor: &mut ReadCursor, flags: u8) -> PyResult<Py<Self>> {
         if flags != 0x00 {
-            return Err(PyValueError::new_err("Malformed bytes"));
+            return Err(PyValueError::new_err("Invalid fixed header flags"));
         }
 
         // [3.11.2] Variable header
@@ -2210,7 +2215,7 @@ impl PingReqPacket {
 impl PingReqPacket {
     pub fn read(py: Python, _cursor: &mut ReadCursor, flags: u8) -> PyResult<Py<Self>> {
         if flags != 0x00 {
-            return Err(PyValueError::new_err("Malformed bytes"));
+            return Err(PyValueError::new_err("Invalid fixed header flags"));
         }
 
         // Return the Python object
@@ -2259,7 +2264,7 @@ impl PingRespPacket {
 impl PingRespPacket {
     pub fn read(py: Python, _cursor: &mut ReadCursor, flags: u8) -> PyResult<Py<Self>> {
         if flags != 0x00 {
-            return Err(PyValueError::new_err("Malformed bytes"));
+            return Err(PyValueError::new_err("Invalid fixed header flags"));
         }
 
         // Return the Python object
@@ -2376,7 +2381,7 @@ impl DisconnectPacket {
 impl DisconnectPacket {
     pub fn read(py: Python, cursor: &mut ReadCursor, flags: u8) -> PyResult<Py<Self>> {
         if flags != 0x00 {
-            return Err(PyValueError::new_err("Malformed bytes"));
+            return Err(PyValueError::new_err("Invalid fixed header flags"));
         }
 
         // [3.14.2] Variable header
@@ -2501,7 +2506,7 @@ impl AuthPacket {
 impl AuthPacket {
     pub fn read(py: Python, cursor: &mut ReadCursor, flags: u8) -> PyResult<Py<Self>> {
         if flags != 0x00 {
-            return Err(PyValueError::new_err("Malformed bytes"));
+            return Err(PyValueError::new_err("Invalid fixed header flags"));
         }
 
         // [3.15.2] Variable header

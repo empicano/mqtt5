@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+- Improve read-path error messages
+
 ## [0.6.0] - 2026-04-16
 
 - Implement `__repr__` (and thus `__str__`) for packets

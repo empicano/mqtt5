@@ -86,6 +86,10 @@ def test_read_incomplete_buffer(packet: mqtt5.Packet) -> None:
             b"\x40\x01\xff\xff",
             id="PubAck: Remaining length value too small",
         ),
+        pytest.param(
+            b"\x30\x03\x00\x00\x00",
+            id="Publish: Empty topic without topic alias",
+        ),
     ],
 )
 def test_read_malformed_packet(buffer: bytearray) -> None:

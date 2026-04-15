@@ -42,7 +42,7 @@ fn read(py: Python, buffer: PyBuffer<u8>) -> PyResult<(Py<PyAny>, usize)> {
     };
     // Check if we've read enough bytes
     if cursor.index < cursor.buffer.len() {
-        Err(PyValueError::new_err("Malformed packet"))
+        Err(PyValueError::new_err("Invalid remaining length"))
     } else {
         Ok((packet, cursor.index))
     }
