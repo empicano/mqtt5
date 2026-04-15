@@ -534,7 +534,9 @@ def _subscribe_packet_zmqtt() -> zmqtt._internal.packets.Subscribe:
         packet_id=999,
         subscriptions=(
             zmqtt._internal.packets.SubscriptionRequest(
-                topic_filter="+/bar/#", qos=zmqtt.QoS.AT_MOST_ONCE
+                topic_filter="+/bar/#",
+                qos=zmqtt.QoS.EXACTLY_ONCE,
+                retain_as_published=True,
             ),
         ),
     )
