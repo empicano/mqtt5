@@ -154,7 +154,6 @@ impl Readable for VariableByteInteger {
     }
 }
 
-// TODO: Remove, replaced with PyBytes
 impl Readable for Vec<u8> {
     fn read(cursor: &mut ReadCursor<'_>) -> PyResult<Self> {
         let length = u16::read(cursor)? as usize;

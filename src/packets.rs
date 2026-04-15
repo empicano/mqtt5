@@ -986,6 +986,13 @@ impl PublishPacket {
                 "Packet ID must be set for QoS=1 and QoS=2",
             ));
         }
+        if topic_alias.unwrap_or(0) == 0
+            && Python::attach(|py| -> PyResult<bool> { Ok(topic.bind(py).to_str()?.is_empty()) })?
+        {
+            return Err(PyValueError::new_err(
+                "Topic alias must be set if topic is empty",
+            ));
+        }
         Ok(Self {
             topic,
             payload,

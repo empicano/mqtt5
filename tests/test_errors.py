@@ -112,6 +112,16 @@ def test_read_malformed_packet(buffer: bytearray) -> None:
             {"topic": "foo/bar", "payload": b"", "qos": mqtt5.QoS.EXACTLY_ONCE},
             id="Publish: QoS=2 without packet id",
         ),
+        pytest.param(
+            mqtt5.PublishPacket,
+            {"topic": "", "payload": b""},
+            id="Publish: Empty topic without topic alias",
+        ),
+        pytest.param(
+            mqtt5.PublishPacket,
+            {"topic": "", "payload": b"", "topic_alias": 0},
+            id="Publish: Empty topic with topic alias equals zero",
+        ),
     ],
 )
 def test_write_invalid_arguments(packet_type: type[mqtt5.Packet], args: dict) -> None:
