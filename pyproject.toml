@@ -34,7 +34,9 @@ dev = [
     "pyperf>=2.9.0",
     "pytest>=8.0.0",
     "ruff>=0.15.0",
-    "ty>=0.0.15",
+    "ty>=0.0.31",
+    "typing-extensions>=4.0.0",
+    "zmqtt>=0.0.4",
 ]
 
 [tool.maturin]

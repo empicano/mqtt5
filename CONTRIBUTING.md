@@ -20,13 +20,13 @@ You can run the benchmarks with:
 uv run bench.py --fast --quiet
 ```
 
-Add the `--compare` flag to benchmark against [mqttproto](https://github.com/agronholm/mqttproto). Add the `--packets` argument to run the benchmarks only for certain packets e.g. `--packets publish --packets puback`.
+Add `--compare=mqttproto` to benchmark against [mqttproto](https://github.com/agronholm/mqttproto) and `--compare=zmqtt` to benchmark against [zMQTT](https://github.com/faststream-community/zMQTT). Add the `--packets` argument to run the benchmarks only for certain packets e.g. `--packets publish --packets puback`.
 
 ### Benchmark chart
 
 The chart in the README is generated from the Vega Lite spec in `chart.vl.json`. To update it:
 
-1. Run `uv run bench.py --quiet --compare --packets "publish(qos1"` to get the latest numbers
+1. Run `uv run bench.py --quiet --compare=mqttproto --compare=zmqtt --packets "publish(qos1"` to get the latest numbers
 2. Update the values in `chart.vl.json`
 3. Paste the spec into the [Vega Lite Editor](https://vega.github.io/editor) and export as SVG
 
