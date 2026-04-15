@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-04-16
+
+- Implement `__repr__` (and thus `__str__`) for packets
+- Store protocol name as bytes to remove Readable/Writable traits for `&str`
+- Validate that `PublishPacket` topic is only empty when `topic_alias` is set
+- Benchmark against zmqtt
+- Skip `reason_code` on write when default and there are no properties
+
 ## [0.5.0] - 2026-03-23
 
 - Type password field in `ConnectPacket` as `bytes` following the specification
