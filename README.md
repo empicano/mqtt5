@@ -5,7 +5,7 @@
 A [sans-I/O](https://sans-io.readthedocs.io/how-to-sans-io.html#what-is-an-i-o-free-protocol-implementation) implementation of the MQTTv5 protocol for Python, written in Rust. Serialization is ~5x faster and deserialization ~20x faster than comparable Python code:
 
 <p align="center">
-    <img src="https://github.com/empicano/mqtt5/blob/main/chart.svg?raw=true" width="650px" />
+    <img src="https://raw.githubusercontent.com/empicano/mqtt5/refs/heads/main/chart.svg" width="650px" />
 </p>
 
 <p align="center">
