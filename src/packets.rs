@@ -1199,7 +1199,11 @@ impl PubAckPacket {
         });
         let properties_remaining_length = VariableByteInteger::new(properties_nbytes as u32);
         let nbytes = self.packet_id.nbytes()
-            + self.reason_code.nbytes()
+            + if self.reason_code != PubAckReasonCode::Success || properties_nbytes > 0 {
+                self.reason_code.nbytes()
+            } else {
+                0
+            }
             + if properties_nbytes > 0 {
                 properties_remaining_length.nbytes() + properties_nbytes
             } else {
@@ -1216,13 +1220,15 @@ impl PubAckPacket {
 
             // [3.4.2] Variable header
             self.packet_id.write(&mut cursor);
-            self.reason_code.write(&mut cursor);
-            if properties_nbytes > 0 {
-                properties_remaining_length.write(&mut cursor);
-                write_properties!(&mut cursor, self, {
-                    PropertyType::ReasonStr => reason_str: (Option<Py<PyString>>) = None,
-                    PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = PyList::empty(py),
-                });
+            if self.reason_code != PubAckReasonCode::Success || properties_nbytes > 0 {
+                self.reason_code.write(&mut cursor);
+                if properties_nbytes > 0 {
+                    properties_remaining_length.write(&mut cursor);
+                    write_properties!(&mut cursor, self, {
+                        PropertyType::ReasonStr => reason_str: (Option<Py<PyString>>) = None,
+                        PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = PyList::empty(py),
+                    });
+                }
             }
 
             Ok(())
@@ -1320,7 +1326,11 @@ impl PubRecPacket {
         });
         let properties_remaining_length = VariableByteInteger::new(properties_nbytes as u32);
         let nbytes = self.packet_id.nbytes()
-            + self.reason_code.nbytes()
+            + if self.reason_code != PubRecReasonCode::Success || properties_nbytes > 0 {
+                self.reason_code.nbytes()
+            } else {
+                0
+            }
             + if properties_nbytes > 0 {
                 properties_remaining_length.nbytes() + properties_nbytes
             } else {
@@ -1337,13 +1347,15 @@ impl PubRecPacket {
 
             // [3.5.2] Variable header
             self.packet_id.write(&mut cursor);
-            self.reason_code.write(&mut cursor);
-            if properties_nbytes > 0 {
-                properties_remaining_length.write(&mut cursor);
-                write_properties!(&mut cursor, self, {
-                    PropertyType::ReasonStr => reason_str: (Option<Py<PyString>>) = None,
-                    PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = PyList::empty(py),
-                });
+            if self.reason_code != PubRecReasonCode::Success || properties_nbytes > 0 {
+                self.reason_code.write(&mut cursor);
+                if properties_nbytes > 0 {
+                    properties_remaining_length.write(&mut cursor);
+                    write_properties!(&mut cursor, self, {
+                        PropertyType::ReasonStr => reason_str: (Option<Py<PyString>>) = None,
+                        PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = PyList::empty(py),
+                    });
+                }
             }
 
             Ok(())
@@ -1441,7 +1453,11 @@ impl PubRelPacket {
         });
         let properties_remaining_length = VariableByteInteger::new(properties_nbytes as u32);
         let nbytes = self.packet_id.nbytes()
-            + self.reason_code.nbytes()
+            + if self.reason_code != PubRelReasonCode::Success || properties_nbytes > 0 {
+                self.reason_code.nbytes()
+            } else {
+                0
+            }
             + if properties_nbytes > 0 {
                 properties_remaining_length.nbytes() + properties_nbytes
             } else {
@@ -1458,13 +1474,15 @@ impl PubRelPacket {
 
             // [3.6.2] Variable header
             self.packet_id.write(&mut cursor);
-            self.reason_code.write(&mut cursor);
-            if properties_nbytes > 0 {
-                properties_remaining_length.write(&mut cursor);
-                write_properties!(&mut cursor, self, {
-                    PropertyType::ReasonStr => reason_str: (Option<Py<PyString>>) = None,
-                    PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = PyList::empty(py),
-                });
+            if self.reason_code != PubRelReasonCode::Success || properties_nbytes > 0 {
+                self.reason_code.write(&mut cursor);
+                if properties_nbytes > 0 {
+                    properties_remaining_length.write(&mut cursor);
+                    write_properties!(&mut cursor, self, {
+                        PropertyType::ReasonStr => reason_str: (Option<Py<PyString>>) = None,
+                        PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = PyList::empty(py),
+                    });
+                }
             }
 
             Ok(())
@@ -1562,7 +1580,11 @@ impl PubCompPacket {
         });
         let properties_remaining_length = VariableByteInteger::new(properties_nbytes as u32);
         let nbytes = self.packet_id.nbytes()
-            + self.reason_code.nbytes()
+            + if self.reason_code != PubCompReasonCode::Success || properties_nbytes > 0 {
+                self.reason_code.nbytes()
+            } else {
+                0
+            }
             + if properties_nbytes > 0 {
                 properties_remaining_length.nbytes() + properties_nbytes
             } else {
@@ -1579,13 +1601,15 @@ impl PubCompPacket {
 
             // [3.7.2] Variable header
             self.packet_id.write(&mut cursor);
-            self.reason_code.write(&mut cursor);
-            if properties_nbytes > 0 {
-                properties_remaining_length.write(&mut cursor);
-                write_properties!(&mut cursor, self, {
-                    PropertyType::ReasonStr => reason_str: (Option<Py<PyString>>) = None,
-                    PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = PyList::empty(py),
-                });
+            if self.reason_code != PubCompReasonCode::Success || properties_nbytes > 0 {
+                self.reason_code.write(&mut cursor);
+                if properties_nbytes > 0 {
+                    properties_remaining_length.write(&mut cursor);
+                    write_properties!(&mut cursor, self, {
+                        PropertyType::ReasonStr => reason_str: (Option<Py<PyString>>) = None,
+                        PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = PyList::empty(py),
+                    });
+                }
             }
 
             Ok(())
@@ -2295,12 +2319,17 @@ impl DisconnectPacket {
             PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = PyList::empty(py),
         });
         let properties_remaining_length = VariableByteInteger::new(properties_nbytes as u32);
-        let nbytes = self.reason_code.nbytes()
-            + if properties_nbytes > 0 {
-                properties_remaining_length.nbytes() + properties_nbytes
-            } else {
-                0
-            };
+        let nbytes = if self.reason_code != DisconnectReasonCode::NormalDisconnection
+            || properties_nbytes > 0
+        {
+            self.reason_code.nbytes()
+        } else {
+            0
+        } + if properties_nbytes > 0 {
+            properties_remaining_length.nbytes() + properties_nbytes
+        } else {
+            0
+        };
         let remaining_length = VariableByteInteger::new(nbytes as u32);
         PyBytes::new_with(py, 1 + remaining_length.nbytes() + nbytes, |buffer| {
             let mut cursor = WriteCursor::new(buffer, 0);
@@ -2311,15 +2340,19 @@ impl DisconnectPacket {
             remaining_length.write(&mut cursor);
 
             // [3.14.2] Variable header
-            self.reason_code.write(&mut cursor);
-            if properties_nbytes > 0 {
-                properties_remaining_length.write(&mut cursor);
-                write_properties!(&mut cursor, self, {
-                    PropertyType::SessionExpiryInterval => session_expiry_interval: (Option<u32>) = None,
-                    PropertyType::ServerReference => server_reference: (Option<Py<PyString>>) = None,
-                    PropertyType::ReasonStr => reason_str: (Option<Py<PyString>>) = None,
-                    PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = PyList::empty(py),
-                });
+            if self.reason_code != DisconnectReasonCode::NormalDisconnection
+                || properties_nbytes > 0
+            {
+                self.reason_code.write(&mut cursor);
+                if properties_nbytes > 0 {
+                    properties_remaining_length.write(&mut cursor);
+                    write_properties!(&mut cursor, self, {
+                        PropertyType::SessionExpiryInterval => session_expiry_interval: (Option<u32>) = None,
+                        PropertyType::ServerReference => server_reference: (Option<Py<PyString>>) = None,
+                        PropertyType::ReasonStr => reason_str: (Option<Py<PyString>>) = None,
+                        PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = PyList::empty(py),
+                    });
+                }
             }
 
             Ok(())
