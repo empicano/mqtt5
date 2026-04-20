@@ -47,7 +47,7 @@
     ]
   },
   "config": {
-    "padding": { "left": 10, "top": 15, "right": 10, "bottom": 10 },
+    "padding": { "left": 10, "top": 15, "right": 10, "bottom": 15 },
     "text": {
       "font": "Helvetica Neue",
       "color": "#1f2937"
@@ -70,7 +70,7 @@
   "spacing": 10,
   "resolve": { "scale": { "x": "shared", "y": "independent" } },
   "spec": {
-    "height": 65,
+    "height": 60,
     "width": 400,
     "encoding": {
       "y": {
@@ -89,17 +89,7 @@
       "x": {
         "field": "time",
         "type": "quantitative",
-        "axis": {
-          "title": null,
-          "labelExpr": "format(datum.value/1000, '.2f') + ' μs'",
-          "tickCount": 3,
-          "tickSize": 0,
-          "labelPadding": 10,
-          "labelAlign": "center",
-          "labelFontSize": 12,
-          "gridColor": "#d1d5db",
-          "domain": false
-        }
+        "axis": null
       }
     },
     "layer": [
