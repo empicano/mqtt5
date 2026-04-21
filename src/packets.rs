@@ -1696,6 +1696,11 @@ impl SubscribePacket {
         subscription_id: Option<VariableByteInteger>,
         user_properties: Option<Py<PyList>>,
     ) -> PyResult<Self> {
+        if Python::attach(|py| subscriptions.bind(py).is_empty()) {
+            return Err(PyValueError::new_err(
+                "Topic filter list must contain at least one entry",
+            ));
+        }
         Ok(Self {
             packet_id,
             subscriptions,
@@ -1962,6 +1967,11 @@ impl UnsubscribePacket {
         patterns: Py<PyList>,
         user_properties: Option<Py<PyList>>,
     ) -> PyResult<Self> {
+        if Python::attach(|py| patterns.bind(py).is_empty()) {
+            return Err(PyValueError::new_err(
+                "Topic filter list must contain at least one entry",
+            ));
+        }
         Ok(Self {
             packet_id,
             patterns,

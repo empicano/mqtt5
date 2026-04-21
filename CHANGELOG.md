@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ## [Unreleased]
 
 - Improve read-path error messages
+- Validate `SubscribePacket` / `UnsubscribePacket` topic filter list is not empty
 
 ## [0.6.0] - 2026-04-16
 

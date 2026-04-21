@@ -126,6 +126,16 @@ def test_read_malformed_packet(buffer: bytearray) -> None:
             {"topic": "", "payload": b"", "topic_alias": 0},
             id="Publish: Empty topic with topic alias equals zero",
         ),
+        pytest.param(
+            mqtt5.SubscribePacket,
+            {"packet_id": 1, "subscriptions": []},
+            id="Subscribe: Empty topic filter list",
+        ),
+        pytest.param(
+            mqtt5.UnsubscribePacket,
+            {"packet_id": 1, "patterns": []},
+            id="Unsubscribe: Empty topic filter list",
+        ),
     ],
 )
 def test_write_invalid_arguments(packet_type: type[mqtt5.Packet], args: dict) -> None:
