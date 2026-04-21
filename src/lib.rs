@@ -80,7 +80,7 @@ fn mqtt5(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<QoS>()?;
     m.add_class::<RetainHandling>()?;
     m.add_class::<Will>()?;
-    m.add_class::<Subscription>()?;
+    m.add_class::<TopicFilter>()?;
     // Functions
     m.add_function(wrap_pyfunction!(read, m)?)?;
     Ok(())

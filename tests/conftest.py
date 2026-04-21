@@ -519,7 +519,7 @@ def _pubcomp_packet_full_zmqtt() -> zmqtt._internal.packets.PubComp:
 
 def _subscribe_packet() -> mqtt5.SubscribePacket:
     return mqtt5.SubscribePacket(
-        packet_id=999, subscriptions=[mqtt5.Subscription(pattern="+/bar/#")]
+        packet_id=999, topic_filters=[mqtt5.TopicFilter(pattern="+/bar/#")]
     )
 
 

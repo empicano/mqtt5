@@ -153,7 +153,7 @@ class Will:
         user_properties: list[tuple[str, str]] | None = None,
     ) -> None: ...
 
-class Subscription:
+class TopicFilter:
     pattern: str
     max_qos: QoS
     no_local: bool
@@ -356,14 +356,14 @@ class PubCompPacket:
 
 class SubscribePacket:
     packet_id: int
-    subscriptions: list[Subscription]
+    topic_filters: list[TopicFilter]
     subscription_id: int | None
     user_properties: list[tuple[str, str]]
 
     def __init__(
         self,
         packet_id: int,
-        subscriptions: list[Subscription],
+        topic_filters: list[TopicFilter],
         *,
         subscription_id: int | None = None,
         user_properties: list[tuple[str, str]] | None = None,

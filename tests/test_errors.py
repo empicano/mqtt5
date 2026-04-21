@@ -128,13 +128,13 @@ def test_read_malformed_packet(buffer: bytearray) -> None:
         ),
         pytest.param(
             mqtt5.SubscribePacket,
-            {"packet_id": 1, "subscriptions": []},
+            {"packet_id": 1, "topic_filters": []},
             id="Subscribe: Empty topic filter list",
         ),
         pytest.param(
             mqtt5.UnsubscribePacket,
             {"packet_id": 1, "patterns": []},
-            id="Unsubscribe: Empty topic filter list",
+            id="Unsubscribe: Empty pattern list",
         ),
     ],
 )

@@ -276,7 +276,7 @@ impl PartialEq for Will {
 }
 
 #[pyclass(frozen, eq, get_all, module = "mqtt5")]
-pub struct Subscription {
+pub struct TopicFilter {
     pub pattern: Py<PyString>,
     pub max_qos: QoS,
     pub no_local: bool,
@@ -285,7 +285,7 @@ pub struct Subscription {
 }
 
 #[pymethods]
-impl Subscription {
+impl TopicFilter {
     #[new]
     #[pyo3(signature = (
         pattern,
@@ -314,7 +314,7 @@ impl Subscription {
     fn __repr__(slf: &Bound<'_, Self>) -> String {
         py_repr!(
             slf,
-            Subscription,
+            TopicFilter,
             pattern,
             max_qos,
             no_local,
@@ -324,7 +324,7 @@ impl Subscription {
     }
 }
 
-impl PartialEq for Subscription {
+impl PartialEq for TopicFilter {
     fn eq(&self, other: &Self) -> bool {
         self.pattern.py_eq(&other.pattern)
             && self.max_qos == other.max_qos
@@ -1675,7 +1675,7 @@ impl PartialEq for PubCompPacket {
 #[pyclass(frozen, eq, get_all, module = "mqtt5")]
 pub struct SubscribePacket {
     pub packet_id: u16,
-    pub subscriptions: Py<PyList>,
+    pub topic_filters: Py<PyList>,
     pub subscription_id: Option<VariableByteInteger>,
     pub user_properties: Py<PyList>,
 }
@@ -1685,25 +1685,25 @@ impl SubscribePacket {
     #[new]
     #[pyo3(signature = (
         packet_id,
-        subscriptions,
+        topic_filters,
         *,
         subscription_id=None,
         user_properties=None,
     ))]
     pub fn new(
         packet_id: u16,
-        subscriptions: Py<PyList>,
+        topic_filters: Py<PyList>,
         subscription_id: Option<VariableByteInteger>,
         user_properties: Option<Py<PyList>>,
     ) -> PyResult<Self> {
-        if Python::attach(|py| subscriptions.bind(py).is_empty()) {
+        if Python::attach(|py| topic_filters.bind(py).is_empty()) {
             return Err(PyValueError::new_err(
                 "Topic filter list must contain at least one entry",
             ));
         }
         Ok(Self {
             packet_id,
-            subscriptions,
+            topic_filters,
             subscription_id,
             user_properties: user_properties
                 .unwrap_or_else(|| Python::attach(|py| PyList::empty(py).unbind())),
@@ -1716,14 +1716,14 @@ impl SubscribePacket {
             PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = PyList::empty(py),
         });
         let properties_remaining_length = VariableByteInteger::new(properties_nbytes as u32);
-        let subscriptions = self.subscriptions.bind(py);
+        let topic_filters = self.topic_filters.bind(py);
         let nbytes = self.packet_id.nbytes()
             + properties_remaining_length.nbytes()
             + properties_nbytes
-            + subscriptions
+            + topic_filters
                 .iter()
                 .try_fold(0, |acc, item| -> PyResult<usize> {
-                    Ok(acc + item.extract::<PyRef<Subscription>>()?.pattern.nbytes() + 1)
+                    Ok(acc + item.extract::<PyRef<TopicFilter>>()?.pattern.nbytes() + 1)
                 })?;
         let remaining_length = VariableByteInteger::new(nbytes as u32);
         PyBytes::new_with(py, 1 + remaining_length.nbytes() + nbytes, |buffer| {
@@ -1743,13 +1743,13 @@ impl SubscribePacket {
             });
 
             // [3.8.3] Payload
-            for item in subscriptions.iter() {
-                let subscription: PyRef<Subscription> = item.extract()?;
-                subscription.pattern.write(&mut cursor);
-                let options = subscription.max_qos as u8
-                    | (subscription.no_local as u8) << 2
-                    | (subscription.retain_as_published as u8) << 3
-                    | (subscription.retain_handling as u8) << 4;
+            for item in topic_filters.iter() {
+                let topic_filter: PyRef<TopicFilter> = item.extract()?;
+                topic_filter.pattern.write(&mut cursor);
+                let options = topic_filter.max_qos as u8
+                    | (topic_filter.no_local as u8) << 2
+                    | (topic_filter.retain_as_published as u8) << 3
+                    | (topic_filter.retain_handling as u8) << 4;
                 options.write(&mut cursor);
             }
 
@@ -1763,7 +1763,7 @@ impl SubscribePacket {
             slf,
             SubscribePacket,
             packet_id,
-            subscriptions,
+            topic_filters,
             subscription_id,
             user_properties,
         )
@@ -1784,24 +1784,24 @@ impl SubscribePacket {
         });
 
         // [3.8.3] Payload
-        let subscriptions = PyList::empty(py);
+        let topic_filters = PyList::empty(py);
         while cursor.index < cursor.buffer.len() {
             let pattern = Py::<PyString>::read(cursor)?;
             let options = u8::read(cursor)?;
-            let subscription = Subscription {
+            let topic_filter = TopicFilter {
                 pattern,
                 max_qos: QoS::new(options & 0x03)?,
                 no_local: (options >> 2) & 0x01 != 0,
                 retain_as_published: (options >> 3) & 0x01 != 0,
                 retain_handling: RetainHandling::new((options >> 4) & 0x03)?,
             };
-            subscriptions.append(subscription)?;
+            topic_filters.append(topic_filter)?;
         }
 
         // Return the Python object
         let packet = Self {
             packet_id,
-            subscriptions: subscriptions.unbind(),
+            topic_filters: topic_filters.unbind(),
             subscription_id,
             user_properties: user_properties.unbind(),
         };
@@ -1813,7 +1813,7 @@ impl PartialEq for SubscribePacket {
     fn eq(&self, other: &Self) -> bool {
         self.packet_id == other.packet_id
             && self.subscription_id == other.subscription_id
-            && self.subscriptions.py_eq(&other.subscriptions)
+            && self.topic_filters.py_eq(&other.topic_filters)
             && self.user_properties.py_eq(&other.user_properties)
     }
 }
