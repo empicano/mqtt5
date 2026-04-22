@@ -194,6 +194,7 @@ impl Will {
         user_properties=None,
     ))]
     pub fn new(
+        py: Python<'_>,
         topic: Py<PyString>,
         payload: Option<Py<PyBytes>>,
         qos: QoS,
@@ -205,8 +206,14 @@ impl Will {
         correlation_data: Option<Py<PyBytes>>,
         will_delay_interval: u32,
         user_properties: Option<Py<PyList>>,
-    ) -> Self {
-        Self {
+    ) -> PyResult<Self> {
+        topic.check_size(py)?;
+        payload.check_size(py)?;
+        content_type.check_size(py)?;
+        response_topic.check_size(py)?;
+        correlation_data.check_size(py)?;
+        UserProperties(&user_properties).check_size(py)?;
+        Ok(Self {
             topic,
             payload,
             qos,
@@ -217,9 +224,8 @@ impl Will {
             response_topic,
             correlation_data,
             will_delay_interval,
-            user_properties: user_properties
-                .unwrap_or_else(|| Python::attach(|py| PyList::empty(py).unbind())),
-        }
+            user_properties: user_properties.unwrap_or_else(|| PyList::empty(py).unbind()),
+        })
     }
 
     fn __repr__(slf: &Bound<'_, Self>) -> String {
@@ -296,19 +302,21 @@ impl TopicFilter {
         retain_handling=RetainHandling::SendAlways,
     ))]
     pub fn new(
+        py: Python<'_>,
         pattern: Py<PyString>,
         max_qos: QoS,
         no_local: bool,
         retain_as_published: bool,
         retain_handling: RetainHandling,
-    ) -> Self {
-        Self {
+    ) -> PyResult<Self> {
+        pattern.check_size(py)?;
+        Ok(Self {
             pattern,
             max_qos,
             no_local,
             retain_as_published,
             retain_handling,
-        }
+        })
     }
 
     fn __repr__(slf: &Bound<'_, Self>) -> String {
@@ -375,6 +383,7 @@ impl ConnectPacket {
         user_properties=None,
     ))]
     pub fn new(
+        py: Python<'_>,
         client_id: Py<PyString>,
         username: Option<Py<PyString>>,
         password: Option<Py<PyBytes>>,
@@ -391,6 +400,12 @@ impl ConnectPacket {
         max_packet_size: Option<u32>,
         user_properties: Option<Py<PyList>>,
     ) -> PyResult<Self> {
+        client_id.check_size(py)?;
+        username.check_size(py)?;
+        password.check_size(py)?;
+        authentication_method.check_size(py)?;
+        authentication_data.check_size(py)?;
+        UserProperties(&user_properties).check_size(py)?;
         Ok(Self {
             client_id,
             username,
@@ -406,8 +421,7 @@ impl ConnectPacket {
             receive_max,
             topic_alias_max,
             max_packet_size,
-            user_properties: user_properties
-                .unwrap_or_else(|| Python::attach(|py| PyList::empty(py).unbind())),
+            user_properties: user_properties.unwrap_or_else(|| PyList::empty(py).unbind()),
         })
     }
 
@@ -705,6 +719,7 @@ impl ConnAckPacket {
         user_properties=None,
     ))]
     pub fn new(
+        py: Python<'_>,
         session_present: bool,
         reason_code: ConnAckReasonCode,
         session_expiry_interval: Option<u32>,
@@ -725,6 +740,13 @@ impl ConnAckPacket {
         shared_subscription_available: bool,
         user_properties: Option<Py<PyList>>,
     ) -> PyResult<Self> {
+        assigned_client_id.check_size(py)?;
+        authentication_method.check_size(py)?;
+        authentication_data.check_size(py)?;
+        response_info.check_size(py)?;
+        server_reference.check_size(py)?;
+        reason_str.check_size(py)?;
+        UserProperties(&user_properties).check_size(py)?;
         Ok(Self {
             session_present,
             reason_code,
@@ -744,8 +766,7 @@ impl ConnAckPacket {
             wildcard_subscription_available,
             subscription_id_available,
             shared_subscription_available,
-            user_properties: user_properties
-                .unwrap_or_else(|| Python::attach(|py| PyList::empty(py).unbind())),
+            user_properties: user_properties.unwrap_or_else(|| PyList::empty(py).unbind()),
         })
     }
 
@@ -963,6 +984,7 @@ impl PublishPacket {
         user_properties=None,
     ))]
     pub fn new(
+        py: Python<'_>,
         topic: Py<PyString>,
         payload: Py<PyBytes>,
         qos: QoS,
@@ -978,6 +1000,11 @@ impl PublishPacket {
         topic_alias: Option<u16>,
         user_properties: Option<Py<PyList>>,
     ) -> PyResult<Self> {
+        topic.check_size(py)?;
+        content_type.check_size(py)?;
+        response_topic.check_size(py)?;
+        correlation_data.check_size(py)?;
+        UserProperties(&user_properties).check_size(py)?;
         if packet_id.is_some() && qos == QoS::AtMostOnce {
             return Err(PyValueError::new_err("Packet ID must not be set for QoS=0"));
         }
@@ -986,9 +1013,7 @@ impl PublishPacket {
                 "Packet ID must be set for QoS=1 and QoS=2",
             ));
         }
-        if topic_alias.unwrap_or(0) == 0
-            && Python::attach(|py| -> PyResult<bool> { Ok(topic.bind(py).to_str()?.is_empty()) })?
-        {
+        if topic_alias.unwrap_or(0) == 0 && topic.bind(py).to_str()?.is_empty() {
             return Err(PyValueError::new_err(
                 "Topic alias must be set if topic is empty",
             ));
@@ -1005,11 +1030,9 @@ impl PublishPacket {
             content_type,
             response_topic,
             correlation_data,
-            subscription_ids: subscription_ids
-                .unwrap_or_else(|| Python::attach(|py| PyList::empty(py).unbind())),
+            subscription_ids: subscription_ids.unwrap_or_else(|| PyList::empty(py).unbind()),
             topic_alias,
-            user_properties: user_properties
-                .unwrap_or_else(|| Python::attach(|py| PyList::empty(py).unbind())),
+            user_properties: user_properties.unwrap_or_else(|| PyList::empty(py).unbind()),
         })
     }
 
@@ -1183,17 +1206,19 @@ impl PubAckPacket {
         user_properties=None,
     ))]
     pub fn new(
+        py: Python<'_>,
         packet_id: u16,
         reason_code: PubAckReasonCode,
         reason_str: Option<Py<PyString>>,
         user_properties: Option<Py<PyList>>,
     ) -> PyResult<Self> {
+        reason_str.check_size(py)?;
+        UserProperties(&user_properties).check_size(py)?;
         Ok(Self {
             packet_id,
             reason_code,
             reason_str,
-            user_properties: user_properties
-                .unwrap_or_else(|| Python::attach(|py| PyList::empty(py).unbind())),
+            user_properties: user_properties.unwrap_or_else(|| PyList::empty(py).unbind()),
         })
     }
 
@@ -1310,17 +1335,19 @@ impl PubRecPacket {
         user_properties=None,
     ))]
     pub fn new(
+        py: Python<'_>,
         packet_id: u16,
         reason_code: PubRecReasonCode,
         reason_str: Option<Py<PyString>>,
         user_properties: Option<Py<PyList>>,
     ) -> PyResult<Self> {
+        reason_str.check_size(py)?;
+        UserProperties(&user_properties).check_size(py)?;
         Ok(Self {
             packet_id,
             reason_code,
             reason_str,
-            user_properties: user_properties
-                .unwrap_or_else(|| Python::attach(|py| PyList::empty(py).unbind())),
+            user_properties: user_properties.unwrap_or_else(|| PyList::empty(py).unbind()),
         })
     }
 
@@ -1437,17 +1464,19 @@ impl PubRelPacket {
         user_properties=None,
     ))]
     pub fn new(
+        py: Python<'_>,
         packet_id: u16,
         reason_code: PubRelReasonCode,
         reason_str: Option<Py<PyString>>,
         user_properties: Option<Py<PyList>>,
     ) -> PyResult<Self> {
+        reason_str.check_size(py)?;
+        UserProperties(&user_properties).check_size(py)?;
         Ok(Self {
             packet_id,
             reason_code,
             reason_str,
-            user_properties: user_properties
-                .unwrap_or_else(|| Python::attach(|py| PyList::empty(py).unbind())),
+            user_properties: user_properties.unwrap_or_else(|| PyList::empty(py).unbind()),
         })
     }
 
@@ -1564,17 +1593,19 @@ impl PubCompPacket {
         user_properties=None,
     ))]
     pub fn new(
+        py: Python<'_>,
         packet_id: u16,
         reason_code: PubCompReasonCode,
         reason_str: Option<Py<PyString>>,
         user_properties: Option<Py<PyList>>,
     ) -> PyResult<Self> {
+        reason_str.check_size(py)?;
+        UserProperties(&user_properties).check_size(py)?;
         Ok(Self {
             packet_id,
             reason_code,
             reason_str,
-            user_properties: user_properties
-                .unwrap_or_else(|| Python::attach(|py| PyList::empty(py).unbind())),
+            user_properties: user_properties.unwrap_or_else(|| PyList::empty(py).unbind()),
         })
     }
 
@@ -1691,12 +1722,14 @@ impl SubscribePacket {
         user_properties=None,
     ))]
     pub fn new(
+        py: Python<'_>,
         packet_id: u16,
         topic_filters: Py<PyList>,
         subscription_id: Option<VariableByteInteger>,
         user_properties: Option<Py<PyList>>,
     ) -> PyResult<Self> {
-        if Python::attach(|py| topic_filters.bind(py).is_empty()) {
+        UserProperties(&user_properties).check_size(py)?;
+        if topic_filters.bind(py).is_empty() {
             return Err(PyValueError::new_err(
                 "Topic filter list must contain at least one entry",
             ));
@@ -1705,8 +1738,7 @@ impl SubscribePacket {
             packet_id,
             topic_filters,
             subscription_id,
-            user_properties: user_properties
-                .unwrap_or_else(|| Python::attach(|py| PyList::empty(py).unbind())),
+            user_properties: user_properties.unwrap_or_else(|| PyList::empty(py).unbind()),
         })
     }
 
@@ -1837,17 +1869,19 @@ impl SubAckPacket {
         user_properties=None,
     ))]
     pub fn new(
+        py: Python<'_>,
         packet_id: u16,
         reason_codes: Py<PyList>,
         reason_str: Option<Py<PyString>>,
         user_properties: Option<Py<PyList>>,
     ) -> PyResult<Self> {
+        reason_str.check_size(py)?;
+        UserProperties(&user_properties).check_size(py)?;
         Ok(Self {
             packet_id,
             reason_codes,
             reason_str,
-            user_properties: user_properties
-                .unwrap_or_else(|| Python::attach(|py| PyList::empty(py).unbind())),
+            user_properties: user_properties.unwrap_or_else(|| PyList::empty(py).unbind()),
         })
     }
 
@@ -1963,20 +1997,22 @@ impl UnsubscribePacket {
         user_properties=None,
     ))]
     pub fn new(
+        py: Python<'_>,
         packet_id: u16,
         patterns: Py<PyList>,
         user_properties: Option<Py<PyList>>,
     ) -> PyResult<Self> {
-        if Python::attach(|py| patterns.bind(py).is_empty()) {
+        Patterns(&patterns).check_size(py)?;
+        UserProperties(&user_properties).check_size(py)?;
+        if patterns.bind(py).is_empty() {
             return Err(PyValueError::new_err(
-                "Topic filter list must contain at least one entry",
+                "Pattern list must contain at least one entry",
             ));
         }
         Ok(Self {
             packet_id,
             patterns,
-            user_properties: user_properties
-                .unwrap_or_else(|| Python::attach(|py| PyList::empty(py).unbind())),
+            user_properties: user_properties.unwrap_or_else(|| PyList::empty(py).unbind()),
         })
     }
 
@@ -2082,17 +2118,19 @@ impl UnsubAckPacket {
         user_properties=None,
     ))]
     pub fn new(
+        py: Python<'_>,
         packet_id: u16,
         reason_codes: Py<PyList>,
         reason_str: Option<Py<PyString>>,
         user_properties: Option<Py<PyList>>,
     ) -> PyResult<Self> {
+        reason_str.check_size(py)?;
+        UserProperties(&user_properties).check_size(py)?;
         Ok(Self {
             packet_id,
             reason_codes,
             reason_str,
-            user_properties: user_properties
-                .unwrap_or_else(|| Python::attach(|py| PyList::empty(py).unbind())),
+            user_properties: user_properties.unwrap_or_else(|| PyList::empty(py).unbind()),
         })
     }
 
@@ -2310,19 +2348,22 @@ impl DisconnectPacket {
         user_properties=None,
     ))]
     pub fn new(
+        py: Python<'_>,
         reason_code: DisconnectReasonCode,
         session_expiry_interval: Option<u32>,
         server_reference: Option<Py<PyString>>,
         reason_str: Option<Py<PyString>>,
         user_properties: Option<Py<PyList>>,
     ) -> PyResult<Self> {
+        server_reference.check_size(py)?;
+        reason_str.check_size(py)?;
+        UserProperties(&user_properties).check_size(py)?;
         Ok(Self {
             reason_code,
             session_expiry_interval,
             server_reference,
             reason_str,
-            user_properties: user_properties
-                .unwrap_or_else(|| Python::attach(|py| PyList::empty(py).unbind())),
+            user_properties: user_properties.unwrap_or_else(|| PyList::empty(py).unbind()),
         })
     }
 
@@ -2450,19 +2491,23 @@ impl AuthPacket {
         user_properties=None,
     ))]
     pub fn new(
+        py: Python<'_>,
         reason_code: AuthReasonCode,
         authentication_method: Option<Py<PyString>>,
         authentication_data: Option<Py<PyBytes>>,
         reason_str: Option<Py<PyString>>,
         user_properties: Option<Py<PyList>>,
     ) -> PyResult<Self> {
+        authentication_method.check_size(py)?;
+        authentication_data.check_size(py)?;
+        reason_str.check_size(py)?;
+        UserProperties(&user_properties).check_size(py)?;
         Ok(Self {
             reason_code,
             authentication_method,
             authentication_data,
             reason_str,
-            user_properties: user_properties
-                .unwrap_or_else(|| Python::attach(|py| PyList::empty(py).unbind())),
+            user_properties: user_properties.unwrap_or_else(|| PyList::empty(py).unbind()),
         })
     }
 

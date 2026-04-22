@@ -38,6 +38,70 @@ impl<T: PyEq> PyEq for Option<T> {
     }
 }
 
+const MAX_FIELD_LENGTH: usize = 65535;
+
+pub trait CheckSize {
+    fn check_size(&self, py: Python) -> PyResult<()>;
+}
+
+impl CheckSize for Py<PyString> {
+    fn check_size(&self, py: Python) -> PyResult<()> {
+        if self.bind(py).to_str()?.len() > MAX_FIELD_LENGTH {
+            return Err(PyValueError::new_err(
+                "String must not exceed 65535 bytes",
+            ));
+        }
+        Ok(())
+    }
+}
+
+impl CheckSize for Py<PyBytes> {
+    fn check_size(&self, py: Python) -> PyResult<()> {
+        if self.bind(py).as_bytes().len() > MAX_FIELD_LENGTH {
+            return Err(PyValueError::new_err(
+                "Binary data must not exceed 65535 bytes",
+            ));
+        }
+        Ok(())
+    }
+}
+
+impl<T: CheckSize> CheckSize for Option<T> {
+    fn check_size(&self, py: Python) -> PyResult<()> {
+        if let Some(v) = self {
+            v.check_size(py)?;
+        }
+        Ok(())
+    }
+}
+
+pub struct UserProperties<'a>(pub &'a Option<Py<PyList>>);
+
+impl CheckSize for UserProperties<'_> {
+    fn check_size(&self, py: Python) -> PyResult<()> {
+        let Some(list) = self.0 else { return Ok(()) };
+        for item in list.bind(py).iter() {
+            let key: Py<PyString> = item.get_item(0)?.extract()?;
+            let value: Py<PyString> = item.get_item(1)?.extract()?;
+            key.check_size(py)?;
+            value.check_size(py)?;
+        }
+        Ok(())
+    }
+}
+
+pub struct Patterns<'a>(pub &'a Py<PyList>);
+
+impl CheckSize for Patterns<'_> {
+    fn check_size(&self, py: Python) -> PyResult<()> {
+        for item in self.0.bind(py).iter() {
+            let s: Py<PyString> = item.extract()?;
+            s.check_size(py)?;
+        }
+        Ok(())
+    }
+}
+
 #[derive(PartialEq, Eq, TryFromPrimitive)]
 #[repr(u8)]
 pub enum PacketType {

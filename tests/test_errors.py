@@ -102,18 +102,28 @@ def test_read_malformed_packet(buffer: bytearray) -> None:
     ("packet_type", "args"),
     [
         pytest.param(
+            mqtt5.ConnectPacket,
+            {"client_id": "a" * 65536},
+            id="Connect: Client ID >65535 bytes",
+        ),
+        pytest.param(
+            mqtt5.ConnectPacket,
+            {"client_id": "Bulbasaur", "password": b"a" * 65536},
+            id="Connect: Password >65535 bytes",
+        ),
+        pytest.param(
             mqtt5.PublishPacket,
-            {"topic": "foo/bar", "payload": b"", "packet_id": 1},
+            {"topic": "foo/bar/1234", "payload": b"", "packet_id": 1},
             id="Publish: QoS=0 with packet id",
         ),
         pytest.param(
             mqtt5.PublishPacket,
-            {"topic": "foo/bar", "payload": b"", "qos": mqtt5.QoS.AT_LEAST_ONCE},
+            {"topic": "foo/bar/1234", "payload": b"", "qos": mqtt5.QoS.AT_LEAST_ONCE},
             id="Publish: QoS=1 without packet id",
         ),
         pytest.param(
             mqtt5.PublishPacket,
-            {"topic": "foo/bar", "payload": b"", "qos": mqtt5.QoS.EXACTLY_ONCE},
+            {"topic": "foo/bar/1234", "payload": b"", "qos": mqtt5.QoS.EXACTLY_ONCE},
             id="Publish: QoS=2 without packet id",
         ),
         pytest.param(
@@ -127,6 +137,21 @@ def test_read_malformed_packet(buffer: bytearray) -> None:
             id="Publish: Empty topic with topic alias equals zero",
         ),
         pytest.param(
+            mqtt5.PublishPacket,
+            {"topic": "a" * 65536, "payload": b""},
+            id="Publish: Topic >65535 bytes",
+        ),
+        pytest.param(
+            mqtt5.PubAckPacket,
+            {"packet_id": 1, "user_properties": [("a" * 65536, "value")]},
+            id="PubAck: User property key >65535 bytes",
+        ),
+        pytest.param(
+            mqtt5.PubAckPacket,
+            {"packet_id": 1, "user_properties": [("key", "a" * 65536)]},
+            id="PubAck: User property value >65535 bytes",
+        ),
+        pytest.param(
             mqtt5.SubscribePacket,
             {"packet_id": 1, "topic_filters": []},
             id="Subscribe: Empty topic filter list",
@@ -135,6 +160,11 @@ def test_read_malformed_packet(buffer: bytearray) -> None:
             mqtt5.UnsubscribePacket,
             {"packet_id": 1, "patterns": []},
             id="Unsubscribe: Empty pattern list",
+        ),
+        pytest.param(
+            mqtt5.UnsubscribePacket,
+            {"packet_id": 1, "patterns": ["a" * 65536]},
+            id="Unsubscribe: Pattern >65535 bytes",
         ),
     ],
 )
