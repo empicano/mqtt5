@@ -1,5 +1,7 @@
+use crate::check_size::*;
+use crate::enums::*;
 use crate::io::{ReadCursor, Readable, UserProperty, VariableByteInteger, Writable, WriteCursor};
-use crate::types::*;
+use crate::py_eq::*;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyList, PyString};
@@ -212,7 +214,7 @@ impl Will {
         content_type.check_size(py)?;
         response_topic.check_size(py)?;
         correlation_data.check_size(py)?;
-        UserProperties(&user_properties).check_size(py)?;
+        UserProperties::new(user_properties.as_ref()).check_size(py)?;
         Ok(Self {
             topic,
             payload,
@@ -405,7 +407,7 @@ impl ConnectPacket {
         password.check_size(py)?;
         authentication_method.check_size(py)?;
         authentication_data.check_size(py)?;
-        UserProperties(&user_properties).check_size(py)?;
+        UserProperties::new(user_properties.as_ref()).check_size(py)?;
         Ok(Self {
             client_id,
             username,
@@ -746,7 +748,7 @@ impl ConnAckPacket {
         response_info.check_size(py)?;
         server_reference.check_size(py)?;
         reason_str.check_size(py)?;
-        UserProperties(&user_properties).check_size(py)?;
+        UserProperties::new(user_properties.as_ref()).check_size(py)?;
         Ok(Self {
             session_present,
             reason_code,
@@ -1004,7 +1006,8 @@ impl PublishPacket {
         content_type.check_size(py)?;
         response_topic.check_size(py)?;
         correlation_data.check_size(py)?;
-        UserProperties(&user_properties).check_size(py)?;
+        SubscriptionIds::new(subscription_ids.as_ref()).check_size(py)?;
+        UserProperties::new(user_properties.as_ref()).check_size(py)?;
         if packet_id.is_some() && qos == QoS::AtMostOnce {
             return Err(PyValueError::new_err("Packet ID must not be set for QoS=0"));
         }
@@ -1213,7 +1216,7 @@ impl PubAckPacket {
         user_properties: Option<Py<PyList>>,
     ) -> PyResult<Self> {
         reason_str.check_size(py)?;
-        UserProperties(&user_properties).check_size(py)?;
+        UserProperties::new(user_properties.as_ref()).check_size(py)?;
         Ok(Self {
             packet_id,
             reason_code,
@@ -1342,7 +1345,7 @@ impl PubRecPacket {
         user_properties: Option<Py<PyList>>,
     ) -> PyResult<Self> {
         reason_str.check_size(py)?;
-        UserProperties(&user_properties).check_size(py)?;
+        UserProperties::new(user_properties.as_ref()).check_size(py)?;
         Ok(Self {
             packet_id,
             reason_code,
@@ -1471,7 +1474,7 @@ impl PubRelPacket {
         user_properties: Option<Py<PyList>>,
     ) -> PyResult<Self> {
         reason_str.check_size(py)?;
-        UserProperties(&user_properties).check_size(py)?;
+        UserProperties::new(user_properties.as_ref()).check_size(py)?;
         Ok(Self {
             packet_id,
             reason_code,
@@ -1600,7 +1603,7 @@ impl PubCompPacket {
         user_properties: Option<Py<PyList>>,
     ) -> PyResult<Self> {
         reason_str.check_size(py)?;
-        UserProperties(&user_properties).check_size(py)?;
+        UserProperties::new(user_properties.as_ref()).check_size(py)?;
         Ok(Self {
             packet_id,
             reason_code,
@@ -1728,7 +1731,8 @@ impl SubscribePacket {
         subscription_id: Option<VariableByteInteger>,
         user_properties: Option<Py<PyList>>,
     ) -> PyResult<Self> {
-        UserProperties(&user_properties).check_size(py)?;
+        subscription_id.check_size(py)?;
+        UserProperties::new(user_properties.as_ref()).check_size(py)?;
         if topic_filters.bind(py).is_empty() {
             return Err(PyValueError::new_err(
                 "Topic filter list must contain at least one entry",
@@ -1876,7 +1880,7 @@ impl SubAckPacket {
         user_properties: Option<Py<PyList>>,
     ) -> PyResult<Self> {
         reason_str.check_size(py)?;
-        UserProperties(&user_properties).check_size(py)?;
+        UserProperties::new(user_properties.as_ref()).check_size(py)?;
         Ok(Self {
             packet_id,
             reason_codes,
@@ -2002,8 +2006,8 @@ impl UnsubscribePacket {
         patterns: Py<PyList>,
         user_properties: Option<Py<PyList>>,
     ) -> PyResult<Self> {
-        Patterns(&patterns).check_size(py)?;
-        UserProperties(&user_properties).check_size(py)?;
+        Patterns::new(Some(&patterns)).check_size(py)?;
+        UserProperties::new(user_properties.as_ref()).check_size(py)?;
         if patterns.bind(py).is_empty() {
             return Err(PyValueError::new_err(
                 "Pattern list must contain at least one entry",
@@ -2125,7 +2129,7 @@ impl UnsubAckPacket {
         user_properties: Option<Py<PyList>>,
     ) -> PyResult<Self> {
         reason_str.check_size(py)?;
-        UserProperties(&user_properties).check_size(py)?;
+        UserProperties::new(user_properties.as_ref()).check_size(py)?;
         Ok(Self {
             packet_id,
             reason_codes,
@@ -2357,7 +2361,7 @@ impl DisconnectPacket {
     ) -> PyResult<Self> {
         server_reference.check_size(py)?;
         reason_str.check_size(py)?;
-        UserProperties(&user_properties).check_size(py)?;
+        UserProperties::new(user_properties.as_ref()).check_size(py)?;
         Ok(Self {
             reason_code,
             session_expiry_interval,
@@ -2501,7 +2505,7 @@ impl AuthPacket {
         authentication_method.check_size(py)?;
         authentication_data.check_size(py)?;
         reason_str.check_size(py)?;
-        UserProperties(&user_properties).check_size(py)?;
+        UserProperties::new(user_properties.as_ref()).check_size(py)?;
         Ok(Self {
             reason_code,
             authentication_method,

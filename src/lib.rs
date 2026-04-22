@@ -1,14 +1,16 @@
+mod check_size;
+mod enums;
 mod io;
 mod packets;
-mod types;
+mod py_eq;
 
+use enums::*;
 use io::{ReadCursor, Readable, VariableByteInteger};
 use packets::*;
 use pyo3::buffer::PyBuffer;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::PyResult;
-use types::*;
 
 #[pyfunction]
 fn read(py: Python, buffer: PyBuffer<u8>) -> PyResult<(Py<PyAny>, usize)> {

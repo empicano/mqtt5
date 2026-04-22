@@ -104,12 +104,12 @@ def test_read_malformed_packet(buffer: bytearray) -> None:
         pytest.param(
             mqtt5.ConnectPacket,
             {"client_id": "a" * 65536},
-            id="Connect: Client ID >65535 bytes",
+            id="Connect: Client ID > 65535 bytes",
         ),
         pytest.param(
             mqtt5.ConnectPacket,
             {"client_id": "Bulbasaur", "password": b"a" * 65536},
-            id="Connect: Password >65535 bytes",
+            id="Connect: Password > 65535 bytes",
         ),
         pytest.param(
             mqtt5.PublishPacket,
@@ -139,22 +139,36 @@ def test_read_malformed_packet(buffer: bytearray) -> None:
         pytest.param(
             mqtt5.PublishPacket,
             {"topic": "a" * 65536, "payload": b""},
-            id="Publish: Topic >65535 bytes",
+            id="Publish: Topic > 65535 bytes",
+        ),
+        pytest.param(
+            mqtt5.PublishPacket,
+            {"topic": "foo", "payload": b"", "subscription_ids": [2**28]},
+            id="Publish: Subscription ID entry >= 2**28",
         ),
         pytest.param(
             mqtt5.PubAckPacket,
             {"packet_id": 1, "user_properties": [("a" * 65536, "value")]},
-            id="PubAck: User property key >65535 bytes",
+            id="PubAck: User property key > 65535 bytes",
         ),
         pytest.param(
             mqtt5.PubAckPacket,
             {"packet_id": 1, "user_properties": [("key", "a" * 65536)]},
-            id="PubAck: User property value >65535 bytes",
+            id="PubAck: User property value > 65535 bytes",
         ),
         pytest.param(
             mqtt5.SubscribePacket,
             {"packet_id": 1, "topic_filters": []},
             id="Subscribe: Empty topic filter list",
+        ),
+        pytest.param(
+            mqtt5.SubscribePacket,
+            {
+                "packet_id": 1,
+                "topic_filters": [mqtt5.TopicFilter(pattern="+/bar/#")],
+                "subscription_id": 2**28,
+            },
+            id="Subscribe: Subscription ID >= 2**28",
         ),
         pytest.param(
             mqtt5.UnsubscribePacket,
@@ -164,7 +178,7 @@ def test_read_malformed_packet(buffer: bytearray) -> None:
         pytest.param(
             mqtt5.UnsubscribePacket,
             {"packet_id": 1, "patterns": ["a" * 65536]},
-            id="Unsubscribe: Pattern >65535 bytes",
+            id="Unsubscribe: Pattern > 65535 bytes",
         ),
     ],
 )
