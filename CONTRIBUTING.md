@@ -20,7 +20,7 @@ You can run the benchmarks with:
 uv run bench.py --fast --quiet
 ```
 
-Add `--compare=mqttproto` to benchmark against [mqttproto](https://github.com/agronholm/mqttproto) and `--compare=zmqtt` to benchmark against [zMQTT](https://github.com/faststream-community/zMQTT). Add the `--packets` argument to run the benchmarks only for certain packets e.g. `--packets publish --packets puback`.
+Add `--compare=mqttproto` / `--compare=zmqtt` to benchmark against [mqttproto](https://github.com/agronholm/mqttproto) / [zMQTT](https://github.com/faststream-community/zMQTT). Add the `--packets` argument to run the benchmarks only for certain packets e.g. `--packets publish --packets puback`.
 
 ### Benchmark chart
 
