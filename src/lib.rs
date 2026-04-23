@@ -1,3 +1,4 @@
+mod check_format;
 mod check_size;
 mod enums;
 mod io;
@@ -52,6 +53,21 @@ fn read(py: Python, buffer: PyBuffer<u8>) -> PyResult<(Py<PyAny>, usize)> {
 
 #[pymodule]
 fn mqtt5(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    // Reason codes
+    m.add_class::<ConnAckReasonCode>()?;
+    m.add_class::<PubAckReasonCode>()?;
+    m.add_class::<PubRecReasonCode>()?;
+    m.add_class::<PubRelReasonCode>()?;
+    m.add_class::<PubCompReasonCode>()?;
+    m.add_class::<SubAckReasonCode>()?;
+    m.add_class::<UnsubAckReasonCode>()?;
+    m.add_class::<DisconnectReasonCode>()?;
+    m.add_class::<AuthReasonCode>()?;
+    // Misc
+    m.add_class::<QoS>()?;
+    m.add_class::<RetainHandling>()?;
+    m.add_class::<Will>()?;
+    m.add_class::<TopicFilter>()?;
     // Packets
     m.add_class::<ConnectPacket>()?;
     m.add_class::<ConnAckPacket>()?;
@@ -68,21 +84,6 @@ fn mqtt5(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PingRespPacket>()?;
     m.add_class::<DisconnectPacket>()?;
     m.add_class::<AuthPacket>()?;
-    // Reason codes
-    m.add_class::<ConnAckReasonCode>()?;
-    m.add_class::<PubAckReasonCode>()?;
-    m.add_class::<PubRecReasonCode>()?;
-    m.add_class::<PubRelReasonCode>()?;
-    m.add_class::<PubCompReasonCode>()?;
-    m.add_class::<SubAckReasonCode>()?;
-    m.add_class::<UnsubAckReasonCode>()?;
-    m.add_class::<DisconnectReasonCode>()?;
-    m.add_class::<AuthReasonCode>()?;
-    // Misc
-    m.add_class::<QoS>()?;
-    m.add_class::<RetainHandling>()?;
-    m.add_class::<Will>()?;
-    m.add_class::<TopicFilter>()?;
     // Functions
     m.add_function(wrap_pyfunction!(read, m)?)?;
     Ok(())

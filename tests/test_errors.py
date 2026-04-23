@@ -92,15 +92,45 @@ def test_read_incomplete_buffer(packet: mqtt5.Packet) -> None:
         ),
     ],
 )
-def test_read_malformed_packet(buffer: bytearray) -> None:
-    """Test error from reading a malformed packet."""
+def test_read_malformed_bytes(buffer: bytearray) -> None:
+    """Test error from reading malformed bytes."""
     with pytest.raises(ValueError):  # noqa: PT011
         mqtt5.read(memoryview(buffer))
 
 
 @pytest.mark.parametrize(
-    ("packet_type", "args"),
+    ("cls", "args"),
     [
+        pytest.param(
+            mqtt5.Will,
+            {"topic": "foo/+/bar"},
+            id="Will: Topic with single-level wildcard",
+        ),
+        pytest.param(
+            mqtt5.Will,
+            {"topic": "foo/#"},
+            id="Will: Topic with multi-level wildcard",
+        ),
+        pytest.param(
+            mqtt5.Will,
+            {"topic": "foo/bar", "response_topic": "foo/+/bar"},
+            id="Will: Response topic with single-level wildcard",
+        ),
+        pytest.param(
+            mqtt5.Will,
+            {"topic": "foo/bar", "response_topic": "foo/#"},
+            id="Will: Response topic with multi-level wildcard",
+        ),
+        pytest.param(
+            mqtt5.TopicFilter,
+            {"pattern": "foo+/bar"},
+            id="TopicFilter: Single-level wildcard not alone",
+        ),
+        pytest.param(
+            mqtt5.TopicFilter,
+            {"pattern": "foo/#/bar"},
+            id="TopicFilter: Multi-level wildcard in the middle",
+        ),
         pytest.param(
             mqtt5.ConnectPacket,
             {"client_id": "a" * 65536},
@@ -143,6 +173,26 @@ def test_read_malformed_packet(buffer: bytearray) -> None:
         ),
         pytest.param(
             mqtt5.PublishPacket,
+            {"topic": "foo/+/bar", "payload": b""},
+            id="Publish: Topic with single-level wildcard",
+        ),
+        pytest.param(
+            mqtt5.PublishPacket,
+            {"topic": "foo/#", "payload": b""},
+            id="Publish: Topic with multi-level wildcard",
+        ),
+        pytest.param(
+            mqtt5.PublishPacket,
+            {"topic": "foo/bar", "payload": b"", "response_topic": "foo/+/bar"},
+            id="Publish: Response topic with single-level wildcard",
+        ),
+        pytest.param(
+            mqtt5.PublishPacket,
+            {"topic": "foo/bar", "payload": b"", "response_topic": "foo/#"},
+            id="Publish: Response topic with multi-level wildcard",
+        ),
+        pytest.param(
+            mqtt5.PublishPacket,
             {"topic": "foo", "payload": b"", "subscription_ids": [2**28]},
             id="Publish: Subscription ID entry >= 2**28",
         ),
@@ -180,9 +230,19 @@ def test_read_malformed_packet(buffer: bytearray) -> None:
             {"packet_id": 1, "patterns": ["a" * 65536]},
             id="Unsubscribe: Pattern > 65535 bytes",
         ),
+        pytest.param(
+            mqtt5.UnsubscribePacket,
+            {"packet_id": 1, "patterns": ["foo+/bar"]},
+            id="Unsubscribe: Single-level wildcard not alone",
+        ),
+        pytest.param(
+            mqtt5.UnsubscribePacket,
+            {"packet_id": 1, "patterns": ["foo/#/bar"]},
+            id="Unsubscribe: Multi-level wildcard in the middle",
+        ),
     ],
 )
-def test_write_invalid_arguments(packet_type: type[mqtt5.Packet], args: dict) -> None:
-    """Test error from writing with invalid arguments."""
+def test_invalid_arguments(cls: type, args: dict) -> None:
+    """Test error from initializing with invalid arguments."""
     with pytest.raises(ValueError):  # noqa: PT011
-        packet_type(**args)
+        cls(**args)

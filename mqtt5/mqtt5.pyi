@@ -1,16 +1,6 @@
 import enum
 import typing
 
-class QoS(enum.IntEnum):
-    AT_MOST_ONCE = 0
-    AT_LEAST_ONCE = 1
-    EXACTLY_ONCE = 2
-
-class RetainHandling(enum.IntEnum):
-    SEND_ALWAYS = 0
-    SEND_IF_SUBSCRIPTION_NOT_EXISTS = 1
-    SEND_NEVER = 2
-
 class ConnAckReasonCode(enum.IntEnum):
     SUCCESS = 0
     UNSPECIFIED_ERROR = 128
@@ -123,6 +113,16 @@ class AuthReasonCode(enum.IntEnum):
     SUCCESS = 0
     CONTINUE_AUTHENTICATION = 24
     RE_AUTHENTICATE = 25
+
+class QoS(enum.IntEnum):
+    AT_MOST_ONCE = 0
+    AT_LEAST_ONCE = 1
+    EXACTLY_ONCE = 2
+
+class RetainHandling(enum.IntEnum):
+    SEND_ALWAYS = 0
+    SEND_IF_SUBSCRIPTION_NOT_EXISTS = 1
+    SEND_NEVER = 2
 
 class Will:
     topic: str

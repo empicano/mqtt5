@@ -1,3 +1,4 @@
+use crate::check_format::*;
 use crate::check_size::*;
 use crate::enums::*;
 use crate::io::{ReadCursor, Readable, UserProperty, VariableByteInteger, Writable, WriteCursor};
@@ -214,7 +215,11 @@ impl Will {
         content_type.check_size(py)?;
         response_topic.check_size(py)?;
         correlation_data.check_size(py)?;
-        UserProperties::new(user_properties.as_ref()).check_size(py)?;
+        check_user_properties_size(py, user_properties.as_ref())?;
+        check_topic_format(py, &topic)?;
+        if let Some(response_topic) = &response_topic {
+            check_topic_format(py, response_topic)?;
+        }
         Ok(Self {
             topic,
             payload,
@@ -312,6 +317,7 @@ impl TopicFilter {
         retain_handling: RetainHandling,
     ) -> PyResult<Self> {
         pattern.check_size(py)?;
+        check_pattern_format(py, &pattern)?;
         Ok(Self {
             pattern,
             max_qos,
@@ -407,7 +413,7 @@ impl ConnectPacket {
         password.check_size(py)?;
         authentication_method.check_size(py)?;
         authentication_data.check_size(py)?;
-        UserProperties::new(user_properties.as_ref()).check_size(py)?;
+        check_user_properties_size(py, user_properties.as_ref())?;
         Ok(Self {
             client_id,
             username,
@@ -748,7 +754,7 @@ impl ConnAckPacket {
         response_info.check_size(py)?;
         server_reference.check_size(py)?;
         reason_str.check_size(py)?;
-        UserProperties::new(user_properties.as_ref()).check_size(py)?;
+        check_user_properties_size(py, user_properties.as_ref())?;
         Ok(Self {
             session_present,
             reason_code,
@@ -1006,8 +1012,12 @@ impl PublishPacket {
         content_type.check_size(py)?;
         response_topic.check_size(py)?;
         correlation_data.check_size(py)?;
-        SubscriptionIds::new(subscription_ids.as_ref()).check_size(py)?;
-        UserProperties::new(user_properties.as_ref()).check_size(py)?;
+        check_subscription_ids_size(py, subscription_ids.as_ref())?;
+        check_user_properties_size(py, user_properties.as_ref())?;
+        check_topic_format(py, &topic)?;
+        if let Some(response_topic) = &response_topic {
+            check_topic_format(py, response_topic)?;
+        }
         if packet_id.is_some() && qos == QoS::AtMostOnce {
             return Err(PyValueError::new_err("Packet ID must not be set for QoS=0"));
         }
@@ -1216,7 +1226,7 @@ impl PubAckPacket {
         user_properties: Option<Py<PyList>>,
     ) -> PyResult<Self> {
         reason_str.check_size(py)?;
-        UserProperties::new(user_properties.as_ref()).check_size(py)?;
+        check_user_properties_size(py, user_properties.as_ref())?;
         Ok(Self {
             packet_id,
             reason_code,
@@ -1345,7 +1355,7 @@ impl PubRecPacket {
         user_properties: Option<Py<PyList>>,
     ) -> PyResult<Self> {
         reason_str.check_size(py)?;
-        UserProperties::new(user_properties.as_ref()).check_size(py)?;
+        check_user_properties_size(py, user_properties.as_ref())?;
         Ok(Self {
             packet_id,
             reason_code,
@@ -1474,7 +1484,7 @@ impl PubRelPacket {
         user_properties: Option<Py<PyList>>,
     ) -> PyResult<Self> {
         reason_str.check_size(py)?;
-        UserProperties::new(user_properties.as_ref()).check_size(py)?;
+        check_user_properties_size(py, user_properties.as_ref())?;
         Ok(Self {
             packet_id,
             reason_code,
@@ -1603,7 +1613,7 @@ impl PubCompPacket {
         user_properties: Option<Py<PyList>>,
     ) -> PyResult<Self> {
         reason_str.check_size(py)?;
-        UserProperties::new(user_properties.as_ref()).check_size(py)?;
+        check_user_properties_size(py, user_properties.as_ref())?;
         Ok(Self {
             packet_id,
             reason_code,
@@ -1732,7 +1742,7 @@ impl SubscribePacket {
         user_properties: Option<Py<PyList>>,
     ) -> PyResult<Self> {
         subscription_id.check_size(py)?;
-        UserProperties::new(user_properties.as_ref()).check_size(py)?;
+        check_user_properties_size(py, user_properties.as_ref())?;
         if topic_filters.bind(py).is_empty() {
             return Err(PyValueError::new_err(
                 "Topic filter list must contain at least one entry",
@@ -1880,7 +1890,7 @@ impl SubAckPacket {
         user_properties: Option<Py<PyList>>,
     ) -> PyResult<Self> {
         reason_str.check_size(py)?;
-        UserProperties::new(user_properties.as_ref()).check_size(py)?;
+        check_user_properties_size(py, user_properties.as_ref())?;
         Ok(Self {
             packet_id,
             reason_codes,
@@ -2006,12 +2016,16 @@ impl UnsubscribePacket {
         patterns: Py<PyList>,
         user_properties: Option<Py<PyList>>,
     ) -> PyResult<Self> {
-        Patterns::new(Some(&patterns)).check_size(py)?;
-        UserProperties::new(user_properties.as_ref()).check_size(py)?;
+        check_patterns_size(py, Some(&patterns))?;
+        check_user_properties_size(py, user_properties.as_ref())?;
         if patterns.bind(py).is_empty() {
             return Err(PyValueError::new_err(
                 "Pattern list must contain at least one entry",
             ));
+        }
+        for item in patterns.bind(py).iter() {
+            let pattern: Py<PyString> = item.extract()?;
+            check_pattern_format(py, &pattern)?;
         }
         Ok(Self {
             packet_id,
@@ -2129,7 +2143,7 @@ impl UnsubAckPacket {
         user_properties: Option<Py<PyList>>,
     ) -> PyResult<Self> {
         reason_str.check_size(py)?;
-        UserProperties::new(user_properties.as_ref()).check_size(py)?;
+        check_user_properties_size(py, user_properties.as_ref())?;
         Ok(Self {
             packet_id,
             reason_codes,
@@ -2361,7 +2375,7 @@ impl DisconnectPacket {
     ) -> PyResult<Self> {
         server_reference.check_size(py)?;
         reason_str.check_size(py)?;
-        UserProperties::new(user_properties.as_ref()).check_size(py)?;
+        check_user_properties_size(py, user_properties.as_ref())?;
         Ok(Self {
             reason_code,
             session_expiry_interval,
@@ -2505,7 +2519,7 @@ impl AuthPacket {
         authentication_method.check_size(py)?;
         authentication_data.check_size(py)?;
         reason_str.check_size(py)?;
-        UserProperties::new(user_properties.as_ref()).check_size(py)?;
+        check_user_properties_size(py, user_properties.as_ref())?;
         Ok(Self {
             reason_code,
             authentication_method,

@@ -10,6 +10,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Rename `Subscription` to `TopicFilter`
 - Improve read-path error messages
 - Validate `SubscribePacket` / `UnsubscribePacket` topic filter list is not empty
+- Validate topic and topic filter format
 
 ## [0.6.0] - 2026-04-16
 
