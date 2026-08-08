@@ -69,7 +69,7 @@ macro_rules! read_properties {
                     )*
                     _ => {
                         return Err(PyValueError::new_err(format!(
-                            "Invalid property type for {}: {:?}", $packet_name, property_type
+                            "Invalid property type: {:?}", property_type
                         )));
                     }
                 }
@@ -78,9 +78,7 @@ macro_rules! read_properties {
         } else if !matches!($packet_name,
             "PubAckPacket" | "PubRecPacket" | "PubRelPacket" | "PubCompPacket" | "DisconnectPacket"
         ) {
-            return Err(PyValueError::new_err(format!(
-                "Property length is required for {}", $packet_name
-            )));
+            return Err(PyValueError::new_err("Missing property length"));
         }
     };
 

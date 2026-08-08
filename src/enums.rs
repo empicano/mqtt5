@@ -27,7 +27,8 @@ pub enum PacketType {
 
 impl PacketType {
     pub fn new(value: u8) -> PyResult<Self> {
-        Self::try_from(value).map_err(|e| PyValueError::new_err(e.to_string()))
+        Self::try_from(value)
+            .map_err(|_| PyValueError::new_err(format!("Invalid PacketType value: {value}")))
     }
 }
 
@@ -65,7 +66,8 @@ pub enum PropertyType {
 
 impl PropertyType {
     pub fn new(value: u8) -> PyResult<Self> {
-        Self::try_from(value).map_err(|e| PyValueError::new_err(e.to_string()))
+        Self::try_from(value)
+            .map_err(|_| PyValueError::new_err(format!("Invalid PropertyType value: {value}")))
     }
 }
 
@@ -82,7 +84,13 @@ macro_rules! py_int_enum {
         impl $name {
             #[new]
             pub fn new(value: u8) -> PyResult<Self> {
-                Self::try_from(value).map_err(|e| PyValueError::new_err(e.to_string()))
+                Self::try_from(value)
+                    .map_err(|_| {
+                        PyValueError::new_err(format!(
+                            "Invalid {} value: {value}",
+                            stringify!($name)
+                        ))
+                    })
             }
 
             #[getter]
