@@ -414,6 +414,9 @@ impl ConnectPacket {
         authentication_method.check_size(py)?;
         authentication_data.check_size(py)?;
         check_user_properties_size(py, user_properties.as_ref())?;
+        if receive_max == 0 {
+            return Err(PyValueError::new_err("Receive maximum must be non-zero"));
+        }
         Ok(Self {
             client_id,
             username,
@@ -592,6 +595,9 @@ impl ConnectPacket {
             PropertyType::MaxPacketSize => max_packet_size: (Option<u32>) = None,
             PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = PyList::empty(py),
         });
+        if receive_max == 0 {
+            return Err(PyValueError::new_err("Receive maximum must be non-zero"));
+        }
 
         // [3.1.3] Payload
         let client_id = Py::<PyString>::read(cursor)?;
@@ -755,6 +761,9 @@ impl ConnAckPacket {
         server_reference.check_size(py)?;
         reason_str.check_size(py)?;
         check_user_properties_size(py, user_properties.as_ref())?;
+        if receive_max == 0 {
+            return Err(PyValueError::new_err("Receive maximum must be non-zero"));
+        }
         Ok(Self {
             session_present,
             reason_code,
@@ -901,6 +910,9 @@ impl ConnAckPacket {
             PropertyType::SharedSubscriptionAvailable => shared_subscription_available: bool = true,
             PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = PyList::empty(py),
         });
+        if receive_max == 0 {
+            return Err(PyValueError::new_err("Receive maximum must be non-zero"));
+        }
 
         // Return the Python object
         let packet = Self {
@@ -942,6 +954,7 @@ impl PartialEq for ConnAckPacket {
             && self.response_info.py_eq(&other.response_info)
             && self.server_reference.py_eq(&other.server_reference)
             && self.reason_str.py_eq(&other.reason_str)
+            && self.receive_max == other.receive_max
             && self.topic_alias_max == other.topic_alias_max
             && self.max_qos == other.max_qos
             && self.retain_available == other.retain_available

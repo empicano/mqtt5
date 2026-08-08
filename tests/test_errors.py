@@ -23,12 +23,16 @@ def test_read_incomplete_buffer(packet: mqtt5.Packet) -> None:
             id="Invalid packet type",
         ),
         pytest.param(
-            b"\x10\x0d\x00\x03\x53\x53\x48\x05\x00\x00\x00\x00\x00\x01\x31",
+            b"\x10\x0c\x00\x03\x53\x53\x48\x05\x00\x00\x00\x00\x00\x00",
             id="Connect: Invalid protocol name",
         ),
         pytest.param(
-            b"\x10\x0e\x00\x04\x4d\x51\x54\x54\x04\x00\x00\x00\x00\x00\x01\x31",
+            b"\x10\x0d\x00\x04\x4d\x51\x54\x54\x04\x00\x00\x00\x00\x00\x00",
             id="Connect: Invalid protocol version",
+        ),
+        pytest.param(
+            b"\x10\x10\x00\x04\x4d\x51\x54\x54\x05\x00\x00\x00\x03\x21\x00\x00\x00\x00",
+            id="Connect: Receive maximum equals zero",
         ),
         pytest.param(
             b"\x20\x83\x80\x80\x80\x00\x00\x00",
@@ -49,6 +53,10 @@ def test_read_incomplete_buffer(packet: mqtt5.Packet) -> None:
         pytest.param(
             b"\x20\x02\x00\x00",
             id="ConnAck: Missing property length",
+        ),
+        pytest.param(
+            b"\x20\x06\x00\x00\x03\x21\x00\x00",
+            id="ConnAck: Receive maximum equals zero",
         ),
         pytest.param(
             b"\x30\x02\x00\x00",
@@ -124,7 +132,7 @@ def test_read_malformed_bytes(buffer: bytearray) -> None:
         pytest.param(
             mqtt5.TopicFilter,
             {"pattern": "foo+/bar"},
-            id="TopicFilter: Single-level wildcard not alone",
+            id="TopicFilter: Single-level wildcard not alone in level",
         ),
         pytest.param(
             mqtt5.TopicFilter,
@@ -140,6 +148,16 @@ def test_read_malformed_bytes(buffer: bytearray) -> None:
             mqtt5.ConnectPacket,
             {"client_id": "Bulbasaur", "password": b"a" * 65536},
             id="Connect: Password > 65535 bytes",
+        ),
+        pytest.param(
+            mqtt5.ConnectPacket,
+            {"client_id": "Bulbasaur", "receive_max": 0},
+            id="Connect: Receive maximum equals zero",
+        ),
+        pytest.param(
+            mqtt5.ConnAckPacket,
+            {"receive_max": 0},
+            id="ConnAck: Receive maximum equals zero",
         ),
         pytest.param(
             mqtt5.PublishPacket,
