@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - Allow inheritance from packet classes
 - Validate that `ConnectPacket` / `ConnAckPacket` have non-zero `receive_max`
+- Validate that `max_packet_size`, `topic_alias`, `subscription_id` are non-zero
 
 ## [0.7.0] - 2026-04-23
 

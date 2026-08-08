@@ -211,15 +211,15 @@ impl Will {
         user_properties: Option<Py<PyList>>,
     ) -> PyResult<Self> {
         topic.check_size(py)?;
+        check_topic_format(py, &topic)?;
         payload.check_size(py)?;
         content_type.check_size(py)?;
-        response_topic.check_size(py)?;
-        correlation_data.check_size(py)?;
-        check_user_properties_size(py, user_properties.as_ref())?;
-        check_topic_format(py, &topic)?;
         if let Some(response_topic) = &response_topic {
+            response_topic.check_size(py)?;
             check_topic_format(py, response_topic)?;
         }
+        correlation_data.check_size(py)?;
+        check_user_properties_size(py, user_properties.as_ref())?;
         Ok(Self {
             topic,
             payload,
@@ -413,10 +413,13 @@ impl ConnectPacket {
         password.check_size(py)?;
         authentication_method.check_size(py)?;
         authentication_data.check_size(py)?;
-        check_user_properties_size(py, user_properties.as_ref())?;
         if receive_max == 0 {
-            return Err(PyValueError::new_err("Receive maximum must be non-zero"));
+            return Err(PyValueError::new_err("Receive maximum must be != 0"));
         }
+        if max_packet_size == Some(0) {
+            return Err(PyValueError::new_err("Maximum packet size must be != 0"));
+        }
+        check_user_properties_size(py, user_properties.as_ref())?;
         Ok(Self {
             client_id,
             username,
@@ -596,7 +599,10 @@ impl ConnectPacket {
             PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = PyList::empty(py),
         });
         if receive_max == 0 {
-            return Err(PyValueError::new_err("Receive maximum must be non-zero"));
+            return Err(PyValueError::new_err("Receive maximum must be != 0"));
+        }
+        if max_packet_size == Some(0) {
+            return Err(PyValueError::new_err("Maximum packet size must be != 0"));
         }
 
         // [3.1.3] Payload
@@ -760,10 +766,13 @@ impl ConnAckPacket {
         response_info.check_size(py)?;
         server_reference.check_size(py)?;
         reason_str.check_size(py)?;
-        check_user_properties_size(py, user_properties.as_ref())?;
         if receive_max == 0 {
-            return Err(PyValueError::new_err("Receive maximum must be non-zero"));
+            return Err(PyValueError::new_err("Receive maximum must be != 0"));
         }
+        if max_packet_size == Some(0) {
+            return Err(PyValueError::new_err("Maximum packet size must be != 0"));
+        }
+        check_user_properties_size(py, user_properties.as_ref())?;
         Ok(Self {
             session_present,
             reason_code,
@@ -911,7 +920,10 @@ impl ConnAckPacket {
             PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = PyList::empty(py),
         });
         if receive_max == 0 {
-            return Err(PyValueError::new_err("Receive maximum must be non-zero"));
+            return Err(PyValueError::new_err("Receive maximum must be != 0"));
+        }
+        if max_packet_size == Some(0) {
+            return Err(PyValueError::new_err("Maximum packet size must be != 0"));
         }
 
         // Return the Python object
@@ -1022,15 +1034,7 @@ impl PublishPacket {
         user_properties: Option<Py<PyList>>,
     ) -> PyResult<Self> {
         topic.check_size(py)?;
-        content_type.check_size(py)?;
-        response_topic.check_size(py)?;
-        correlation_data.check_size(py)?;
-        check_subscription_ids_size(py, subscription_ids.as_ref())?;
-        check_user_properties_size(py, user_properties.as_ref())?;
         check_topic_format(py, &topic)?;
-        if let Some(response_topic) = &response_topic {
-            check_topic_format(py, response_topic)?;
-        }
         if packet_id.is_some() && qos == QoS::AtMostOnce {
             return Err(PyValueError::new_err("Packet ID must not be set for QoS=0"));
         }
@@ -1039,11 +1043,30 @@ impl PublishPacket {
                 "Packet ID must be set for QoS=1 and QoS=2",
             ));
         }
-        if topic_alias.unwrap_or(0) == 0 && topic.bind(py).to_str()?.is_empty() {
+        content_type.check_size(py)?;
+        if let Some(response_topic) = &response_topic {
+            response_topic.check_size(py)?;
+            check_topic_format(py, response_topic)?;
+        }
+        correlation_data.check_size(py)?;
+        if let Some(subscription_ids) = &subscription_ids {
+            for item in subscription_ids.bind(py).iter() {
+                let subscription_id: VariableByteInteger = item.extract()?;
+                subscription_id.check_size(py)?;
+                if subscription_id.value() == 0 {
+                    return Err(PyValueError::new_err("Subscription ID must be != 0"));
+                }
+            }
+        }
+        if topic_alias == Some(0) {
+            return Err(PyValueError::new_err("Topic alias must be != 0"));
+        }
+        if topic_alias.is_none() && topic.bind(py).to_str()?.is_empty() {
             return Err(PyValueError::new_err(
                 "Topic alias must be set if topic is empty",
             ));
         }
+        check_user_properties_size(py, user_properties.as_ref())?;
         Ok(Self {
             topic,
             payload,
@@ -1163,7 +1186,15 @@ impl PublishPacket {
             PropertyType::TopicAlias => topic_alias: (Option<u16>) = None,
             PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = PyList::empty(py),
         });
-        if topic_alias.unwrap_or(0) == 0 && topic.bind(py).to_str()?.is_empty() {
+        for item in subscription_ids.iter() {
+            if item.extract::<VariableByteInteger>()?.value() == 0 {
+                return Err(PyValueError::new_err("Subscription ID must be != 0"));
+            }
+        }
+        if topic_alias == Some(0) {
+            return Err(PyValueError::new_err("Topic alias must be != 0"));
+        }
+        if topic_alias.is_none() && topic.bind(py).to_str()?.is_empty() {
             return Err(PyValueError::new_err(
                 "Topic alias must be set if topic is empty",
             ));
@@ -1754,13 +1785,18 @@ impl SubscribePacket {
         subscription_id: Option<VariableByteInteger>,
         user_properties: Option<Py<PyList>>,
     ) -> PyResult<Self> {
-        subscription_id.check_size(py)?;
-        check_user_properties_size(py, user_properties.as_ref())?;
+        if let Some(subscription_id) = subscription_id {
+            subscription_id.check_size(py)?;
+            if subscription_id.value() == 0 {
+                return Err(PyValueError::new_err("Subscription ID must be != 0"));
+            }
+        }
         if topic_filters.bind(py).is_empty() {
             return Err(PyValueError::new_err(
                 "Topic filter list must contain at least one entry",
             ));
         }
+        check_user_properties_size(py, user_properties.as_ref())?;
         Ok(Self {
             packet_id,
             topic_filters,
@@ -1841,6 +1877,9 @@ impl SubscribePacket {
             PropertyType::SubscriptionId => subscription_id: (Option<VariableByteInteger>) = None,
             PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = PyList::empty(py),
         });
+        if subscription_id.is_some_and(|subscription_id| subscription_id.value() == 0) {
+            return Err(PyValueError::new_err("Subscription ID must be != 0"));
+        }
 
         // [3.8.3] Payload
         let topic_filters = PyList::empty(py);
@@ -2029,8 +2068,6 @@ impl UnsubscribePacket {
         patterns: Py<PyList>,
         user_properties: Option<Py<PyList>>,
     ) -> PyResult<Self> {
-        check_patterns_size(py, Some(&patterns))?;
-        check_user_properties_size(py, user_properties.as_ref())?;
         if patterns.bind(py).is_empty() {
             return Err(PyValueError::new_err(
                 "Pattern list must contain at least one entry",
@@ -2038,8 +2075,10 @@ impl UnsubscribePacket {
         }
         for item in patterns.bind(py).iter() {
             let pattern: Py<PyString> = item.extract()?;
+            pattern.check_size(py)?;
             check_pattern_format(py, &pattern)?;
         }
+        check_user_properties_size(py, user_properties.as_ref())?;
         Ok(Self {
             packet_id,
             patterns,

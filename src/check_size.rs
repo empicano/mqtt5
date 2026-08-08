@@ -57,21 +57,3 @@ pub fn check_user_properties_size(py: Python, list: Option<&Py<PyList>>) -> PyRe
     }
     Ok(())
 }
-
-pub fn check_patterns_size(py: Python, list: Option<&Py<PyList>>) -> PyResult<()> {
-    let Some(list) = list else { return Ok(()) };
-    for item in list.bind(py).iter() {
-        let pattern: Py<PyString> = item.extract()?;
-        pattern.check_size(py)?;
-    }
-    Ok(())
-}
-
-pub fn check_subscription_ids_size(py: Python, list: Option<&Py<PyList>>) -> PyResult<()> {
-    let Some(list) = list else { return Ok(()) };
-    for item in list.bind(py).iter() {
-        let id: VariableByteInteger = item.extract()?;
-        id.check_size(py)?;
-    }
-    Ok(())
-}

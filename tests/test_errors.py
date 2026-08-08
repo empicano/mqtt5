@@ -32,7 +32,11 @@ def test_read_incomplete_buffer(packet: mqtt5.Packet) -> None:
         ),
         pytest.param(
             b"\x10\x10\x00\x04\x4d\x51\x54\x54\x05\x00\x00\x00\x03\x21\x00\x00\x00\x00",
-            id="Connect: Receive maximum equals zero",
+            id="Connect: Receive maximum == 0",
+        ),
+        pytest.param(
+            b"\x10\x12\x00\x04\x4d\x51\x54\x54\x05\x00\x00\x00\x05\x27\x00\x00\x00\x00\x00\x00",
+            id="Connect: Maximum packet size == 0",
         ),
         pytest.param(
             b"\x20\x83\x80\x80\x80\x00\x00\x00",
@@ -56,7 +60,11 @@ def test_read_incomplete_buffer(packet: mqtt5.Packet) -> None:
         ),
         pytest.param(
             b"\x20\x06\x00\x00\x03\x21\x00\x00",
-            id="ConnAck: Receive maximum equals zero",
+            id="ConnAck: Receive maximum == 0",
+        ),
+        pytest.param(
+            b"\x20\x08\x00\x00\x05\x27\x00\x00\x00\x00",
+            id="ConnAck: Maximum packet size == 0",
         ),
         pytest.param(
             b"\x30\x02\x00\x00",
@@ -71,6 +79,14 @@ def test_read_incomplete_buffer(packet: mqtt5.Packet) -> None:
             id="Publish: QoS=2 without packet id",
         ),
         pytest.param(
+            b"\x30\x07\x00\x01\x61\x03\x23\x00\x00",
+            id="Publish: Topic alias == 0",
+        ),
+        pytest.param(
+            b"\x30\x06\x00\x01\x61\x02\x0b\x00",
+            id="Publish: Subscription ID entry == 0",
+        ),
+        pytest.param(
             b"\x60\x04\xff\xff\x00\x00",
             id="PubRel: Invalid flags",
         ),
@@ -81,6 +97,10 @@ def test_read_incomplete_buffer(packet: mqtt5.Packet) -> None:
         pytest.param(
             b"\x80\x06\xff\xff\x00\x00\x00\x00",
             id="Subscribe: Invalid flags",
+        ),
+        pytest.param(
+            b"\x82\x09\x00\x01\x02\x0b\x00\x00\x01\x61\x00",
+            id="Subscribe: Subscription ID == 0",
         ),
         pytest.param(
             b"\xa0\x05\xff\xff\x00\x00\x00",
@@ -152,12 +172,22 @@ def test_read_malformed_bytes(buffer: bytearray) -> None:
         pytest.param(
             mqtt5.ConnectPacket,
             {"client_id": "Bulbasaur", "receive_max": 0},
-            id="Connect: Receive maximum equals zero",
+            id="Connect: Receive maximum == 0",
+        ),
+        pytest.param(
+            mqtt5.ConnectPacket,
+            {"client_id": "Bulbasaur", "max_packet_size": 0},
+            id="Connect: Maximum packet size == 0",
         ),
         pytest.param(
             mqtt5.ConnAckPacket,
             {"receive_max": 0},
-            id="ConnAck: Receive maximum equals zero",
+            id="ConnAck: Receive maximum == 0",
+        ),
+        pytest.param(
+            mqtt5.ConnAckPacket,
+            {"max_packet_size": 0},
+            id="ConnAck: Maximum packet size == 0",
         ),
         pytest.param(
             mqtt5.PublishPacket,
@@ -178,11 +208,6 @@ def test_read_malformed_bytes(buffer: bytearray) -> None:
             mqtt5.PublishPacket,
             {"topic": "", "payload": b""},
             id="Publish: Empty topic without topic alias",
-        ),
-        pytest.param(
-            mqtt5.PublishPacket,
-            {"topic": "", "payload": b"", "topic_alias": 0},
-            id="Publish: Empty topic with topic alias equals zero",
         ),
         pytest.param(
             mqtt5.PublishPacket,
@@ -215,6 +240,16 @@ def test_read_malformed_bytes(buffer: bytearray) -> None:
             id="Publish: Subscription ID entry >= 2**28",
         ),
         pytest.param(
+            mqtt5.PublishPacket,
+            {"topic": "foo", "payload": b"", "subscription_ids": [0]},
+            id="Publish: Subscription ID entry == 0",
+        ),
+        pytest.param(
+            mqtt5.PublishPacket,
+            {"topic": "foo", "payload": b"", "topic_alias": 0},
+            id="Publish: Topic alias == 0",
+        ),
+        pytest.param(
             mqtt5.PubAckPacket,
             {"packet_id": 1, "user_properties": [("a" * 65536, "value")]},
             id="PubAck: User property key > 65535 bytes",
@@ -228,6 +263,15 @@ def test_read_malformed_bytes(buffer: bytearray) -> None:
             mqtt5.SubscribePacket,
             {"packet_id": 1, "topic_filters": []},
             id="Subscribe: Empty topic filter list",
+        ),
+        pytest.param(
+            mqtt5.SubscribePacket,
+            {
+                "packet_id": 1,
+                "topic_filters": [mqtt5.TopicFilter(pattern="+/bar/#")],
+                "subscription_id": 0,
+            },
+            id="Subscribe: Subscription ID == 0",
         ),
         pytest.param(
             mqtt5.SubscribePacket,
@@ -251,7 +295,7 @@ def test_read_malformed_bytes(buffer: bytearray) -> None:
         pytest.param(
             mqtt5.UnsubscribePacket,
             {"packet_id": 1, "patterns": ["foo+/bar"]},
-            id="Unsubscribe: Single-level wildcard not alone",
+            id="Unsubscribe: Single-level wildcard not alone in level",
         ),
         pytest.param(
             mqtt5.UnsubscribePacket,
