@@ -1,8 +1,8 @@
 use core::str;
+use pyo3::PyResult;
 use pyo3::exceptions::{PyIndexError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyString, PyStringMethods, PyTuple};
-use pyo3::PyResult;
 use std::cmp;
 use std::fmt;
 
@@ -371,7 +371,7 @@ impl Writable for UserProperty {
 
 impl<T: Writable> Writable for Option<T> {
     fn write(&self, cursor: &mut WriteCursor<'_>) {
-        if let Some(ref value) = self {
+        if let Some(value) = self {
             value.write(cursor);
         }
     }

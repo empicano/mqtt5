@@ -5,7 +5,11 @@ set -o errexit -o pipefail -o nounset
 # Change into the project's directory
 cd "$(dirname "$0")/.."
 
-# Run the checks
+# Run the Python checks
 uv run ruff format
 uv run ruff check --fix
 uv run ty check
+
+# Run the Rust checks
+cargo fmt
+cargo clippy

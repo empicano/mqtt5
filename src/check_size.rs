@@ -1,8 +1,8 @@
 use crate::io::VariableByteInteger;
+use pyo3::PyResult;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyList, PyString};
-use pyo3::PyResult;
 
 const MAX_FIELD_LENGTH: usize = 65535;
 

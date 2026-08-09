@@ -3,10 +3,10 @@ use crate::check_size::*;
 use crate::enums::*;
 use crate::io::{ReadCursor, Readable, UserProperty, VariableByteInteger, Writable, WriteCursor};
 use crate::py_eq::*;
+use pyo3::PyResult;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyList, PyString};
-use pyo3::PyResult;
 
 const PROTOCOL_NAME: &[u8] = b"MQTT";
 const PROTOCOL_VERSION: u8 = 5;
@@ -462,8 +462,7 @@ impl ConnectPacket {
                 PropertyType::WillDelayInterval => will_delay_interval: u32 = 0,
                 PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = PyList::empty(py),
             }));
-        let will_properties_remaining_length =
-            VariableByteInteger::new(will_properties_nbytes);
+        let will_properties_remaining_length = VariableByteInteger::new(will_properties_nbytes);
         let nbytes = PROTOCOL_NAME.nbytes()
             + PROTOCOL_VERSION.nbytes()
             + 0u8.nbytes()

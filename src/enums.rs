@@ -1,8 +1,8 @@
 use crate::io::{ReadCursor, Readable, Writable, WriteCursor};
 use num_enum::TryFromPrimitive;
+use pyo3::PyResult;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
-use pyo3::PyResult;
 use std::fmt;
 
 #[derive(PartialEq, Eq, TryFromPrimitive)]

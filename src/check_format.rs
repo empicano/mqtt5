@@ -1,7 +1,7 @@
+use pyo3::PyResult;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::types::PyString;
-use pyo3::PyResult;
 
 pub fn check_topic_format(py: Python, topic: &Py<PyString>) -> PyResult<()> {
     let s = topic.bind(py).to_str()?;
@@ -20,15 +20,15 @@ pub fn check_pattern_format(py: Python, pattern: &Py<PyString>) -> PyResult<()> 
                 if i != bytes.len() - 1 || (i > 0 && bytes[i - 1] != b'/') {
                     return Err(PyValueError::new_err("Invalid topic filter"));
                 }
-            }
+            },
             b'+' => {
                 let preceded = i == 0 || bytes[i - 1] == b'/';
                 let followed = i == bytes.len() - 1 || bytes[i + 1] == b'/';
                 if !preceded || !followed {
                     return Err(PyValueError::new_err("Invalid topic filter"));
                 }
-            }
-            _ => {}
+            },
+            _ => {},
         }
     }
     Ok(())
