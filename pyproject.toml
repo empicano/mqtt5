@@ -29,14 +29,14 @@ dependencies = []
 
 [dependency-groups]
 dev = [
-    "maturin>=1.13.1",
+    "maturin>=1.14.1",
     "mqttproto",
-    "pyperf>=2.9.0",
-    "pytest>=9.0.3",
-    "ruff>=0.15.0",
-    "ty>=0.0.32",
-    "typing-extensions>=4.0.0",
-    "zmqtt>=0.0.4",
+    "pyperf>=2.10.0",
+    "pytest>=9.1.1",
+    "ruff>=0.16.2",
+    "ty>=0.0.69",
+    "typing-extensions>=4.16.0",
+    "zmqtt>=0.1.0",
 ]
 
 [tool.maturin]
@@ -59,6 +59,7 @@ mqttproto = { git = "https://github.com/empicano/mqttproto.git" }
 select = ["ALL"]
 ignore = [
     "COM812",  # missing-trailing-comma
+    "CPY001",  # missing-copyright-notice
     "FIX002",  # line-contains-todo
     "TD003",   # missing-todo-link
     "PYI011",  # typed-argument-default-in-stub

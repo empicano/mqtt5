@@ -11,7 +11,7 @@ import mqtt5
 
 @pytest.mark.parametrize(
     ("packet", "packet_mqttproto"),
-    zip(conftest.PACKETS, conftest.PACKETS_MQTTPROTO, strict=True),
+    list(zip(conftest.PACKETS, conftest.PACKETS_MQTTPROTO, strict=True)),
     ids=conftest.PACKET_NAMES,
 )
 def test_compliance_mqttproto(
@@ -35,12 +35,12 @@ def test_compliance_mqttproto(
 
 @pytest.mark.parametrize(
     ("packet", "packet_zmqtt"),
-    zip(conftest.PACKETS, conftest.PACKETS_ZMQTT, strict=True),
+    list(zip(conftest.PACKETS, conftest.PACKETS_ZMQTT, strict=True)),
     ids=conftest.PACKET_NAMES,
 )
 def test_compliance_zmqtt(
     packet: mqtt5.Packet,
-    packet_zmqtt: zmqtt._internal.packets.Packet,
+    packet_zmqtt: zmqtt._internal.packets.codec.AnyPacket,
     request: pytest.FixtureRequest,
 ) -> None:
     """Test that mqtt5 writes the same bytes as zmqtt."""
