@@ -23,7 +23,7 @@ fn read(py: Python, buffer: PyBuffer<u8>) -> PyResult<(Py<PyAny>, usize)> {
     let flags = first_byte & 0x0F;
     let remaining_length = VariableByteInteger::read(&mut cursor)?;
     // Bind the cursor to the remaining bytes
-    cursor.bind(remaining_length.value() as usize)?;
+    cursor.bind(remaining_length.into())?;
     // Call the read method of the corresponding packet
     #[rustfmt::skip]
     let packet = match PacketType::new(first_byte >> 4)? {

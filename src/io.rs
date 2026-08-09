@@ -3,6 +3,7 @@ use pyo3::exceptions::{PyIndexError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyString, PyStringMethods, PyTuple};
 use pyo3::PyResult;
+use std::cmp;
 use std::fmt;
 
 pub struct WriteCursor<'a> {
@@ -56,13 +57,33 @@ impl<'a> ReadCursor<'a> {
 pub struct VariableByteInteger(u32);
 
 impl VariableByteInteger {
-    pub fn new(value: u32) -> Self {
+    pub fn new(value: usize) -> Self {
         assert!(value < 1 << 28);
-        Self(value)
+        Self(value as u32)
     }
+}
 
-    pub fn value(self) -> u32 {
-        self.0
+impl From<VariableByteInteger> for u32 {
+    fn from(value: VariableByteInteger) -> Self {
+        value.0
+    }
+}
+
+impl From<VariableByteInteger> for usize {
+    fn from(value: VariableByteInteger) -> Self {
+        value.0 as usize
+    }
+}
+
+impl PartialEq<u32> for VariableByteInteger {
+    fn eq(&self, other: &u32) -> bool {
+        self.0 == *other
+    }
+}
+
+impl PartialOrd<u32> for VariableByteInteger {
+    fn partial_cmp(&self, other: &u32) -> Option<cmp::Ordering> {
+        self.0.partial_cmp(other)
     }
 }
 

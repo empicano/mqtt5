@@ -48,7 +48,7 @@ macro_rules! read_properties {
             let properties_remaining_length = VariableByteInteger::read($cursor)?;
             let properties_start_index = $cursor.index;
             let mut seen = 0u64;
-            while $cursor.index - properties_start_index < properties_remaining_length.value() as usize {
+            while $cursor.index - properties_start_index < properties_remaining_length.into() {
                 let property_type = PropertyType::new(u8::read($cursor)?)?;
                 // Check for duplicates
                 if property_type != PropertyType::UserProperty
@@ -449,7 +449,7 @@ impl ConnectPacket {
             PropertyType::MaxPacketSize => max_packet_size: (Option<u32>) = None,
             PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = PyList::empty(py),
         });
-        let properties_remaining_length = VariableByteInteger::new(properties_nbytes as u32);
+        let properties_remaining_length = VariableByteInteger::new(properties_nbytes);
         let will_properties_nbytes = self
             .will
             .as_ref()
@@ -463,7 +463,7 @@ impl ConnectPacket {
                 PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = PyList::empty(py),
             }));
         let will_properties_remaining_length =
-            VariableByteInteger::new(will_properties_nbytes as u32);
+            VariableByteInteger::new(will_properties_nbytes);
         let nbytes = PROTOCOL_NAME.nbytes()
             + PROTOCOL_VERSION.nbytes()
             + 0u8.nbytes()
@@ -479,7 +479,7 @@ impl ConnectPacket {
             })
             + self.username.nbytes()
             + self.password.nbytes();
-        let remaining_length = VariableByteInteger::new(nbytes as u32);
+        let remaining_length = VariableByteInteger::new(nbytes);
         PyBytes::new_with(py, 1 + remaining_length.nbytes() + nbytes, |buffer| {
             let mut cursor = WriteCursor::new(buffer, 0);
 
@@ -814,12 +814,12 @@ impl ConnAckPacket {
             PropertyType::SharedSubscriptionAvailable => shared_subscription_available: bool = true,
             PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = PyList::empty(py),
         });
-        let properties_remaining_length = VariableByteInteger::new(properties_nbytes as u32);
+        let properties_remaining_length = VariableByteInteger::new(properties_nbytes);
         let nbytes = 0u8.nbytes()
             + self.reason_code.nbytes()
             + properties_remaining_length.nbytes()
             + properties_nbytes;
-        let remaining_length = VariableByteInteger::new(nbytes as u32);
+        let remaining_length = VariableByteInteger::new(nbytes);
         PyBytes::new_with(py, 1 + remaining_length.nbytes() + nbytes, |buffer| {
             let mut cursor = WriteCursor::new(buffer, 0);
 
@@ -1051,7 +1051,7 @@ impl PublishPacket {
             for item in subscription_ids.bind(py).iter() {
                 let subscription_id: VariableByteInteger = item.extract()?;
                 subscription_id.check_size(py)?;
-                if subscription_id.value() == 0 {
+                if subscription_id == 0 {
                     return Err(PyValueError::new_err("Subscription ID must be != 0"));
                 }
             }
@@ -1095,13 +1095,13 @@ impl PublishPacket {
             PropertyType::TopicAlias => topic_alias: (Option<u16>) = None,
             PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = PyList::empty(py),
         });
-        let properties_remaining_length = VariableByteInteger::new(properties_nbytes as u32);
+        let properties_remaining_length = VariableByteInteger::new(properties_nbytes);
         let nbytes = self.topic.nbytes()
             + self.packet_id.nbytes()
             + properties_remaining_length.nbytes()
             + properties_nbytes
             + payload.len();
-        let remaining_length = VariableByteInteger::new(nbytes as u32);
+        let remaining_length = VariableByteInteger::new(nbytes);
         PyBytes::new_with(py, 1 + remaining_length.nbytes() + nbytes, |buffer| {
             let mut cursor = WriteCursor::new(buffer, 0);
 
@@ -1185,7 +1185,7 @@ impl PublishPacket {
             PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = PyList::empty(py),
         });
         for item in subscription_ids.iter() {
-            if item.extract::<VariableByteInteger>()?.value() == 0 {
+            if item.extract::<VariableByteInteger>()? == 0 {
                 return Err(PyValueError::new_err("Subscription ID must be != 0"));
             }
         }
@@ -1282,7 +1282,7 @@ impl PubAckPacket {
             PropertyType::ReasonStr => reason_str: (Option<Py<PyString>>) = None,
             PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = PyList::empty(py),
         });
-        let properties_remaining_length = VariableByteInteger::new(properties_nbytes as u32);
+        let properties_remaining_length = VariableByteInteger::new(properties_nbytes);
         let nbytes = self.packet_id.nbytes()
             + if self.reason_code != PubAckReasonCode::Success || properties_nbytes > 0 {
                 self.reason_code.nbytes()
@@ -1294,7 +1294,7 @@ impl PubAckPacket {
             } else {
                 0
             };
-        let remaining_length = VariableByteInteger::new(nbytes as u32);
+        let remaining_length = VariableByteInteger::new(nbytes);
         PyBytes::new_with(py, 1 + remaining_length.nbytes() + nbytes, |buffer| {
             let mut cursor = WriteCursor::new(buffer, 0);
 
@@ -1411,7 +1411,7 @@ impl PubRecPacket {
             PropertyType::ReasonStr => reason_str: (Option<Py<PyString>>) = None,
             PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = PyList::empty(py),
         });
-        let properties_remaining_length = VariableByteInteger::new(properties_nbytes as u32);
+        let properties_remaining_length = VariableByteInteger::new(properties_nbytes);
         let nbytes = self.packet_id.nbytes()
             + if self.reason_code != PubRecReasonCode::Success || properties_nbytes > 0 {
                 self.reason_code.nbytes()
@@ -1423,7 +1423,7 @@ impl PubRecPacket {
             } else {
                 0
             };
-        let remaining_length = VariableByteInteger::new(nbytes as u32);
+        let remaining_length = VariableByteInteger::new(nbytes);
         PyBytes::new_with(py, 1 + remaining_length.nbytes() + nbytes, |buffer| {
             let mut cursor = WriteCursor::new(buffer, 0);
 
@@ -1540,7 +1540,7 @@ impl PubRelPacket {
             PropertyType::ReasonStr => reason_str: (Option<Py<PyString>>) = None,
             PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = PyList::empty(py),
         });
-        let properties_remaining_length = VariableByteInteger::new(properties_nbytes as u32);
+        let properties_remaining_length = VariableByteInteger::new(properties_nbytes);
         let nbytes = self.packet_id.nbytes()
             + if self.reason_code != PubRelReasonCode::Success || properties_nbytes > 0 {
                 self.reason_code.nbytes()
@@ -1552,7 +1552,7 @@ impl PubRelPacket {
             } else {
                 0
             };
-        let remaining_length = VariableByteInteger::new(nbytes as u32);
+        let remaining_length = VariableByteInteger::new(nbytes);
         PyBytes::new_with(py, 1 + remaining_length.nbytes() + nbytes, |buffer| {
             let mut cursor = WriteCursor::new(buffer, 0);
 
@@ -1669,7 +1669,7 @@ impl PubCompPacket {
             PropertyType::ReasonStr => reason_str: (Option<Py<PyString>>) = None,
             PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = PyList::empty(py),
         });
-        let properties_remaining_length = VariableByteInteger::new(properties_nbytes as u32);
+        let properties_remaining_length = VariableByteInteger::new(properties_nbytes);
         let nbytes = self.packet_id.nbytes()
             + if self.reason_code != PubCompReasonCode::Success || properties_nbytes > 0 {
                 self.reason_code.nbytes()
@@ -1681,7 +1681,7 @@ impl PubCompPacket {
             } else {
                 0
             };
-        let remaining_length = VariableByteInteger::new(nbytes as u32);
+        let remaining_length = VariableByteInteger::new(nbytes);
         PyBytes::new_with(py, 1 + remaining_length.nbytes() + nbytes, |buffer| {
             let mut cursor = WriteCursor::new(buffer, 0);
 
@@ -1785,7 +1785,7 @@ impl SubscribePacket {
     ) -> PyResult<Self> {
         if let Some(subscription_id) = subscription_id {
             subscription_id.check_size(py)?;
-            if subscription_id.value() == 0 {
+            if subscription_id == 0 {
                 return Err(PyValueError::new_err("Subscription ID must be != 0"));
             }
         }
@@ -1808,7 +1808,7 @@ impl SubscribePacket {
             PropertyType::SubscriptionId => subscription_id: (Option<VariableByteInteger>) = None,
             PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = PyList::empty(py),
         });
-        let properties_remaining_length = VariableByteInteger::new(properties_nbytes as u32);
+        let properties_remaining_length = VariableByteInteger::new(properties_nbytes);
         let topic_filters = self.topic_filters.bind(py);
         let nbytes = self.packet_id.nbytes()
             + properties_remaining_length.nbytes()
@@ -1818,7 +1818,7 @@ impl SubscribePacket {
                 .try_fold(0, |acc, item| -> PyResult<usize> {
                     Ok(acc + item.extract::<PyRef<TopicFilter>>()?.pattern.nbytes() + 1)
                 })?;
-        let remaining_length = VariableByteInteger::new(nbytes as u32);
+        let remaining_length = VariableByteInteger::new(nbytes);
         PyBytes::new_with(py, 1 + remaining_length.nbytes() + nbytes, |buffer| {
             let mut cursor = WriteCursor::new(buffer, 0);
 
@@ -1875,7 +1875,7 @@ impl SubscribePacket {
             PropertyType::SubscriptionId => subscription_id: (Option<VariableByteInteger>) = None,
             PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = PyList::empty(py),
         });
-        if subscription_id.is_some_and(|subscription_id| subscription_id.value() == 0) {
+        if subscription_id.is_some_and(|subscription_id| subscription_id == 0) {
             return Err(PyValueError::new_err("Subscription ID must be != 0"));
         }
 
@@ -1954,7 +1954,7 @@ impl SubAckPacket {
             PropertyType::ReasonStr => reason_str: (Option<Py<PyString>>) = None,
             PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = PyList::empty(py),
         });
-        let properties_remaining_length = VariableByteInteger::new(properties_nbytes as u32);
+        let properties_remaining_length = VariableByteInteger::new(properties_nbytes);
         let reason_codes = self.reason_codes.bind(py);
         let nbytes = self.packet_id.nbytes()
             + properties_remaining_length.nbytes()
@@ -1964,7 +1964,7 @@ impl SubAckPacket {
                 .try_fold(0, |acc, item| -> PyResult<usize> {
                     Ok(acc + item?.extract::<PyRef<SubAckReasonCode>>()?.nbytes())
                 })?;
-        let remaining_length = VariableByteInteger::new(nbytes as u32);
+        let remaining_length = VariableByteInteger::new(nbytes);
         PyBytes::new_with(py, 1 + remaining_length.nbytes() + nbytes, |buffer| {
             let mut cursor = WriteCursor::new(buffer, 0);
 
@@ -2088,7 +2088,7 @@ impl UnsubscribePacket {
         let properties_nbytes = nbytes_properties!(self, {
             PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = PyList::empty(py),
         });
-        let properties_remaining_length = VariableByteInteger::new(properties_nbytes as u32);
+        let properties_remaining_length = VariableByteInteger::new(properties_nbytes);
         let patterns = self.patterns.bind(py);
         let nbytes = self.packet_id.nbytes()
             + properties_remaining_length.nbytes()
@@ -2098,7 +2098,7 @@ impl UnsubscribePacket {
                 .try_fold(0, |acc, item| -> PyResult<usize> {
                     Ok(acc + item.extract::<Py<PyString>>()?.nbytes())
                 })?;
-        let remaining_length = VariableByteInteger::new(nbytes as u32);
+        let remaining_length = VariableByteInteger::new(nbytes);
         PyBytes::new_with(py, 1 + remaining_length.nbytes() + nbytes, |buffer| {
             let mut cursor = WriteCursor::new(buffer, 0);
 
@@ -2207,7 +2207,7 @@ impl UnsubAckPacket {
             PropertyType::ReasonStr => reason_str: (Option<Py<PyString>>) = None,
             PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = PyList::empty(py),
         });
-        let properties_remaining_length = VariableByteInteger::new(properties_nbytes as u32);
+        let properties_remaining_length = VariableByteInteger::new(properties_nbytes);
         let reason_codes = self.reason_codes.bind(py);
         let nbytes = self.packet_id.nbytes()
             + properties_remaining_length.nbytes()
@@ -2217,7 +2217,7 @@ impl UnsubAckPacket {
                 .try_fold(0, |acc, item| -> PyResult<usize> {
                     Ok(acc + item?.extract::<PyRef<UnsubAckReasonCode>>()?.nbytes())
                 })?;
-        let remaining_length = VariableByteInteger::new(nbytes as u32);
+        let remaining_length = VariableByteInteger::new(nbytes);
         PyBytes::new_with(py, 1 + remaining_length.nbytes() + nbytes, |buffer| {
             let mut cursor = WriteCursor::new(buffer, 0);
 
@@ -2442,7 +2442,7 @@ impl DisconnectPacket {
             PropertyType::ReasonStr => reason_str: (Option<Py<PyString>>) = None,
             PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = PyList::empty(py),
         });
-        let properties_remaining_length = VariableByteInteger::new(properties_nbytes as u32);
+        let properties_remaining_length = VariableByteInteger::new(properties_nbytes);
         let nbytes = if self.reason_code != DisconnectReasonCode::NormalDisconnection
             || properties_nbytes > 0
         {
@@ -2454,7 +2454,7 @@ impl DisconnectPacket {
         } else {
             0
         };
-        let remaining_length = VariableByteInteger::new(nbytes as u32);
+        let remaining_length = VariableByteInteger::new(nbytes);
         PyBytes::new_with(py, 1 + remaining_length.nbytes() + nbytes, |buffer| {
             let mut cursor = WriteCursor::new(buffer, 0);
 
@@ -2586,10 +2586,10 @@ impl AuthPacket {
             PropertyType::ReasonStr => reason_str: (Option<Py<PyString>>) = None,
             PropertyType::UserProperty => user_properties: (Py<PyList<UserProperty>>) = PyList::empty(py),
         });
-        let properties_remaining_length = VariableByteInteger::new(properties_nbytes as u32);
+        let properties_remaining_length = VariableByteInteger::new(properties_nbytes);
         let nbytes =
             self.reason_code.nbytes() + properties_remaining_length.nbytes() + properties_nbytes;
-        let remaining_length = VariableByteInteger::new(nbytes as u32);
+        let remaining_length = VariableByteInteger::new(nbytes);
         PyBytes::new_with(py, 1 + remaining_length.nbytes() + nbytes, |buffer| {
             let mut cursor = WriteCursor::new(buffer, 0);
 

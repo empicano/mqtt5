@@ -12,7 +12,7 @@ pub trait CheckSize {
 
 impl CheckSize for VariableByteInteger {
     fn check_size(&self, _py: Python) -> PyResult<()> {
-        if self.value() >= 1 << 28 {
+        if *self >= 1 << 28 {
             return Err(PyValueError::new_err(
                 "Variable byte integer must be < 2**28",
             ));
